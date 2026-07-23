@@ -90,6 +90,7 @@ struct SceneObject
     glm::vec3 velocity = glm::vec3(0.0f);
     bool isPhysicsEnabled = false;
     std::string luaScript = "";
+    sol::table luaInstance = sol::lua_nil;
     PhysicsBodyData* bodyData = nullptr;
 
     // Rendering variables

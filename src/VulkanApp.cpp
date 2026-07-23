@@ -2197,9 +2197,9 @@ void VulkanApp::renderImGuiUI()
             {
                 mode = AppMode::EDIT;
                 updateWindowTitle();
-                // Restore player pos
                 for (auto& obj : sceneObjects)
                 {
+                    obj.luaInstance = sol::lua_nil;
                     if (obj.name == "Player Cube")
                     {
                         obj.position = playerStartPos;
@@ -2217,6 +2217,7 @@ void VulkanApp::renderImGuiUI()
                 // Restore player pos
                 for (auto& obj : sceneObjects)
                 {
+                    obj.luaInstance = sol::lua_nil;
                     if (obj.name == "Player Cube")
                     {
                         obj.position = playerStartPos;
@@ -2231,13 +2232,31 @@ void VulkanApp::renderImGuiUI()
             {
                 mode = AppMode::PLAY;
                 updateWindowTitle();
-                // Save player start pos
-                for (const auto& obj : sceneObjects)
+                // Save player start pos and Init Lua Scripts
+                for (auto& obj : sceneObjects)
                 {
                     if (obj.name == "Player Cube")
                     {
                         playerStartPos = obj.position;
-                        break;
+                    }
+                    if (!obj.luaScript.empty())
+                    {
+                        try {
+                            sol::protected_function_result result = luaState.script(obj.luaScript);
+                            if (result.valid() && result.get_type() == sol::type::table) {
+                                obj.luaInstance = result;
+                                sol::protected_function onStart = obj.luaInstance["onStart"];
+                                if (onStart.valid()) {
+                                    auto res = onStart(obj.luaInstance, &obj);
+                                    if (!res.valid()) {
+                                        sol::error err = res;
+                                        printf("Lua onStart error: %s\n", err.what());
+                                    }
+                                }
+                            }
+                        } catch (const sol::error& e) {
+                            printf("Lua syntax error: %s\n", e.what());
+                        }
                     }
                 }
                 gameScore = 0;
@@ -2484,6 +2503,18 @@ void VulkanApp::renderImGuiUI()
                 else
                 {
                     ImGui::Checkbox("Enable Gravity Physics", &obj.isPhysicsEnabled);
+                }
+            }
+            ImGui::Spacing();
+            
+            if (ImGui::CollapsingHeader("Lua Scripting (OOP)", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::TextDisabled("Write OOP script for this object.");
+                static char scriptBuf[8192];
+                strncpy(scriptBuf, obj.luaScript.c_str(), sizeof(scriptBuf));
+                if (ImGui::InputTextMultiline("##LuaScript", scriptBuf, sizeof(scriptBuf), ImVec2(-1.0f, 200.0f), ImGuiInputTextFlags_AllowTabInput))
+                {
+                    obj.luaScript = scriptBuf;
                 }
             }
             ImGui::Spacing();
@@ -3339,6 +3370,24 @@ void VulkanApp::updatePhysics(float deltaTime)
 {
     // Make sure deltaTime is reasonable
     if (deltaTime > 0.1f) deltaTime = 0.1f;
+
+    // 0. Update Lua OOP Scripts
+    for (auto& obj : sceneObjects)
+    {
+        if (obj.luaInstance.valid())
+        {
+            sol::protected_function onUpdate = obj.luaInstance["onUpdate"];
+            if (onUpdate.valid())
+            {
+                auto res = onUpdate(obj.luaInstance, &obj, deltaTime);
+                if (!res.valid())
+                {
+                    sol::error err = res;
+                    printf("Lua onUpdate error: %s\n", err.what());
+                }
+            }
+        }
+    }
 
     SceneObject* player = nullptr;
     for (auto& obj : sceneObjects)
