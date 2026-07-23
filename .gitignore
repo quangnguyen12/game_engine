@@ -1,0 +1,17 @@
+build/
+.vs/
+out/
+bin/
+obj/
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+.vscode/
+CMakeCache.txt
+CMakeFiles/
+.cmake/
+CMakeUserPresets.json
+CMakeSettings.json
+*.user

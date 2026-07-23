@@ -1,0 +1,4503 @@
+#include "VulkanApp.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#define TINYGLTF_IMPLEMENTATION
+#define TINYGLTF_NO_STB_IMAGE
+#define TINYGLTF_NO_STB_IMAGE_WRITE
+#define TINYGLTF_NO_EXTERNAL_IMAGE
+#include <tiny_gltf.h>
+#define TINYOBJLOADER_IMPLEMENTATION
+#define TINYOBJLOADER_DONT_INCLUDE_FAST_FLOAT
+#include "tiny_obj_loader.h"
+
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
+#include "tinyfiledialogs.h"
+
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
+#include <algorithm>
+#include <chrono>
+#include <set>
+#include <cstring>
+#include <sstream>
+
+extern "C" {
+    __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
+    __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
+
+const std::vector<const char*> deviceExtensions = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
+const std::vector<Vertex> vertices = {
+    // Front face (Vibrant Red/Orange)
+    {{-0.5f, -0.5f,  0.5f}, {1.0f, 0.2f, 0.3f}},
+    {{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.5f, 0.2f}},
+    {{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.8f, 0.2f}},
+    {{-0.5f,  0.5f,  0.5f}, {1.0f, 0.3f, 0.5f}},
+
+    // Back face (Vibrant Green/Emerald)
+    {{ 0.5f, -0.5f, -0.5f}, {0.1f, 0.9f, 0.3f}},
+    {{-0.5f, -0.5f, -0.5f}, {0.2f, 1.0f, 0.5f}},
+    {{-0.5f,  0.5f, -0.5f}, {0.3f, 0.9f, 0.7f}},
+    {{ 0.5f,  0.5f, -0.5f}, {0.1f, 0.8f, 0.4f}},
+
+    // Top face (Vibrant Blue/Cyan)
+    {{-0.5f, -0.5f, -0.5f}, {0.1f, 0.5f, 1.0f}},
+    {{ 0.5f, -0.5f, -0.5f}, {0.2f, 0.6f, 1.0f}},
+    {{ 0.5f, -0.5f,  0.5f}, {0.4f, 0.2f, 1.0f}},
+    {{-0.5f, -0.5f,  0.5f}, {0.1f, 0.4f, 1.0f}},
+
+    // Bottom face (Vibrant Yellow/Gold)
+    {{-0.5f,  0.5f,  0.5f}, {1.0f, 0.9f, 0.1f}},
+    {{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.7f, 0.2f}},
+    {{ 0.5f,  0.5f, -0.5f}, {1.0f, 0.9f, 0.3f}},
+    {{-0.5f,  0.5f, -0.5f}, {1.0f, 0.8f, 0.1f}},
+
+    // Right face (Vibrant Purple/Pink)
+    {{ 0.5f, -0.5f,  0.5f}, {0.9f, 0.2f, 0.9f}},
+    {{ 0.5f, -0.5f, -0.5f}, {0.7f, 0.1f, 1.0f}},
+    {{ 0.5f,  0.5f, -0.5f}, {1.0f, 0.3f, 0.9f}},
+    {{ 0.5f,  0.5f,  0.5f}, {0.8f, 0.2f, 1.0f}},
+
+    // Left face (Vibrant Teal/Cyan)
+    {{-0.5f, -0.5f, -0.5f}, {0.1f, 0.9f, 0.9f}},
+    {{-0.5f, -0.5f,  0.5f}, {0.2f, 1.0f, 0.8f}},
+    {{-0.5f,  0.5f,  0.5f}, {0.1f, 0.8f, 1.0f}},
+    {{-0.5f,  0.5f, -0.5f}, {0.3f, 0.9f, 1.0f}}
+};
+
+const std::vector<uint16_t> indices = {
+    0,  1,  2,  2,  3,  0,  // Front
+    4,  5,  6,  6,  7,  4,  // Back
+    8,  9,  10, 10, 11, 8,  // Top
+    12, 13, 14, 14, 15, 12, // Bottom
+    16, 17, 18, 18, 19, 16, // Right
+    20, 21, 22, 22, 23, 20  // Left
+};
+
+static std::vector<char> readFile(const std::string& filename)
+{
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open())
+    {
+        throw std::runtime_error("Failed to open file: " + filename);
+    }
+
+    size_t fileSize = (size_t)file.tellg();
+    std::vector<char> buffer(fileSize);
+
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+    file.close();
+
+    return buffer;
+}
+
+static const char* getDeviceTypeString(VkPhysicalDeviceType type)
+{
+    switch (type)
+    {
+    case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+        return "Discrete GPU (GPU rời)";
+    case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+        return "Integrated GPU (GPU tích hợp)";
+    case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+        return "Virtual GPU";
+    case VK_PHYSICAL_DEVICE_TYPE_CPU:
+        return "CPU (Software Renderer)";
+    default:
+        return "Unknown GPU";
+    }
+}
+
+static int rateDeviceSuitability(VkPhysicalDevice device, const VkPhysicalDeviceProperties& properties)
+{
+    int score = 0;
+
+    if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    {
+        score += 10000;
+    }
+    else if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+    {
+        score += 100;
+    }
+
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(device, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryHeapCount; i++)
+    {
+        if (memProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+        {
+            score += static_cast<int>(memProperties.memoryHeaps[i].size / (1024 * 1024));
+        }
+    }
+
+    return score;
+}
+
+void VulkanApp::run()
+{
+    initWindow();
+    initVulkan();
+    physEngine.init();
+
+    // Initialize Lua & Sol2
+    luaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string);
+    
+    // Bind SceneObject to Lua
+    luaState.new_usertype<SceneObject>("SceneObject",
+        "name", &SceneObject::name,
+        "position", &SceneObject::position,
+        "rotation", &SceneObject::rotation,
+        "scale", &SceneObject::scale,
+        "velocity", &SceneObject::velocity
+    );
+    
+    // Bind glm::vec3
+    luaState.new_usertype<glm::vec3>("vec3",
+        sol::constructors<glm::vec3(), glm::vec3(float, float, float)>(),
+        "x", &glm::vec3::x,
+        "y", &glm::vec3::y,
+        "z", &glm::vec3::z
+    );
+    // Create shared primitive meshes once (requires Vulkan device to be ready)
+    primitiveCubeMeshId   = createCubeMesh();
+    primitiveSphereMeshId = createSphereMesh();
+    primitivePlaneMeshId  = createPlaneMesh();
+    initializeDefaultScene();
+    initImGui();
+    mainLoop();
+    cleanup();
+}
+
+void VulkanApp::initWindow()
+{
+    if (!glfwInit())
+    {
+        throw std::runtime_error("Failed to initialize GLFW");
+    }
+
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+    window = glfwCreateWindow(WIDTH, HEIGHT, "Unity Hub 3D Vulkan Engine", nullptr, nullptr);
+    if (!window)
+    {
+        throw std::runtime_error("Failed to create GLFW window");
+    }
+
+    glfwSetWindowUserPointer(window, this);
+    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+    glfwSetKeyCallback(window, keyCallback);
+    glfwSetMouseButtonCallback(window, mouseButtonCallback);
+    glfwSetCursorPosCallback(window, cursorPosCallback);
+    glfwSetScrollCallback(window, scrollCallback);
+
+    updateWindowTitle();
+}
+
+void VulkanApp::updateWindowTitle()
+{
+    if (mode == AppMode::PLAY)
+    {
+        glfwSetWindowTitle(window, "Unity Hub 3D Vulkan Engine | [PLAY MODE]");
+    }
+    else
+    {
+        glfwSetWindowTitle(window, "Unity Hub 3D Vulkan Engine | [EDIT MODE]");
+    }
+}
+
+void VulkanApp::framebufferResizeCallback(GLFWwindow* window, int width, int height)
+{
+    auto app = reinterpret_cast<VulkanApp*>(glfwGetWindowUserPointer(window));
+    app->framebufferResized = true;
+}
+
+void VulkanApp::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (ImGui::GetIO().WantCaptureKeyboard) return;
+
+    auto app = reinterpret_cast<VulkanApp*>(glfwGetWindowUserPointer(window));
+
+    if (action == GLFW_PRESS)
+    {
+        if (key == GLFW_KEY_SPACE || key == GLFW_KEY_TAB || key == GLFW_KEY_E)
+        {
+            if (app->mode == AppMode::PLAY)
+            {
+                app->mode = AppMode::EDIT;
+            }
+            else
+            {
+                app->mode = AppMode::PLAY;
+            }
+            app->updateWindowTitle();
+        }
+    }
+}
+
+void VulkanApp::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (ImGui::GetIO().WantCaptureMouse) return;
+
+    auto app = reinterpret_cast<VulkanApp*>(glfwGetWindowUserPointer(window));
+
+    if (button == GLFW_MOUSE_BUTTON_LEFT)
+    {
+        if (action == GLFW_PRESS)
+        {
+            app->isDragging = true;
+            glfwGetCursorPos(window, &app->lastMouseX, &app->lastMouseY);
+        }
+        else if (action == GLFW_RELEASE)
+        {
+            app->isDragging = false;
+        }
+    }
+}
+
+void VulkanApp::cursorPosCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    if (ImGui::GetIO().WantCaptureMouse) return;
+
+    auto app = reinterpret_cast<VulkanApp*>(glfwGetWindowUserPointer(window));
+
+    if (app->isDragging && app->mode == AppMode::EDIT)
+    {
+        double dx = xpos - app->lastMouseX;
+        double dy = ypos - app->lastMouseY;
+
+        app->editRotationY += static_cast<float>(dx) * 0.5f;
+        app->editRotationX += static_cast<float>(dy) * 0.5f;
+
+        app->lastMouseX = xpos;
+        app->lastMouseY = ypos;
+    }
+}
+
+void VulkanApp::scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    if (ImGui::GetIO().WantCaptureMouse) return;
+
+    auto app = reinterpret_cast<VulkanApp*>(glfwGetWindowUserPointer(window));
+
+    if (app->mode == AppMode::EDIT)
+    {
+        app->cameraDistance -= static_cast<float>(yoffset) * 0.3f;
+        app->cameraDistance = std::clamp(app->cameraDistance, 1.0f, 15.0f);
+    }
+}
+
+void VulkanApp::createOffscreenResources()
+{
+    // Color attachment
+    createImage(WIDTH, HEIGHT, swapChainImageFormat, VK_IMAGE_TILING_OPTIMAL, 
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, offscreenColorImage, offscreenColorImageMemory);
+    offscreenColorImageView = createImageView(offscreenColorImage, swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    // Depth attachment
+    VkFormat depthFormat = findDepthFormat();
+    createImage(WIDTH, HEIGHT, depthFormat, VK_IMAGE_TILING_OPTIMAL, 
+                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, offscreenDepthImage, offscreenDepthImageMemory);
+    offscreenDepthImageView = createImageView(offscreenDepthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    // Render Pass
+    VkAttachmentDescription colorAttachment{};
+    colorAttachment.format = swapChainImageFormat;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // For ImGui
+
+    VkAttachmentDescription depthAttachment{};
+    depthAttachment.format = depthFormat;
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthAttachmentRef{};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+    subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+    // Dependency 1: External → Subpass 0 (prepare for rendering)
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dependency.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    // Dependency 2: Subpass 0 → External (transition to shader-readable for ImGui)
+    VkSubpassDependency dependency2{};
+    dependency2.srcSubpass = 0;
+    dependency2.dstSubpass = VK_SUBPASS_EXTERNAL;
+    dependency2.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency2.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency2.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dependency2.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    dependency2.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    std::array<VkSubpassDependency, 2> dependencies = {dependency, dependency2};
+    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+    VkRenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+    renderPassInfo.pAttachments = attachments.data();
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+    renderPassInfo.pDependencies = dependencies.data();
+
+    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &offscreenRenderPass) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create offscreen render pass!");
+
+    // Framebuffer
+    std::array<VkImageView, 2> fbAttachments = {offscreenColorImageView, offscreenDepthImageView};
+    VkFramebufferCreateInfo framebufferInfo{};
+    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebufferInfo.renderPass = offscreenRenderPass;
+    framebufferInfo.attachmentCount = static_cast<uint32_t>(fbAttachments.size());
+    framebufferInfo.pAttachments = fbAttachments.data();
+    framebufferInfo.width = WIDTH;
+    framebufferInfo.height = HEIGHT;
+    framebufferInfo.layers = 1;
+
+    if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &offscreenFramebuffer) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create offscreen framebuffer!");
+
+    // Sampler
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    
+    if (vkCreateSampler(device, &samplerInfo, nullptr, &offscreenSampler) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create offscreen sampler!");
+
+    // ---- Game View Framebuffer (uses Main Camera, reuses offscreenRenderPass) ----
+    VkFormat gameDepthFormat = findDepthFormat();
+    createImage(WIDTH, HEIGHT, swapChainImageFormat, VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, gameColorImage, gameColorImageMemory);
+    gameColorImageView = createImageView(gameColorImage, swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    createImage(WIDTH, HEIGHT, gameDepthFormat, VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, gameDepthImage, gameDepthImageMemory);
+    gameDepthImageView = createImageView(gameDepthImage, gameDepthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    std::array<VkImageView, 2> gameAttachments = {gameColorImageView, gameDepthImageView};
+    VkFramebufferCreateInfo gameFbInfo{};
+    gameFbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    gameFbInfo.renderPass = offscreenRenderPass; // reuse same render pass
+    gameFbInfo.attachmentCount = static_cast<uint32_t>(gameAttachments.size());
+    gameFbInfo.pAttachments = gameAttachments.data();
+    gameFbInfo.width = WIDTH;
+    gameFbInfo.height = HEIGHT;
+    gameFbInfo.layers = 1;
+    if (vkCreateFramebuffer(device, &gameFbInfo, nullptr, &gameFramebuffer) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create game framebuffer!");
+
+    // Sampler for game view (same settings)
+    if (vkCreateSampler(device, &samplerInfo, nullptr, &gameSampler) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create game sampler!");
+}
+
+
+VkCommandBuffer VulkanApp::beginSingleTimeCommands() {
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    return commandBuffer;
+}
+
+void VulkanApp::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphicsQueue);
+    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
+void VulkanApp::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    VkPipelineStageFlags sourceStage;
+    VkPipelineStageFlags destinationStage;
+
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else {
+        throw std::invalid_argument("unsupported layout transition!");
+    }
+
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        sourceStage, destinationStage,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier
+    );
+
+    endSingleTimeCommands(commandBuffer);
+}
+
+void VulkanApp::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {width, height, 1};
+
+    vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+    endSingleTimeCommands(commandBuffer);
+}
+
+void VulkanApp::loadTexture(const std::string& path, Texture& texture) {
+    int texWidth, texHeight, texChannels;
+    stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    VkDeviceSize imageSize = texWidth * texHeight * 4;
+    
+    if (!pixels) {
+        throw std::runtime_error("failed to load texture image!");
+    }
+    
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+    
+    void* data;
+    vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, pixels, static_cast<size_t>(imageSize));
+    vkUnmapMemory(device, stagingBufferMemory);
+    stbi_image_free(pixels);
+    
+    createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture.image, texture.memory);
+    
+    transitionImageLayout(texture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(stagingBuffer, texture.image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+    transitionImageLayout(texture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+    
+    texture.view = createImageView(texture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+    
+    // Create descriptor set for this texture
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &textureSetLayout;
+
+    if (vkAllocateDescriptorSets(device, &allocInfo, &texture.descriptorSet) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate texture descriptor set!");
+    }
+
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = texture.view;
+    imageInfo.sampler = offscreenSampler; // Reuse the sampler we created earlier
+
+    VkWriteDescriptorSet descriptorWrite{};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = texture.descriptorSet;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+}
+
+void VulkanApp::createDefaultTexture() {
+    VkDeviceSize imageSize = 4;
+    uint8_t pixels[4] = {255, 255, 255, 255};
+    
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+    
+    void* data;
+    vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, pixels, static_cast<size_t>(imageSize));
+    vkUnmapMemory(device, stagingBufferMemory);
+    
+    createImage(1, 1, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, defaultTexture.image, defaultTexture.memory);
+    
+    transitionImageLayout(defaultTexture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(stagingBuffer, defaultTexture.image, 1, 1);
+    transitionImageLayout(defaultTexture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+    
+    defaultTexture.view = createImageView(defaultTexture.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+    
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &textureSetLayout;
+
+    if (vkAllocateDescriptorSets(device, &allocInfo, &defaultTexture.descriptorSet) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate default texture descriptor set!");
+    }
+
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = defaultTexture.view;
+    imageInfo.sampler = offscreenSampler;
+
+    VkWriteDescriptorSet descriptorWrite{};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = defaultTexture.descriptorSet;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+}
+
+void VulkanApp::createMeshBuffers(Mesh& mesh) {
+    // Vertex Buffer
+    VkDeviceSize bufferSize = sizeof(mesh.vertices[0]) * mesh.vertices.size();
+    
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+    
+    void* data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, mesh.vertices.data(), (size_t) bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+    
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mesh.vertexBuffer, mesh.vertexBufferMemory);
+    
+    copyBuffer(stagingBuffer, mesh.vertexBuffer, bufferSize);
+    
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+    
+    // Index Buffer
+    bufferSize = sizeof(mesh.indices[0]) * mesh.indices.size();
+    
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+    
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, mesh.indices.data(), (size_t) bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+    
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mesh.indexBuffer, mesh.indexBufferMemory);
+    
+    copyBuffer(stagingBuffer, mesh.indexBuffer, bufferSize);
+    
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void VulkanApp::loadModel(const std::string& path, Mesh& mesh)
+{
+    mesh.vertices.clear();
+    mesh.indices.clear();
+
+    std::string ext = path.substr(path.find_last_of('.') + 1);
+    for(auto& c : ext) c = tolower(c);
+
+    if (ext == "glb" || ext == "gltf") {
+        tinygltf::Model gltfModel;
+        tinygltf::TinyGLTF loader;
+        std::string err, warn;
+        bool ret = false;
+        
+        // Dummy image loader to prevent "No LoadImageData callback specified" error 
+        // since we defined TINYGLTF_NO_STB_IMAGE and don't need textures from GLTF yet.
+        loader.SetImageLoader([](tinygltf::Image*, const int, std::string*, std::string*, int, int, const unsigned char*, int, void*) -> bool {
+            return true;
+        }, nullptr);
+        
+        if (ext == "glb") {
+            ret = loader.LoadBinaryFromFile(&gltfModel, &err, &warn, path);
+        } else {
+            ret = loader.LoadASCIIFromFile(&gltfModel, &err, &warn, path);
+        }
+        
+        if (!warn.empty()) printf("GLTF Warn: %s\n", warn.c_str());
+        if (!err.empty()) printf("GLTF Err: %s\n", err.c_str());
+        if (!ret) throw std::runtime_error("Failed to parse glTF: " + path);
+        
+        const tinygltf::Scene& scene = gltfModel.scenes[gltfModel.defaultScene > -1 ? gltfModel.defaultScene : 0];
+        
+        // Simple recursive node parsing to extract all meshes
+        std::function<void(int, const glm::mat4&)> processNode = [&](int nodeIndex, const glm::mat4& parentMatrix) {
+            const tinygltf::Node& node = gltfModel.nodes[nodeIndex];
+            glm::mat4 matrix = parentMatrix;
+            
+            // local transform
+            if (node.matrix.size() == 16) {
+                glm::mat4 localMat;
+                for (int i=0; i<16; ++i) localMat[i/4][i%4] = (float)node.matrix[i];
+                matrix = matrix * localMat;
+            } else {
+                glm::mat4 t(1.0f), r(1.0f), s(1.0f);
+                if (node.translation.size() == 3) t = glm::translate(glm::mat4(1.0f), glm::vec3((float)node.translation[0], (float)node.translation[1], (float)node.translation[2]));
+                if (node.rotation.size() == 4) {
+                    glm::quat q((float)node.rotation[3], (float)node.rotation[0], (float)node.rotation[1], (float)node.rotation[2]);
+                    r = glm::mat4_cast(q);
+                }
+                if (node.scale.size() == 3) s = glm::scale(glm::mat4(1.0f), glm::vec3((float)node.scale[0], (float)node.scale[1], (float)node.scale[2]));
+                matrix = matrix * t * r * s;
+            }
+            
+            if (node.mesh > -1) {
+                const tinygltf::Mesh& gmesh = gltfModel.meshes[node.mesh];
+                for (size_t i = 0; i < gmesh.primitives.size(); ++i) {
+                    const tinygltf::Primitive& primitive = gmesh.primitives[i];
+                    
+                    uint32_t vertexStart = static_cast<uint32_t>(mesh.vertices.size());
+                    
+                    // Positions
+                    const unsigned char* positionDataBytes = nullptr;
+                    size_t vertexCount = 0;
+                    size_t posStride = 0;
+                    if (primitive.attributes.find("POSITION") != primitive.attributes.end()) {
+                        const tinygltf::Accessor& accessor = gltfModel.accessors[primitive.attributes.find("POSITION")->second];
+                        const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
+                        const tinygltf::Buffer& buffer = gltfModel.buffers[bufferView.buffer];
+                        positionDataBytes = &buffer.data[bufferView.byteOffset + accessor.byteOffset];
+                        vertexCount = accessor.count;
+                        posStride = accessor.ByteStride(bufferView);
+                    }
+                    
+                    // Normals
+                    const unsigned char* normalDataBytes = nullptr;
+                    size_t normStride = 0;
+                    if (primitive.attributes.find("NORMAL") != primitive.attributes.end()) {
+                        const tinygltf::Accessor& accessor = gltfModel.accessors[primitive.attributes.find("NORMAL")->second];
+                        const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
+                        const tinygltf::Buffer& buffer = gltfModel.buffers[bufferView.buffer];
+                        normalDataBytes = &buffer.data[bufferView.byteOffset + accessor.byteOffset];
+                        normStride = accessor.ByteStride(bufferView);
+                    }
+                    
+                    // TexCoords
+                    const unsigned char* texcoordDataBytes = nullptr;
+                    size_t texStride = 0;
+                    if (primitive.attributes.find("TEXCOORD_0") != primitive.attributes.end()) {
+                        const tinygltf::Accessor& accessor = gltfModel.accessors[primitive.attributes.find("TEXCOORD_0")->second];
+                        const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
+                        const tinygltf::Buffer& buffer = gltfModel.buffers[bufferView.buffer];
+                        texcoordDataBytes = &buffer.data[bufferView.byteOffset + accessor.byteOffset];
+                        texStride = accessor.ByteStride(bufferView);
+                    }
+                    
+                    for (size_t v = 0; v < vertexCount; ++v) {
+                        Vertex vertex{};
+                        if (positionDataBytes) {
+                            const float* pos = reinterpret_cast<const float*>(positionDataBytes + v * posStride);
+                            glm::vec4 localPos = glm::vec4(pos[0], pos[1], pos[2], 1.0f);
+                            vertex.pos = glm::vec3(matrix * localPos);
+                        } else {
+                            vertex.pos = glm::vec3(0.0f);
+                        }
+                        
+                        if (normalDataBytes) {
+                            const float* norm = reinterpret_cast<const float*>(normalDataBytes + v * normStride);
+                            glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(matrix)));
+                            vertex.normal = glm::normalize(normalMatrix * glm::vec3(norm[0], norm[1], norm[2]));
+                        } else {
+                            vertex.normal = {0.0f, 1.0f, 0.0f};
+                        }
+                        
+                        if (texcoordDataBytes) {
+                            const float* tex = reinterpret_cast<const float*>(texcoordDataBytes + v * texStride);
+                            vertex.texCoord = {tex[0], tex[1]};
+                        } else {
+                            vertex.texCoord = {0.0f, 0.0f};
+                        }
+                        
+                        vertex.color = {1.0f, 1.0f, 1.0f};
+                        mesh.vertices.push_back(vertex);
+                    }
+                    
+                    // Indices
+                    if (primitive.indices > -1) {
+                        const tinygltf::Accessor& accessor = gltfModel.accessors[primitive.indices];
+                        const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
+                        const tinygltf::Buffer& buffer = gltfModel.buffers[bufferView.buffer];
+                        
+                        if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT) {
+                            const uint32_t* indexData = reinterpret_cast<const uint32_t*>(&buffer.data[bufferView.byteOffset + accessor.byteOffset]);
+                            for (size_t ind = 0; ind < accessor.count; ++ind) {
+                                mesh.indices.push_back(vertexStart + indexData[ind]);
+                            }
+                        } else if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+                            const uint16_t* indexData = reinterpret_cast<const uint16_t*>(&buffer.data[bufferView.byteOffset + accessor.byteOffset]);
+                            for (size_t ind = 0; ind < accessor.count; ++ind) {
+                                mesh.indices.push_back(vertexStart + indexData[ind]);
+                            }
+                        } else if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+                            const uint8_t* indexData = reinterpret_cast<const uint8_t*>(&buffer.data[bufferView.byteOffset + accessor.byteOffset]);
+                            for (size_t ind = 0; ind < accessor.count; ++ind) {
+                                mesh.indices.push_back(vertexStart + indexData[ind]);
+                            }
+                        }
+                    } else {
+                        // Non-indexed
+                        for (size_t v = 0; v < vertexCount; ++v) {
+                            mesh.indices.push_back(static_cast<uint32_t>(vertexStart + v));
+                        }
+                    }
+                }
+            }
+            
+            for (int child : node.children) {
+                processNode(child, matrix);
+            }
+        };
+        
+        for (int nodeIdx : scene.nodes) {
+            processNode(nodeIdx, glm::mat4(1.0f));
+        }
+        
+    } else {
+        // Fallback to OBJ
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string warn, err;
+
+        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.c_str()))
+            throw std::runtime_error(warn + err);
+        
+        for (const auto& shape : shapes) {
+            for (const auto& idx : shape.mesh.indices) {
+                Vertex vertex{};
+                vertex.pos = {
+                    attrib.vertices[3 * idx.vertex_index + 0],
+                    attrib.vertices[3 * idx.vertex_index + 1],
+                    attrib.vertices[3 * idx.vertex_index + 2]
+                };
+                
+                if (idx.texcoord_index >= 0) {
+                    vertex.texCoord = {
+                        attrib.texcoords[2 * idx.texcoord_index + 0],
+                        1.0f - attrib.texcoords[2 * idx.texcoord_index + 1]
+                    };
+                }
+                if (idx.normal_index >= 0) {
+                    vertex.normal = {
+                        attrib.normals[3 * idx.normal_index + 0],
+                        attrib.normals[3 * idx.normal_index + 1],
+                        attrib.normals[3 * idx.normal_index + 2]
+                    };
+                }
+                vertex.color = {1.0f, 1.0f, 1.0f};
+
+                mesh.vertices.push_back(vertex);
+                mesh.indices.push_back(static_cast<uint32_t>(mesh.vertices.size()) - 1);
+            }
+        }
+    }
+    
+    mesh.indexCount = static_cast<uint32_t>(mesh.indices.size());
+}
+
+
+// ---- Procedural Mesh Generators ----
+
+int VulkanApp::createCubeMesh()
+{
+    Mesh mesh;
+
+    // Each face: 4 vertices, 6 indices
+    // Normals per face
+    struct FaceDef { glm::vec3 normal; glm::vec3 verts[4]; glm::vec3 colors[4]; };
+    std::vector<FaceDef> faces = {
+        // Front (+Z)
+        { {0,0,1}, { {-0.5f,-0.5f,0.5f},{0.5f,-0.5f,0.5f},{0.5f,0.5f,0.5f},{-0.5f,0.5f,0.5f} },
+          { {1.0f,0.2f,0.3f},{1.0f,0.5f,0.2f},{1.0f,0.8f,0.2f},{1.0f,0.3f,0.5f} } },
+        // Back (-Z)
+        { {0,0,-1}, { {0.5f,-0.5f,-0.5f},{-0.5f,-0.5f,-0.5f},{-0.5f,0.5f,-0.5f},{0.5f,0.5f,-0.5f} },
+          { {0.1f,0.9f,0.3f},{0.2f,1.0f,0.5f},{0.3f,0.9f,0.7f},{0.1f,0.8f,0.4f} } },
+        // Top (-Y in Vulkan)
+        { {0,-1,0}, { {-0.5f,-0.5f,-0.5f},{0.5f,-0.5f,-0.5f},{0.5f,-0.5f,0.5f},{-0.5f,-0.5f,0.5f} },
+          { {0.1f,0.5f,1.0f},{0.2f,0.6f,1.0f},{0.4f,0.2f,1.0f},{0.1f,0.4f,1.0f} } },
+        // Bottom (+Y in Vulkan)
+        { {0,1,0}, { {-0.5f,0.5f,0.5f},{0.5f,0.5f,0.5f},{0.5f,0.5f,-0.5f},{-0.5f,0.5f,-0.5f} },
+          { {1.0f,0.9f,0.1f},{1.0f,0.7f,0.2f},{1.0f,0.9f,0.3f},{1.0f,0.8f,0.1f} } },
+        // Right (+X)
+        { {1,0,0}, { {0.5f,-0.5f,0.5f},{0.5f,-0.5f,-0.5f},{0.5f,0.5f,-0.5f},{0.5f,0.5f,0.5f} },
+          { {0.9f,0.2f,0.9f},{0.7f,0.1f,1.0f},{1.0f,0.3f,0.9f},{0.8f,0.2f,1.0f} } },
+        // Left (-X)
+        { {-1,0,0}, { {-0.5f,-0.5f,-0.5f},{-0.5f,-0.5f,0.5f},{-0.5f,0.5f,0.5f},{-0.5f,0.5f,-0.5f} },
+          { {0.1f,0.9f,0.9f},{0.2f,1.0f,0.8f},{0.1f,0.8f,1.0f},{0.3f,0.9f,1.0f} } },
+    };
+
+    glm::vec2 uvs[4] = { {0,1},{1,1},{1,0},{0,0} };
+
+    for (auto& face : faces) {
+        uint32_t base = static_cast<uint32_t>(mesh.vertices.size());
+        for (int v = 0; v < 4; v++) {
+            Vertex vert{};
+            vert.pos      = face.verts[v];
+            vert.color    = face.colors[v];
+            vert.normal   = face.normal;
+            vert.texCoord = uvs[v];
+            mesh.vertices.push_back(vert);
+        }
+        mesh.indices.insert(mesh.indices.end(), {base,base+1,base+2, base+2,base+3,base});
+    }
+
+    mesh.indexCount = static_cast<uint32_t>(mesh.indices.size());
+    createMeshBuffers(mesh);
+    meshes.push_back(std::move(mesh));
+    return static_cast<int>(meshes.size()) - 1;
+}
+
+int VulkanApp::createSphereMesh(int stacks, int slices)
+{
+    Mesh mesh;
+    const float PI = glm::pi<float>();
+
+    for (int i = 0; i <= stacks; ++i) {
+        float phi = PI * float(i) / float(stacks); // 0..PI
+        for (int j = 0; j <= slices; ++j) {
+            float theta = 2.0f * PI * float(j) / float(slices);
+            Vertex v{};
+            v.pos = { std::sin(phi)*std::cos(theta)*0.5f,
+                     -std::cos(phi)*0.5f,
+                      std::sin(phi)*std::sin(theta)*0.5f };
+            v.normal   = glm::normalize(v.pos);
+            v.color    = { 0.9f + 0.1f*std::sin(theta), 0.7f, 0.3f };
+            v.texCoord = { float(j)/float(slices), float(i)/float(stacks) };
+            mesh.vertices.push_back(v);
+        }
+    }
+
+    for (int i = 0; i < stacks; ++i) {
+        for (int j = 0; j < slices; ++j) {
+            uint32_t r0 = (uint32_t)((i  )*(slices+1) + j);
+            uint32_t r1 = (uint32_t)((i+1)*(slices+1) + j);
+            mesh.indices.insert(mesh.indices.end(), {r0, r1, r0+1, r1, r1+1, r0+1});
+        }
+    }
+
+    mesh.indexCount = static_cast<uint32_t>(mesh.indices.size());
+    createMeshBuffers(mesh);
+    meshes.push_back(std::move(mesh));
+    return static_cast<int>(meshes.size()) - 1;
+}
+
+int VulkanApp::createPlaneMesh()
+{
+    Mesh mesh;
+    // A flat plane on XZ, centered at origin, size 1x1
+    glm::vec3 normal = {0, 1, 0};
+    glm::vec3 cols[4] = {
+        {0.35f,0.35f,0.4f}, {0.3f,0.3f,0.38f},
+        {0.4f,0.4f,0.45f},  {0.32f,0.32f,0.4f}
+    };
+    glm::vec3 pos[4] = {
+        {-0.5f, 0.0f, -0.5f}, {0.5f, 0.0f, -0.5f},
+        {0.5f,  0.0f,  0.5f}, {-0.5f, 0.0f, 0.5f}
+    };
+    glm::vec2 uvs[4] = { {0,0},{1,0},{1,1},{0,1} };
+    for (int i = 0; i < 4; i++) {
+        Vertex v{};
+        v.pos = pos[i]; v.normal = normal; v.color = cols[i]; v.texCoord = uvs[i];
+        mesh.vertices.push_back(v);
+    }
+    mesh.indices = {0,2,1, 0,3,2};
+    mesh.indexCount = static_cast<uint32_t>(mesh.indices.size());
+    createMeshBuffers(mesh);
+    meshes.push_back(std::move(mesh));
+    return static_cast<int>(meshes.size()) - 1;
+}
+
+void VulkanApp::initVulkan()
+{
+    createInstance();
+    createSurface();
+    pickPhysicalDevice();
+    createLogicalDevice();
+    createSwapChain();
+    createImageViews();
+    createRenderPass();
+    createShadowRenderPass();
+    createDescriptorSetLayout();
+    createGraphicsPipeline();
+    createCommandPool();
+    createShadowResources();
+    createShadowPipeline();
+    createDepthResources();
+    createFramebuffers();
+    createVertexBuffer();
+    createIndexBuffer();
+    createUniformBuffers();
+    createDescriptorPool();
+    createDescriptorSets();
+    createCommandBuffers();
+    createOffscreenResources(); // Add offscreen resources
+    createDefaultTexture();     // Default 1x1 white texture
+    createSyncObjects();
+}
+
+void VulkanApp::createInstance()
+{
+    VkApplicationInfo appInfo{};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName = "Unity Hub Vulkan Engine";
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.pEngineName = "No Engine";
+    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion = VK_API_VERSION_1_0;
+
+    VkInstanceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    createInfo.pApplicationInfo = &appInfo;
+
+    uint32_t glfwExtensionCount = 0;
+    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+    createInfo.enabledExtensionCount = glfwExtensionCount;
+    createInfo.ppEnabledExtensionNames = glfwExtensions;
+    createInfo.enabledLayerCount = 0;
+
+    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create Vulkan instance!");
+    }
+}
+
+void VulkanApp::createSurface()
+{
+    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create window surface!");
+    }
+}
+
+void VulkanApp::pickPhysicalDevice()
+{
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+
+    if (deviceCount == 0)
+    {
+        throw std::runtime_error("Failed to find GPUs with Vulkan support!");
+    }
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+    int bestScore = -1;
+    for (const auto& dev : devices)
+    {
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(dev, &properties);
+
+        bool suitable = isDeviceSuitable(dev);
+        int score = suitable ? rateDeviceSuitability(dev, properties) : -1;
+
+        if (suitable && score > bestScore)
+        {
+            physicalDevice = dev;
+            bestScore = score;
+        }
+    }
+
+    if (physicalDevice == VK_NULL_HANDLE)
+    {
+        throw std::runtime_error("Failed to find a suitable GPU!");
+    }
+
+    VkPhysicalDeviceProperties selectedProps;
+    vkGetPhysicalDeviceProperties(physicalDevice, &selectedProps);
+    selectedGpuName = selectedProps.deviceName;
+}
+
+bool VulkanApp::isDeviceSuitable(VkPhysicalDevice dev)
+{
+    QueueFamilyIndices indices = findQueueFamilies(dev);
+    bool extensionsSupported = checkDeviceExtensionSupport(dev);
+
+    bool swapChainAdequate = false;
+    if (extensionsSupported)
+    {
+        SwapChainSupportDetails swapChainSupport = querySwapChainSupport(dev);
+        swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+    }
+
+    return indices.isComplete() && extensionsSupported && swapChainAdequate;
+}
+
+bool VulkanApp::checkDeviceExtensionSupport(VkPhysicalDevice dev)
+{
+    uint32_t extensionCount;
+    vkEnumerateDeviceExtensionProperties(dev, nullptr, &extensionCount, nullptr);
+
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(dev, nullptr, &extensionCount, availableExtensions.data());
+
+    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+
+    for (const auto& extension : availableExtensions)
+    {
+        requiredExtensions.erase(extension.extensionName);
+    }
+
+    return requiredExtensions.empty();
+}
+
+QueueFamilyIndices VulkanApp::findQueueFamilies(VkPhysicalDevice dev)
+{
+    QueueFamilyIndices indices;
+
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(dev, &queueFamilyCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(dev, &queueFamilyCount, queueFamilies.data());
+
+    int i = 0;
+    for (const auto& queueFamily : queueFamilies)
+    {
+        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            indices.graphicsFamily = i;
+        }
+
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(dev, i, surface, &presentSupport);
+
+        if (presentSupport)
+        {
+            indices.presentFamily = i;
+        }
+
+        if (indices.isComplete())
+        {
+            break;
+        }
+
+        i++;
+    }
+
+    return indices;
+}
+
+SwapChainSupportDetails VulkanApp::querySwapChainSupport(VkPhysicalDevice dev)
+{
+    SwapChainSupportDetails details;
+
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dev, surface, &details.capabilities);
+
+    uint32_t formatCount;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(dev, surface, &formatCount, nullptr);
+
+    if (formatCount != 0)
+    {
+        details.formats.resize(formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(dev, surface, &formatCount, details.formats.data());
+    }
+
+    uint32_t presentModeCount;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(dev, surface, &presentModeCount, nullptr);
+
+    if (presentModeCount != 0)
+    {
+        details.presentModes.resize(presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(dev, surface, &presentModeCount, details.presentModes.data());
+    }
+
+    return details;
+}
+
+void VulkanApp::createLogicalDevice()
+{
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+
+    float queuePriority = 1.0f;
+    for (uint32_t queueFamily : uniqueQueueFamilies)
+    {
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfos.push_back(queueCreateInfo);
+    }
+
+    VkPhysicalDeviceFeatures deviceFeatures{};
+
+    VkDeviceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
+    createInfo.pEnabledFeatures = &deviceFeatures;
+
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+    createInfo.enabledLayerCount = 0;
+
+    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create logical device!");
+    }
+
+    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
+    vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
+}
+
+VkSurfaceFormatKHR VulkanApp::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
+{
+    for (const auto& availableFormat : availableFormats)
+    {
+        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
+            return availableFormat;
+        }
+    }
+    return availableFormats[0];
+}
+
+VkPresentModeKHR VulkanApp::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
+{
+    for (const auto& availablePresentMode : availablePresentModes)
+    {
+        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+        {
+            return availablePresentMode;
+        }
+    }
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D VulkanApp::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities)
+{
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    {
+        return capabilities.currentExtent;
+    }
+    else
+    {
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+
+        VkExtent2D actualExtent = {
+            static_cast<uint32_t>(width),
+            static_cast<uint32_t>(height)
+        };
+
+        actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+        actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+        return actualExtent;
+    }
+}
+
+void VulkanApp::createSwapChain()
+{
+    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
+
+    VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
+    VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
+    VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
+
+    uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
+    {
+        imageCount = swapChainSupport.capabilities.maxImageCount;
+    }
+
+    VkSwapchainCreateInfoKHR createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    createInfo.surface = surface;
+    createInfo.minImageCount = imageCount;
+    createInfo.imageFormat = surfaceFormat.format;
+    createInfo.imageColorSpace = surfaceFormat.colorSpace;
+    createInfo.imageExtent = extent;
+    createInfo.imageArrayLayers = 1;
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+    uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+
+    if (indices.graphicsFamily != indices.presentFamily)
+    {
+        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        createInfo.queueFamilyIndexCount = 2;
+        createInfo.pQueueFamilyIndices = queueFamilyIndices;
+    }
+    else
+    {
+        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    }
+
+    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode = presentMode;
+    createInfo.clipped = VK_TRUE;
+    createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+    if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create swap chain!");
+    }
+
+    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
+    swapChainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
+
+    swapChainImageFormat = surfaceFormat.format;
+    swapChainExtent = extent;
+}
+
+void VulkanApp::createImageViews()
+{
+    swapChainImageViews.resize(swapChainImages.size());
+
+    for (size_t i = 0; i < swapChainImages.size(); i++)
+    {
+        swapChainImageViews[i] = createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+    }
+}
+
+VkImageView VulkanApp::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
+{
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = image;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = format;
+    viewInfo.subresourceRange.aspectMask = aspectFlags;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    VkImageView imageView;
+    if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create image view!");
+    }
+
+    return imageView;
+}
+
+void VulkanApp::createRenderPass()
+{
+    VkAttachmentDescription colorAttachment{};
+    colorAttachment.format = swapChainImageFormat;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentDescription depthAttachment{};
+    depthAttachment.format = findDepthFormat();
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthAttachmentRef{};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+    subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
+    VkRenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+    renderPassInfo.pAttachments = attachments.data();
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &dependency;
+
+    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create render pass!");
+    }
+}
+
+void VulkanApp::createDescriptorSetLayout()
+{
+    // UBO Layout (Set 0)
+    VkDescriptorSetLayoutBinding uboLayoutBinding{};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    uboLayoutBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutCreateInfo uboLayoutInfo{};
+    uboLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    uboLayoutInfo.bindingCount = 1;
+    uboLayoutInfo.pBindings = &uboLayoutBinding;
+
+    if (vkCreateDescriptorSetLayout(device, &uboLayoutInfo, nullptr, &uboSetLayout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create UBO descriptor set layout!");
+    }
+    
+    // Texture Layout (Set 1)
+    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+    samplerLayoutBinding.binding = 0;
+    samplerLayoutBinding.descriptorCount = 1;
+    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplerLayoutBinding.pImmutableSamplers = nullptr;
+    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutCreateInfo texLayoutInfo{};
+    texLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    texLayoutInfo.bindingCount = 1;
+    texLayoutInfo.pBindings = &samplerLayoutBinding;
+
+    if (vkCreateDescriptorSetLayout(device, &texLayoutInfo, nullptr, &textureSetLayout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create Texture descriptor set layout!");
+    }
+}
+
+void VulkanApp::createGraphicsPipeline()
+{
+    std::vector<char> vertShaderCode;
+    std::vector<char> fragShaderCode;
+
+    try
+    {
+        vertShaderCode = readFile("vert.spv");
+        fragShaderCode = readFile("frag.spv");
+    }
+    catch (...)
+    {
+        vertShaderCode = readFile("shaders/vert.spv");
+        fragShaderCode = readFile("shaders/frag.spv");
+    }
+
+    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertShaderStageInfo.module = vertShaderModule;
+    vertShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragShaderStageInfo.module = fragShaderModule;
+    fragShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.scissorCount = 1;
+
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.depthBiasEnable = VK_FALSE;
+
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthWriteEnable = VK_TRUE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.stencilTestEnable = VK_FALSE;
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_FALSE;
+
+    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.logicOp = VK_LOGIC_OP_COPY;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+
+    std::vector<VkDynamicState> dynamicStates = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    std::array<VkDescriptorSetLayout, 2> setLayouts = {uboSetLayout, textureSetLayout};
+    pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(setLayouts.size());
+    pipelineLayoutInfo.pSetLayouts = setLayouts.data();
+
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create pipeline layout!");
+    }
+
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = &depthStencil;
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = pipelineLayout;
+    pipelineInfo.renderPass = offscreenRenderPass;
+    pipelineInfo.subpass = 0;
+
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create graphics pipeline!");
+    }
+
+    vkDestroyShaderModule(device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+}
+
+VkShaderModule VulkanApp::createShaderModule(const std::vector<char>& code)
+{
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+    VkShaderModule shaderModule;
+    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create shader module!");
+    }
+
+    return shaderModule;
+}
+
+void VulkanApp::createFramebuffers()
+{
+    swapChainFramebuffers.resize(swapChainImageViews.size());
+
+    for (size_t i = 0; i < swapChainImageViews.size(); i++)
+    {
+        std::array<VkImageView, 2> attachments = {
+            swapChainImageViews[i],
+            depthImageView
+        };
+
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = renderPass;
+        framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+        framebufferInfo.pAttachments = attachments.data();
+        framebufferInfo.width = swapChainExtent.width;
+        framebufferInfo.height = swapChainExtent.height;
+        framebufferInfo.layers = 1;
+
+        if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to create framebuffer!");
+        }
+    }
+}
+
+void VulkanApp::createCommandPool()
+{
+    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
+
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+
+    if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create command pool!");
+    }
+}
+
+VkFormat VulkanApp::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
+{
+    for (VkFormat format : candidates)
+    {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+        {
+            return format;
+        }
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+        {
+            return format;
+        }
+    }
+
+    throw std::runtime_error("Failed to find supported format!");
+}
+
+VkFormat VulkanApp::findDepthFormat()
+{
+    return findSupportedFormat(
+        { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+    );
+}
+
+void VulkanApp::createDepthResources()
+{
+    VkFormat depthFormat = findDepthFormat();
+
+    createImage(
+        swapChainExtent.width,
+        swapChainExtent.height,
+        depthFormat,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        depthImage,
+        depthImageMemory
+    );
+
+    depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+}
+
+void VulkanApp::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory)
+{
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = format;
+    imageInfo.tiling = tiling;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = usage;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create image!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(device, image, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate image memory!");
+    }
+
+    vkBindImageMemory(device, image, imageMemory, 0);
+}
+
+uint32_t VulkanApp::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+    {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("Failed to find suitable memory type!");
+}
+
+void VulkanApp::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create buffer!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate buffer memory!");
+    }
+
+    vkBindBufferMemory(device, buffer, bufferMemory, 0);
+}
+
+void VulkanApp::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+{
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion{};
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphicsQueue);
+
+    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
+void VulkanApp::createVertexBuffer()
+{
+    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingBufferMemory
+    );
+
+    void* data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    std::memcpy(data, vertices.data(), (size_t)bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        vertexBuffer,
+        vertexBufferMemory
+    );
+
+    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void VulkanApp::createIndexBuffer()
+{
+    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingBufferMemory
+    );
+
+    void* data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    std::memcpy(data, indices.data(), (size_t)bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        indexBuffer,
+        indexBufferMemory
+    );
+
+    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void VulkanApp::createUniformBuffers()
+{
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+    // Scene camera UBOs
+    uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    // Game camera UBOs
+    gameUniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    gameUniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    gameUniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            uniformBuffers[i], uniformBuffersMemory[i]);
+        vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
+
+        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            gameUniformBuffers[i], gameUniformBuffersMemory[i]);
+        vkMapMemory(device, gameUniformBuffersMemory[i], 0, bufferSize, 0, &gameUniformBuffersMapped[i]);
+    }
+}
+
+void VulkanApp::createDescriptorPool()
+{
+    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[1].descriptorCount = 1000; // Allow up to 1000 textures
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+    poolInfo.pPoolSizes = poolSizes.data();
+    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2 + 1000; // scene+game frames + textures
+
+    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create descriptor pool!");
+    }
+}
+
+void VulkanApp::createDescriptorSets()
+{
+    // --- Scene camera descriptor sets ---
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, uboSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    allocInfo.pSetLayouts = layouts.data();
+
+    descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS)
+        throw std::runtime_error("Failed to allocate scene descriptor sets!");
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        VkDescriptorBufferInfo bufferInfo{ uniformBuffers[i], 0, sizeof(UniformBufferObject) };
+        VkWriteDescriptorSet dw{};
+        dw.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        dw.dstSet = descriptorSets[i];
+        dw.dstBinding = 0;
+        dw.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        dw.descriptorCount = 1;
+        dw.pBufferInfo = &bufferInfo;
+        vkUpdateDescriptorSets(device, 1, &dw, 0, nullptr);
+    }
+
+    // --- Game camera descriptor sets ---
+    gameDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(device, &allocInfo, gameDescriptorSets.data()) != VK_SUCCESS)
+        throw std::runtime_error("Failed to allocate game descriptor sets!");
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        VkDescriptorBufferInfo bufferInfo{ gameUniformBuffers[i], 0, sizeof(UniformBufferObject) };
+        VkWriteDescriptorSet dw{};
+        dw.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        dw.dstSet = gameDescriptorSets[i];
+        dw.dstBinding = 0;
+        dw.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        dw.descriptorCount = 1;
+        dw.pBufferInfo = &bufferInfo;
+        vkUpdateDescriptorSets(device, 1, &dw, 0, nullptr);
+    }
+}
+
+void VulkanApp::setupUnityStyle()
+{
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    style.WindowRounding = 6.0f;
+    style.ChildRounding = 4.0f;
+    style.FrameRounding = 4.0f;
+    style.PopupRounding = 4.0f;
+    style.ScrollbarRounding = 4.0f;
+    style.GrabRounding = 3.0f;
+    style.TabRounding = 4.0f;
+
+    style.WindowPadding = ImVec2(10.0f, 10.0f);
+    style.FramePadding = ImVec2(8.0f, 4.0f);
+    style.ItemSpacing = ImVec2(8.0f, 6.0f);
+
+    ImVec4* colors = style.Colors;
+    colors[ImGuiCol_Text]                  = ImVec4(0.92f, 0.93f, 0.94f, 1.00f);
+    colors[ImGuiCol_TextDisabled]          = ImVec4(0.50f, 0.52f, 0.54f, 1.00f);
+    colors[ImGuiCol_WindowBg]              = ImVec4(0.13f, 0.14f, 0.17f, 0.94f);
+    colors[ImGuiCol_ChildBg]               = ImVec4(0.16f, 0.17f, 0.20f, 0.80f);
+    colors[ImGuiCol_PopupBg]               = ImVec4(0.15f, 0.16f, 0.19f, 0.96f);
+    colors[ImGuiCol_Border]                = ImVec4(0.24f, 0.26f, 0.30f, 0.60f);
+    colors[ImGuiCol_FrameBg]               = ImVec4(0.20f, 0.22f, 0.26f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered]        = ImVec4(0.28f, 0.30f, 0.36f, 1.00f);
+    colors[ImGuiCol_FrameBgActive]         = ImVec4(0.34f, 0.36f, 0.42f, 1.00f);
+    colors[ImGuiCol_TitleBg]               = ImVec4(0.11f, 0.12f, 0.14f, 1.00f);
+    colors[ImGuiCol_TitleBgActive]         = ImVec4(0.16f, 0.18f, 0.22f, 1.00f);
+    colors[ImGuiCol_MenuBarBg]             = ImVec4(0.10f, 0.11f, 0.13f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg]           = ImVec4(0.12f, 0.13f, 0.15f, 0.60f);
+    colors[ImGuiCol_ScrollbarGrab]         = ImVec4(0.26f, 0.28f, 0.34f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered]  = ImVec4(0.34f, 0.36f, 0.44f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabActive]   = ImVec4(0.40f, 0.42f, 0.50f, 1.00f);
+    colors[ImGuiCol_CheckMark]             = ImVec4(0.00f, 0.58f, 0.96f, 1.00f);
+    colors[ImGuiCol_SliderGrab]            = ImVec4(0.00f, 0.58f, 0.96f, 1.00f);
+    colors[ImGuiCol_SliderGrabActive]      = ImVec4(0.18f, 0.68f, 1.00f, 1.00f);
+    colors[ImGuiCol_Button]                = ImVec4(0.22f, 0.24f, 0.29f, 1.00f);
+    colors[ImGuiCol_ButtonHovered]         = ImVec4(0.00f, 0.52f, 0.88f, 1.00f);
+    colors[ImGuiCol_ButtonActive]          = ImVec4(0.00f, 0.44f, 0.76f, 1.00f);
+    colors[ImGuiCol_Header]                = ImVec4(0.20f, 0.23f, 0.28f, 1.00f);
+    colors[ImGuiCol_HeaderHovered]         = ImVec4(0.00f, 0.52f, 0.88f, 0.80f);
+    colors[ImGuiCol_HeaderActive]          = ImVec4(0.00f, 0.44f, 0.76f, 1.00f);
+    colors[ImGuiCol_Separator]             = ImVec4(0.25f, 0.27f, 0.32f, 1.00f);
+    colors[ImGuiCol_Tab]                   = ImVec4(0.16f, 0.17f, 0.20f, 1.00f);
+    colors[ImGuiCol_TabHovered]            = ImVec4(0.00f, 0.52f, 0.88f, 0.80f);
+    colors[ImGuiCol_TabActive]             = ImVec4(0.22f, 0.25f, 0.30f, 1.00f);
+}
+
+void VulkanApp::initImGui()
+{
+    VkDescriptorPoolSize pool_sizes[] = {
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+    };
+
+    VkDescriptorPoolCreateInfo pool_info{};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000;
+    pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+    pool_info.pPoolSizes = pool_sizes;
+
+    if (vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiDescriptorPool) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create ImGui descriptor pool!");
+    }
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    setupUnityStyle();
+
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+
+    ImGui_ImplGlfw_InitForVulkan(window, true);
+
+    ImGui_ImplVulkan_InitInfo init_info{};
+    init_info.Instance = instance;
+    init_info.PhysicalDevice = physicalDevice;
+    init_info.Device = device;
+    init_info.QueueFamily = indices.graphicsFamily.value();
+    init_info.Queue = graphicsQueue;
+    init_info.DescriptorPool = imguiDescriptorPool;
+    init_info.RenderPass = renderPass;
+    init_info.MinImageCount = MAX_FRAMES_IN_FLIGHT;
+    init_info.ImageCount = static_cast<uint32_t>(swapChainImages.size());
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+    ImGui_ImplVulkan_Init(&init_info);
+
+    // Scene view texture
+    offscreenDescriptorSet = ImGui_ImplVulkan_AddTexture(
+        offscreenSampler,
+        offscreenColorImageView,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    );
+
+    // Game view texture (uses Main Camera)
+    gameViewDescriptorSet = ImGui_ImplVulkan_AddTexture(
+        gameSampler,
+        gameColorImageView,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    );
+}
+
+void VulkanApp::renderImGuiUI()
+{
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    // Handle editor hotkeys for gizmo switching (Q = Hand, W = Translate, E = Rotate, R = Scale, T = Rect, Y = Combined)
+    if (mode == AppMode::EDIT)
+    {
+        // Undo / Redo
+        if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
+        {
+            undo();
+        }
+        if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))
+        {
+            redo();
+        }
+        
+        if (ImGui::IsKeyPressed(ImGuiKey_Q))
+        {
+            activeGizmo = GizmoType::HAND;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_W))
+        {
+            activeGizmo = GizmoType::TRANSLATE;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_E))
+        {
+            activeGizmo = GizmoType::ROTATE;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_R))
+        {
+            activeGizmo = GizmoType::SCALE;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_T))
+        {
+            activeGizmo = GizmoType::RECT;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Y))
+        {
+            activeGizmo = GizmoType::TRANSFORM_COMBINED;
+        }
+    }
+
+    // Get current GLFW window size for dynamic tiling layout
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    float windowWidth = static_cast<float>(width);
+    float windowHeight = static_cast<float>(height);
+
+    float menuBarHeight = 25.0f;
+    float bottomBarHeight = 95.0f;
+    float leftPanelWidth = 260.0f;
+    float rightPanelWidth = 330.0f;
+    float centerWidth = windowWidth - leftPanelWidth - rightPanelWidth;
+    float centerHeight = windowHeight - menuBarHeight - bottomBarHeight;
+
+    if (centerWidth < 100.0f) centerWidth = 100.0f;
+    if (centerHeight < 100.0f) centerHeight = 100.0f;
+
+    // 1. Top Menu Bar with File Save/Load and Play/Edit Controls
+    if (ImGui::BeginMainMenuBar())
+    {
+        ImGui::TextColored(ImVec4(0.9f, 0.5f, 0.0f, 1.0f), "  ⚙️  ANTIGRAVITY ENGINE");
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("File"))
+        {
+            if (ImGui::MenuItem("New Scene"))
+            {
+                initializeDefaultScene();
+                gameScore = 0;
+            }
+            if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
+            {
+                saveScene("scene.json");
+            }
+            if (ImGui::MenuItem("Load Scene", "Ctrl+L"))
+            {
+                loadScene("scene.json");
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::Separator();
+
+        if (mode == AppMode::PLAY)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.65f, 0.32f, 1.0f));
+            if (ImGui::Button(" [ > PLAYING ] "))
+            {
+                mode = AppMode::EDIT;
+                updateWindowTitle();
+                // Restore player pos
+                for (auto& obj : sceneObjects)
+                {
+                    if (obj.name == "Player Cube")
+                    {
+                        obj.position = playerStartPos;
+                        obj.velocity = glm::vec3(0.0f);
+                    }
+                }
+            }
+            ImGui::PopStyleColor();
+
+            ImGui::SameLine();
+            if (ImGui::Button(" [ STOP ] "))
+            {
+                mode = AppMode::EDIT;
+                updateWindowTitle();
+                // Restore player pos
+                for (auto& obj : sceneObjects)
+                {
+                    if (obj.name == "Player Cube")
+                    {
+                        obj.position = playerStartPos;
+                        obj.velocity = glm::vec3(0.0f);
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (ImGui::Button(" [ PLAY ] "))
+            {
+                mode = AppMode::PLAY;
+                updateWindowTitle();
+                // Save player start pos
+                for (const auto& obj : sceneObjects)
+                {
+                    if (obj.name == "Player Cube")
+                    {
+                        playerStartPos = obj.position;
+                        break;
+                    }
+                }
+                gameScore = 0;
+            }
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button(showGameViewWindow ? " [ [x] Game View Window ] " : " [ [ ] Game View Window ] "))
+        {
+            showGameViewWindow = !showGameViewWindow;
+        }
+
+        ImGui::Separator();
+        ImGui::Text("GPU: %s", selectedGpuName.c_str());
+
+        ImGui::Separator();
+        ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+
+        ImGui::EndMainMenuBar();
+    }
+
+    // 2. Hierarchy Panel (Left Window)
+    ImGui::SetNextWindowPos(ImVec2(0.0f, menuBarHeight));
+    ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, centerHeight));
+    if (ImGui::Begin("Hierarchy", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+    {
+        // Add Object button
+        if (ImGui::Button(" + Create ", ImVec2(-1, 25)))
+        {
+            ImGui::OpenPopup("CreateObjectPopup");
+        }
+        
+        if (ImGui::BeginPopup("CreateObjectPopup"))
+        {
+            if (ImGui::MenuItem("3D Cube"))
+            {
+                saveHistory();
+                SceneObject newObj;
+                newObj.id = sceneObjects.size();
+                newObj.name = "Cube " + std::to_string(sceneObjects.size());
+                newObj.type = ObjectType::CUBE;
+                newObj.position = glm::vec3(0.0f, 0.0f, 0.0f);
+                newObj.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+                newObj.scale = glm::vec3(0.5f, 0.5f, 0.5f);
+                newObj.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+                newObj.isPhysicsEnabled = false;
+                newObj.meshId = primitiveCubeMeshId;
+                sceneObjects.push_back(newObj);
+                selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+            }
+            if (ImGui::MenuItem("3D Sphere"))
+            {
+                saveHistory();
+                SceneObject newObj;
+                newObj.id = sceneObjects.size();
+                newObj.name = "Sphere " + std::to_string(sceneObjects.size());
+                newObj.type = ObjectType::SPHERE;
+                newObj.position = glm::vec3(0.0f, 0.0f, 0.0f);
+                newObj.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+                newObj.scale = glm::vec3(0.5f, 0.5f, 0.5f);
+                newObj.color = glm::vec4(1.0f, 0.5f, 0.5f, 1.0f);
+                newObj.isPhysicsEnabled = false;
+                newObj.meshId = primitiveSphereMeshId;
+                sceneObjects.push_back(newObj);
+                selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+            }
+            if (ImGui::MenuItem("Directional Light"))
+            {
+                saveHistory();
+                SceneObject newObj;
+                newObj.id = sceneObjects.size();
+                newObj.name = "Light " + std::to_string(sceneObjects.size());
+                newObj.type = ObjectType::LIGHT;
+                newObj.position = glm::vec3(0.0f, 2.0f, 0.0f);
+                newObj.rotation = glm::vec3(45.0f, 45.0f, 0.0f);
+                newObj.scale = glm::vec3(0.3f, 0.3f, 0.3f);
+                newObj.color = glm::vec4(1.0f, 1.0f, 0.8f, 1.0f);
+                newObj.isPhysicsEnabled = false;
+                newObj.meshId = primitiveCubeMeshId;
+                sceneObjects.push_back(newObj);
+                selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+            }
+            ImGui::EndPopup();
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (ImGui::TreeNodeEx("SampleScene", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            // List all objects in the scene database
+            for (size_t i = 0; i < sceneObjects.size(); ++i)
+            {
+                std::string icon = "🧊 ";
+                if (sceneObjects[i].type == ObjectType::SPHERE) icon = "🟡 ";
+                if (sceneObjects[i].type == ObjectType::PLANE) icon = "🟩 ";
+                if (sceneObjects[i].type == ObjectType::LIGHT) icon = "💡 ";
+                
+                std::string label = icon + sceneObjects[i].name;
+                
+                if (ImGui::Selectable(label.c_str(), selectedObjectIndex == static_cast<int>(i)))
+                {
+                    selectedObjectIndex = static_cast<int>(i);
+                }
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // Special Camera Node
+            if (ImGui::Selectable("🎥 Main Camera", selectedObjectIndex == -1))
+            {
+                selectedObjectIndex = -1; // -1 represents Main Camera selection
+            }
+
+            ImGui::TreePop();
+        }
+    }
+    ImGui::End();
+
+    // 3. Scene View (Center-Left Window)
+    ImGui::SetNextWindowPos(ImVec2(leftPanelWidth, menuBarHeight));
+    ImGui::SetNextWindowSize(ImVec2(showGameViewWindow ? centerWidth * 0.5f : centerWidth, centerHeight));
+    if (ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
+    {
+        drawSceneView(ImGui::GetWindowPos(), ImGui::GetWindowSize());
+    }
+    ImGui::End();
+
+    // 4. Game View (Center-Right Window)
+    if (showGameViewWindow)
+    {
+        ImGui::SetNextWindowPos(ImVec2(leftPanelWidth + centerWidth * 0.5f, menuBarHeight));
+        ImGui::SetNextWindowSize(ImVec2(centerWidth * 0.5f, centerHeight));
+        if (ImGui::Begin("Game", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
+        {
+            drawGameView(ImGui::GetWindowPos(), ImGui::GetWindowSize());
+        }
+        ImGui::End();
+    }
+
+    // 5. Inspector Panel (Right Window)
+    ImGui::SetNextWindowPos(ImVec2(windowWidth - rightPanelWidth, menuBarHeight));
+    ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, centerHeight));
+    if (ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
+        
+        static char nameBuf[64] = "";
+        static char tagBuf[64] = "Untagged";
+        static char layerBuf[64] = "Default";
+        static bool isStatic = false;
+
+        if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+        {
+            auto& obj = sceneObjects[selectedObjectIndex];
+            
+            // Name Header
+            ImGui::Text("🔍 Selected Object: ");
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "%s", obj.name.c_str());
+            ImGui::Separator();
+
+            // Properties
+            snprintf(nameBuf, sizeof(nameBuf), "%s", obj.name.c_str());
+            if (ImGui::InputText("Name", nameBuf, sizeof(nameBuf)))
+            {
+                obj.name = nameBuf;
+            }
+
+            ImGui::Checkbox("Static", &isStatic);
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+            ImGui::Text("Tag:");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(90);
+            ImGui::InputText("##Tag", tagBuf, sizeof(tagBuf));
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // Transform
+            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::DragFloat3("Position", &obj.position.x, 0.05f);
+                ImGui::DragFloat3("Rotation", &obj.rotation.x, 0.5f);
+                ImGui::DragFloat3("Scale", &obj.scale.x, 0.02f, 0.01f, 10.0f);
+            }
+            ImGui::Spacing();
+
+            // Renderer Details & Colors
+            if (ImGui::CollapsingHeader("Mesh Settings", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::ColorEdit4("Mesh Color", &obj.color.x);
+                
+                ImGui::Spacing();
+                ImGui::Text("Asset Loading");
+                if (ImGui::Button("Load 3D Mesh (.obj, .glb, .gltf)", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+                {
+                    const char* filterPatterns[3] = { "*.obj", "*.glb", "*.gltf" };
+                    const char* filePath = tinyfd_openFileDialog("Load 3D Model", "", 3, filterPatterns, "3D Model files", 0);
+                    if (filePath)
+                    {
+                        try {
+                            Mesh newMesh;
+                            loadModel(filePath, newMesh);
+                            createMeshBuffers(newMesh);
+                            meshes.push_back(newMesh);
+                            obj.meshId = static_cast<int>(meshes.size()) - 1;
+                        }
+                        catch (const std::exception& e) {
+                            tinyfd_messageBox("Error", e.what(), "ok", "error", 1);
+                        }
+                    }
+                }
+                
+                if (ImGui::Button("Load Material Texture", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+                {
+                    const char* filterPatterns[2] = { "*.png", "*.jpg" };
+                    const char* filePath = tinyfd_openFileDialog("Load Texture", "", 2, filterPatterns, "Image Files", 0);
+                    if (filePath)
+                    {
+                        try {
+                            Texture newTexture;
+                            loadTexture(filePath, newTexture);
+                            textures.push_back(newTexture);
+                            obj.textureId = static_cast<int>(textures.size()) - 1;
+                        }
+                        catch (const std::exception& e) {
+                            tinyfd_messageBox("Error", e.what(), "ok", "error", 1);
+                        }
+                    }
+                }
+                ImGui::Spacing();
+                
+                if (obj.name == "Player Cube" || obj.name == "Gold Collectible")
+                {
+                    ImGui::TextDisabled("Physics: (Locked for Game Objects)");
+                }
+                else
+                {
+                    ImGui::Checkbox("Enable Gravity Physics", &obj.isPhysicsEnabled);
+                }
+            }
+            ImGui::Spacing();
+
+            // Delete object button
+            if (obj.name != "Player Cube" && obj.name != "Gold Collectible" && obj.name != "Ground Obstacle")
+            {
+                ImGui::Separator();
+                ImGui::Spacing();
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
+                if (ImGui::Button(" Delete Object ", ImVec2(-1, 30)))
+                {
+                    sceneObjects.erase(sceneObjects.begin() + selectedObjectIndex);
+                    selectedObjectIndex = 0;
+                }
+                ImGui::PopStyleColor(2);
+            }
+        }
+        else if (selectedObjectIndex == -1) // Main Camera selected
+        {
+            ImGui::Text("🔍 Selected Object: ");
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Main Camera");
+            ImGui::Separator();
+
+            ImGui::Checkbox("Static", &isStatic);
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+            ImGui::Text("Tag:");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(90);
+            snprintf(tagBuf, sizeof(tagBuf), "MainCamera");
+            ImGui::InputText("##Tag", tagBuf, sizeof(tagBuf));
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            if (ImGui::CollapsingHeader("Camera Transform", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::DragFloat3("Position (X,Y,Z)", &mainCameraPos.x, 0.05f);
+                ImGui::DragFloat3("Target (X,Y,Z)", &mainCameraTarget.x, 0.05f);
+
+                if (ImGui::Button("Reset Camera View"))
+                {
+                    mainCameraPos = glm::vec3(2.0f, 2.0f, 2.0f);
+                    mainCameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+                    mainCameraFov = 45.0f;
+                }
+            }
+
+            if (ImGui::CollapsingHeader("Camera Lens Settings", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::SliderFloat("Field of View (FOV)", &mainCameraFov, 10.0f, 120.0f);
+                ImGui::DragFloat("Near Clip", &mainCameraNear, 0.01f, 0.01f, 5.0f);
+                ImGui::DragFloat("Far Clip", &mainCameraFar, 0.5f, 5.0f, 100.0f);
+            }
+        }
+
+        ImGui::PopStyleVar();
+    }
+    ImGui::End();
+
+    // 6. Project Console / Status Bar (Bottom Window)
+    ImGui::SetNextWindowPos(ImVec2(0.0f, windowHeight - bottomBarHeight));
+    ImGui::SetNextWindowSize(ImVec2(windowWidth, bottomBarHeight));
+    if (ImGui::Begin("Console / Project Logs", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+    {
+        ImGui::TextColored(ImVec4(0.3f, 0.85f, 0.4f, 1.0f), "[INFO] Render Device: %s", selectedGpuName.c_str());
+        if (mode == AppMode::PLAY) {
+            ImGui::TextColored(ImVec4(0.1f, 0.9f, 0.3f, 1.0f), "[GAMEPLAY] Playing! WASD or Arrow Keys to move the Player Cube. Space to jump. Collect the gold target!");
+        } else {
+            ImGui::TextDisabled("[CAMERA] Adjust Main Camera Pos (X,Y,Z) in Inspector or select Main Camera in Hierarchy.");
+            ImGui::Text("[SCENE] Drag inside Scene window to rotate view. Scroll to zoom. Add/remove/edit objects in Hierarchy/Inspector.");
+        }
+        ImGui::TextColored(ImVec4(0.9f, 0.8f, 0.2f, 1.0f), "[SYSTEM] App mode: %s. Objects count: %d", mode == AppMode::PLAY ? "PLAY" : "EDIT", (int)sceneObjects.size());
+    }
+    ImGui::End();
+
+    ImGui::Render();
+}
+
+ImVec2 VulkanApp::projectPoint(const glm::vec3& p, const glm::mat4& view, const glm::mat4& proj, const ImVec2& offset, const ImVec2& size)
+{
+    glm::vec4 clipSpacePos = proj * view * glm::vec4(p, 1.0f);
+    if (clipSpacePos.w <= 0.0f) return ImVec2(-99999.0f, -99999.0f);
+
+    glm::vec3 ndcSpacePos = glm::vec3(clipSpacePos) / clipSpacePos.w;
+
+    float x = offset.x + (ndcSpacePos.x + 1.0f) * 0.5f * size.x;
+    float y = offset.y + (1.0f - ndcSpacePos.y) * 0.5f * size.y;
+    return ImVec2(x, y);
+}
+
+void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
+{
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+    // Draw background
+    drawList->AddRectFilled(windowPos, ImVec2(windowPos.x + windowSize.x, windowPos.y + windowSize.y), IM_COL32(40, 40, 40, 255));
+
+    // Calculate Camera Matrices first so we can project centers of objects for drag selection
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), windowSize.x / windowSize.y, 0.1f, 100.0f);
+    glm::mat4 view = glm::mat4(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -sceneCameraDistance));
+    view = glm::rotate(view, glm::radians(sceneRotationX), glm::vec3(1.0f, 0.0f, 0.0f));
+    view = glm::rotate(view, glm::radians(sceneRotationY), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    // Tool Overlay
+    drawList->AddRectFilled(ImVec2(windowPos.x + 10, windowPos.y + 10), ImVec2(windowPos.x + 360, windowPos.y + 35), IM_COL32(20, 20, 20, 200), 4.0f);
+    drawList->AddRect(ImVec2(windowPos.x + 10, windowPos.y + 10), ImVec2(windowPos.x + 360, windowPos.y + 35), IM_COL32(100, 100, 100, 255), 4.0f);
+    char toolStr[128];
+    const char* toolNames[] = { "HAND", "TRANSLATE", "ROTATE", "SCALE", "RECT", "COMBINED" };
+    snprintf(toolStr, sizeof(toolStr), "Tool: %s  [Q/W/E/R/T/Y]", toolNames[static_cast<int>(activeGizmo)]);
+    drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 15), IM_COL32(255, 255, 255, 255), toolStr);
+
+    // Get selected object's 3D position
+    glm::vec3 pivotPos(0.0f);
+    bool hasSelection = (selectedObjectIndex >= -1 && selectedObjectIndex < static_cast<int>(sceneObjects.size()));
+    if (hasSelection)
+    {
+        pivotPos = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
+    }
+    
+    // Project selected object center and axis handles
+    ImVec2 sP(-99999.0f, -99999.0f);
+    ImVec2 sX(-99999.0f, -99999.0f);
+    ImVec2 sY(-99999.0f, -99999.0f);
+    ImVec2 sZ(-99999.0f, -99999.0f);
+
+    float L = 0.15f * sceneCameraDistance;
+    if (hasSelection)
+    {
+        sP = projectPoint(pivotPos, view, proj, windowPos, windowSize);
+        sX = projectPoint(pivotPos + glm::vec3(L, 0.0f, 0.0f), view, proj, windowPos, windowSize);
+        sY = projectPoint(pivotPos + glm::vec3(0.0f, L, 0.0f), view, proj, windowPos, windowSize);
+        sZ = projectPoint(pivotPos + glm::vec3(0.0f, 0.0f, L), view, proj, windowPos, windowSize);
+    }
+
+    if (activeGizmo == GizmoType::HAND)
+    {
+        isDraggingObject = false;
+        activeDragAxis = DragAxis::NONE;
+        
+        // In Hand mode, dragging rotates the view
+        ImGui::SetCursorScreenPos(windowPos);
+        ImGui::InvisibleButton("##SceneDragArea", windowSize);
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        {
+            ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
+            sceneRotationY += delta.x * 0.5f;
+            sceneRotationX += delta.y * 0.5f;
+            ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
+        }
+    }
+    else
+    {
+        // Handle selection and dragging of objects/gizmo handles
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
+        {
+            ImVec2 mousePos = ImGui::GetMousePos();
+            bool clickedGizmo = false;
+
+            if (hasSelection && sP.x > -90000.0f)
+            {
+                auto distToSeg = [](glm::vec2 p, glm::vec2 a, glm::vec2 b) -> float {
+                    glm::vec2 ab = b - a;
+                    float len2 = glm::dot(ab, ab);
+                    if (len2 < 0.001f) return glm::distance(p, a);
+                    float t = glm::clamp(glm::dot(p - a, ab) / len2, 0.0f, 1.0f);
+                    glm::vec2 proj = a + t * ab;
+                    return glm::distance(p, proj);
+                };
+
+                glm::vec2 mPos(mousePos.x, mousePos.y);
+                float distLineX = (sX.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sX.x, sX.y)) : 99999.0f;
+                float distLineY = (sY.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sY.x, sY.y)) : 99999.0f;
+                float distLineZ = (sZ.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sZ.x, sZ.y)) : 99999.0f;
+
+                float distTipX = (sX.x > -90000.0f) ? glm::distance(mPos, glm::vec2(sX.x, sX.y)) : 99999.0f;
+                float distTipY = (sY.x > -90000.0f) ? glm::distance(mPos, glm::vec2(sY.x, sY.y)) : 99999.0f;
+                float distTipZ = (sZ.x > -90000.0f) ? glm::distance(mPos, glm::vec2(sZ.x, sZ.y)) : 99999.0f;
+
+                // Check click on gizmo handles (tip or stem line)
+                if (distTipX < 18.0f || distLineX < 10.0f)
+                {
+                    activeDragAxis = DragAxis::X;
+                    isDraggingObject = true;
+                    clickedGizmo = true;
+                }
+                else if ((distTipY < 18.0f || distLineY < 10.0f) && activeGizmo != GizmoType::RECT)
+                {
+                    activeDragAxis = DragAxis::Y;
+                    isDraggingObject = true;
+                    clickedGizmo = true;
+                }
+                else if (distTipZ < 18.0f || distLineZ < 10.0f)
+                {
+                    activeDragAxis = DragAxis::Z;
+                    isDraggingObject = true;
+                    clickedGizmo = true;
+                }
+            }
+
+            if (!clickedGizmo)
+            {
+                // Click to select/drag center
+                float minDistance = 22.0f; // radius in pixels
+                int closestIdx = -2; // -2 = none
+
+                // Check Camera gizmo
+                ImVec2 camScreenPos = projectPoint(mainCameraPos, view, proj, windowPos, windowSize);
+                if (camScreenPos.x > -90000.0f)
+                {
+                    float dist = glm::distance(glm::vec2(mousePos.x, mousePos.y), glm::vec2(camScreenPos.x, camScreenPos.y));
+                    if (dist < minDistance)
+                    {
+                        minDistance = dist;
+                        closestIdx = -1;
+                    }
+                }
+
+                // Check scene objects
+                for (size_t i = 0; i < sceneObjects.size(); ++i)
+                {
+                    ImVec2 screenPos = projectPoint(sceneObjects[i].position, view, proj, windowPos, windowSize);
+                    if (screenPos.x > -90000.0f)
+                    {
+                        float dist = glm::distance(glm::vec2(mousePos.x, mousePos.y), glm::vec2(screenPos.x, screenPos.y));
+                        if (dist < minDistance)
+                        {
+                            minDistance = dist;
+                            closestIdx = static_cast<int>(i);
+                        }
+                    }
+                }
+
+                if (closestIdx != -2)
+                {
+                    selectedObjectIndex = closestIdx;
+                    isDraggingObject = true;
+                    activeDragAxis = DragAxis::FREE;
+                }
+            }
+        }
+
+        if (isDraggingObject && ImGui::IsMouseDown(ImGuiMouseButton_Left) && hasSelection)
+        {
+            float sens = 0.002f * sceneCameraDistance;
+            ImVec2 mouseDelta = ImGui::GetIO().MouseDelta;
+
+            // Get reference to the object's fields
+            glm::vec3 dummyRot(0.0f);
+            glm::vec3 dummyScale(1.0f);
+            glm::vec3& posRef = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
+            glm::vec3& rotRef = (selectedObjectIndex == -1) ? dummyRot : sceneObjects[selectedObjectIndex].rotation;
+            glm::vec3& scaleRef = (selectedObjectIndex == -1) ? dummyScale : sceneObjects[selectedObjectIndex].scale;
+
+            auto projectDrag = [&](const ImVec2& sTip, const ImVec2& sCenter, float& valToMod) {
+                glm::vec2 axisVec(sTip.x - sCenter.x, sTip.y - sCenter.y);
+                float len = glm::length(axisVec);
+                if (len > 1.0f)
+                {
+                    axisVec = glm::normalize(axisVec);
+                    float projDelta = mouseDelta.x * axisVec.x + mouseDelta.y * axisVec.y;
+                    valToMod += projDelta * sens * 2.0f;
+                }
+            };
+
+            if (activeGizmo == GizmoType::TRANSLATE || activeGizmo == GizmoType::TRANSFORM_COMBINED)
+            {
+                if (activeDragAxis == DragAxis::X) projectDrag(sX, sP, posRef.x);
+                else if (activeDragAxis == DragAxis::Y) projectDrag(sY, sP, posRef.y);
+                else if (activeDragAxis == DragAxis::Z) projectDrag(sZ, sP, posRef.z);
+                else if (activeDragAxis == DragAxis::FREE)
+                {
+                    // Translate in camera view plane
+                    glm::mat4 orbitMat = glm::mat4(1.0f);
+                    orbitMat = glm::rotate(orbitMat, glm::radians(sceneRotationX), glm::vec3(1.0f, 0.0f, 0.0f));
+                    orbitMat = glm::rotate(orbitMat, glm::radians(sceneRotationY), glm::vec3(0.0f, 1.0f, 0.0f));
+                    glm::mat4 invOrbit = glm::inverse(orbitMat);
+                    glm::vec3 rightVec = glm::vec3(invOrbit[0]);
+                    glm::vec3 upVec = glm::vec3(invOrbit[1]);
+
+                    posRef += rightVec * (mouseDelta.x * sens) - upVec * (mouseDelta.y * sens);
+                }
+            }
+
+            if (activeGizmo == GizmoType::ROTATE || activeGizmo == GizmoType::TRANSFORM_COMBINED)
+            {
+                float rotSens = 0.5f;
+                float dragVal = mouseDelta.x * rotSens - mouseDelta.y * rotSens;
+                
+                if (activeDragAxis == DragAxis::X) rotRef.x += dragVal;
+                else if (activeDragAxis == DragAxis::Y) rotRef.y += dragVal;
+                else if (activeDragAxis == DragAxis::Z) rotRef.z += dragVal;
+            }
+
+            if (activeGizmo == GizmoType::SCALE)
+            {
+                if (activeDragAxis == DragAxis::X) projectDrag(sX, sP, scaleRef.x);
+                else if (activeDragAxis == DragAxis::Y) projectDrag(sY, sP, scaleRef.y);
+                else if (activeDragAxis == DragAxis::Z) projectDrag(sZ, sP, scaleRef.z);
+                else if (activeDragAxis == DragAxis::FREE)
+                {
+                    ImVec2 curM = ImGui::GetMousePos();
+                    ImVec2 prevM = ImVec2(curM.x - mouseDelta.x, curM.y - mouseDelta.y);
+                    float dPrev = glm::distance(glm::vec2(prevM.x, prevM.y), glm::vec2(sP.x, sP.y));
+                    float dCur = glm::distance(glm::vec2(curM.x, curM.y), glm::vec2(sP.x, sP.y));
+                    float deltaDist = (dCur - dPrev) * 0.015f;
+                    if (std::abs(deltaDist) < 0.0001f)
+                        deltaDist = (mouseDelta.x - mouseDelta.y) * 0.01f;
+                    scaleRef += glm::vec3(deltaDist);
+                }
+                scaleRef = glm::max(scaleRef, glm::vec3(0.01f));
+            }
+
+            if (activeGizmo == GizmoType::RECT)
+            {
+                if (activeDragAxis == DragAxis::X) projectDrag(sX, sP, scaleRef.x);
+                else if (activeDragAxis == DragAxis::Z) projectDrag(sZ, sP, scaleRef.z);
+                else if (activeDragAxis == DragAxis::FREE)
+                {
+                    projectDrag(sX, sP, posRef.x);
+                    projectDrag(sZ, sP, posRef.z);
+                }
+                scaleRef = glm::max(scaleRef, glm::vec3(0.01f));
+            }
+
+            // Lock boundaries for special game objects
+            if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+            {
+                if (sceneObjects[selectedObjectIndex].name == "Ground Obstacle")
+                    sceneObjects[selectedObjectIndex].position.y = -1.5f;
+                if (sceneObjects[selectedObjectIndex].name == "Gold Collectible")
+                    sceneObjects[selectedObjectIndex].position.y = -1.2f;
+            }
+        }
+        if (ImGui::GetIO().KeyCtrl && selectedObjectIndex >= 0 && selectedObjectIndex < sceneObjects.size())
+        {
+            auto& obj = sceneObjects[selectedObjectIndex];
+            if (activeGizmo == GizmoType::TRANSLATE) {
+                obj.position.x = std::round(obj.position.x);
+                obj.position.y = std::round(obj.position.y);
+                obj.position.z = std::round(obj.position.z);
+            } else if (activeGizmo == GizmoType::ROTATE) {
+                obj.rotation.x = std::round(obj.rotation.x / 15.0f) * 15.0f;
+                obj.rotation.y = std::round(obj.rotation.y / 15.0f) * 15.0f;
+                obj.rotation.z = std::round(obj.rotation.z / 15.0f) * 15.0f;
+            } else if (activeGizmo == GizmoType::SCALE || activeGizmo == GizmoType::RECT) {
+                obj.scale.x = std::round(obj.scale.x / 0.5f) * 0.5f;
+                obj.scale.y = std::round(obj.scale.y / 0.5f) * 0.5f;
+                obj.scale.z = std::round(obj.scale.z / 0.5f) * 0.5f;
+            }
+        }
+        
+        else
+        {
+            if (isDraggingObject) saveHistory();
+            isDraggingObject = false;
+            activeDragAxis = DragAxis::NONE;
+            
+            // Handle mouse drag to rotate view inside the Scene window
+            ImGui::SetCursorScreenPos(windowPos);
+            ImGui::InvisibleButton("##SceneDragArea", windowSize);
+            if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+            {
+                ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
+                sceneRotationY += delta.x * 0.5f;
+                sceneRotationX += delta.y * 0.5f;
+                ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
+            }
+        }
+    }
+
+
+
+    if (ImGui::IsItemHovered())
+    {
+        sceneCameraDistance -= ImGui::GetIO().MouseWheel * 0.5f;
+        sceneCameraDistance = std::clamp(sceneCameraDistance, 2.0f, 20.0f);
+    }
+
+    // 1. Draw Grid lines in XZ plane (y = -1.5)
+    float gridY = -1.5f;
+    for (int i = -5; i <= 5; ++i)
+    {
+        // Parallel to Z
+        glm::vec3 p1(i, gridY, -5.0f);
+        glm::vec3 p2(i, gridY, 5.0f);
+        ImVec2 sp1 = projectPoint(p1, view, proj, windowPos, windowSize);
+        ImVec2 sp2 = projectPoint(p2, view, proj, windowPos, windowSize);
+        if (sp1.x > -90000.0f && sp2.x > -90000.0f)
+        {
+            ImU32 col = (i == 0) ? IM_COL32(0, 0, 180, 255) : IM_COL32(80, 80, 80, 255);
+            drawList->AddLine(sp1, sp2, col, (i == 0) ? 2.0f : 1.0f);
+        }
+
+        // Parallel to X
+        glm::vec3 p3(-5.0f, gridY, i);
+        glm::vec3 p4(5.0f, gridY, i);
+        ImVec2 sp3 = projectPoint(p3, view, proj, windowPos, windowSize);
+        ImVec2 sp4 = projectPoint(p4, view, proj, windowPos, windowSize);
+        if (sp3.x > -90000.0f && sp4.x > -90000.0f)
+        {
+            ImU32 col = (i == 0) ? IM_COL32(180, 0, 0, 255) : IM_COL32(80, 80, 80, 255);
+            drawList->AddLine(sp3, sp4, col, (i == 0) ? 2.0f : 1.0f);
+        }
+    }
+
+    // 2. Draw 3D Origin Axes
+    glm::vec3 orig(0.0f, gridY, 0.0f);
+    glm::vec3 axX(1.0f, gridY, 0.0f);
+    glm::vec3 axY(0.0f, gridY + 1.0f, 0.0f);
+    glm::vec3 axZ(0.0f, gridY, 1.0f);
+    ImVec2 sor = projectPoint(orig, view, proj, windowPos, windowSize);
+    ImVec2 sx = projectPoint(axX, view, proj, windowPos, windowSize);
+    ImVec2 sy = projectPoint(axY, view, proj, windowPos, windowSize);
+    ImVec2 sz = projectPoint(axZ, view, proj, windowPos, windowSize);
+    if (sor.x > -90000.0f)
+    {
+        if (sx.x > -90000.0f) {
+            drawList->AddLine(sor, sx, IM_COL32(255, 0, 0, 255), 2.0f);
+            drawList->AddText(ImVec2(sx.x + 4.0f, sx.y - 4.0f), IM_COL32(255, 100, 100, 255), "X");
+        }
+        if (sy.x > -90000.0f) {
+            drawList->AddLine(sor, sy, IM_COL32(0, 255, 0, 255), 2.0f);
+            drawList->AddText(ImVec2(sy.x + 4.0f, sy.y - 4.0f), IM_COL32(100, 255, 100, 255), "Y");
+        }
+        if (sz.x > -90000.0f) {
+            drawList->AddLine(sor, sz, IM_COL32(0, 0, 255, 255), 2.0f);
+            drawList->AddText(ImVec2(sz.x + 4.0f, sz.y - 4.0f), IM_COL32(100, 100, 255, 255), "Z");
+        }
+    }
+
+    // 3. Draw All Scene Objects in 3D
+    ImGui::SetCursorScreenPos(windowPos);
+    if (offscreenDescriptorSet) {
+        ImGui::Image((ImTextureID)offscreenDescriptorSet, windowSize);
+    }
+
+    // 4. Draw Gizmos & Selection Highlights
+    if (hasSelection && sP.x > -90000.0f && activeGizmo != GizmoType::HAND)
+    {
+        // Pivot Center indicator
+        drawList->AddCircle(sP, 11.0f, IM_COL32(255, 255, 0, 255), 0, 1.5f);
+        drawList->AddLine(ImVec2(sP.x - 7, sP.y), ImVec2(sP.x + 7, sP.y), IM_COL32(255, 255, 0, 255), 1.0f);
+        drawList->AddLine(ImVec2(sP.x, sP.y - 7), ImVec2(sP.x, sP.y + 7), IM_COL32(255, 255, 0, 255), 1.0f);
+
+        if (activeGizmo == GizmoType::TRANSLATE || activeGizmo == GizmoType::TRANSFORM_COMBINED)
+        {
+            // X-Axis (Red)
+            if (sX.x > -90000.0f)
+            {
+                float thickness = (activeDragAxis == DragAxis::X) ? 3.0f : 1.5f;
+                ImU32 color = (activeDragAxis == DragAxis::X) ? IM_COL32(255, 120, 120, 255) : IM_COL32(255, 0, 0, 255);
+                drawList->AddLine(sP, sX, color, thickness);
+                drawList->AddRectFilled(ImVec2(sX.x - 5, sX.y - 5), ImVec2(sX.x + 5, sX.y + 5), color);
+            }
+
+            // Y-Axis (Green)
+            if (sY.x > -90000.0f)
+            {
+                float thickness = (activeDragAxis == DragAxis::Y) ? 3.0f : 1.5f;
+                ImU32 color = (activeDragAxis == DragAxis::Y) ? IM_COL32(120, 255, 120, 255) : IM_COL32(0, 255, 0, 255);
+                drawList->AddLine(sP, sY, color, thickness);
+                drawList->AddRectFilled(ImVec2(sY.x - 5, sY.y - 5), ImVec2(sY.x + 5, sY.y + 5), color);
+            }
+
+            // Z-Axis (Blue)
+            if (sZ.x > -90000.0f)
+            {
+                float thickness = (activeDragAxis == DragAxis::Z) ? 3.0f : 1.5f;
+                ImU32 color = (activeDragAxis == DragAxis::Z) ? IM_COL32(120, 120, 255, 255) : IM_COL32(0, 0, 255, 255);
+                drawList->AddLine(sP, sZ, color, thickness);
+                drawList->AddRectFilled(ImVec2(sZ.x - 5, sZ.y - 5), ImVec2(sZ.x + 5, sZ.y + 5), color);
+            }
+        }
+        
+        if (activeGizmo == GizmoType::ROTATE || activeGizmo == GizmoType::TRANSFORM_COMBINED)
+        {
+            // Draw Orthogonal Circles in 3D
+            const int numSegs = 24;
+            ImVec2 prevX, prevY, prevZ;
+            for (int i = 0; i <= numSegs; ++i)
+            {
+                float a = (i * 2.0f * 3.14159f) / numSegs;
+                
+                // X-Ring (Red - YZ plane)
+                glm::vec3 ptX = pivotPos + glm::vec3(0.0f, cos(a) * L, sin(a) * L);
+                ImVec2 sPtX = projectPoint(ptX, view, proj, windowPos, windowSize);
+                if (i > 0 && prevX.x > -90000.0f && sPtX.x > -90000.0f)
+                {
+                    ImU32 col = (activeDragAxis == DragAxis::X) ? IM_COL32(255, 150, 150, 255) : IM_COL32(255, 50, 50, 180);
+                    drawList->AddLine(prevX, sPtX, col, (activeDragAxis == DragAxis::X) ? 3.0f : 1.5f);
+                }
+                prevX = sPtX;
+
+                // Y-Ring (Green - XZ plane)
+                glm::vec3 ptY = pivotPos + glm::vec3(cos(a) * L, 0.0f, sin(a) * L);
+                ImVec2 sPtY = projectPoint(ptY, view, proj, windowPos, windowSize);
+                if (i > 0 && prevY.x > -90000.0f && sPtY.x > -90000.0f)
+                {
+                    ImU32 col = (activeDragAxis == DragAxis::Y) ? IM_COL32(150, 255, 150, 255) : IM_COL32(50, 255, 50, 180);
+                    drawList->AddLine(prevY, sPtY, col, (activeDragAxis == DragAxis::Y) ? 3.0f : 1.5f);
+                }
+                prevY = sPtY;
+
+                // Z-Ring (Blue - XY plane)
+                glm::vec3 ptZ = pivotPos + glm::vec3(cos(a) * L, sin(a) * L, 0.0f);
+                ImVec2 sPtZ = projectPoint(ptZ, view, proj, windowPos, windowSize);
+                if (i > 0 && prevZ.x > -90000.0f && sPtZ.x > -90000.0f)
+                {
+                    ImU32 col = (activeDragAxis == DragAxis::Z) ? IM_COL32(150, 150, 255, 255) : IM_COL32(50, 50, 255, 180);
+                    drawList->AddLine(prevZ, sPtZ, col, (activeDragAxis == DragAxis::Z) ? 3.0f : 1.5f);
+                }
+                prevZ = sPtZ;
+            }
+
+            // Draw small handle dots on the axes tips for clicking
+            if (activeGizmo == GizmoType::ROTATE)
+            {
+                if (sX.x > -90000.0f) drawList->AddCircleFilled(sX, 5.0f, (activeDragAxis == DragAxis::X) ? IM_COL32(255, 150, 150, 255) : IM_COL32(255, 0, 0, 255));
+                if (sY.x > -90000.0f) drawList->AddCircleFilled(sY, 5.0f, (activeDragAxis == DragAxis::Y) ? IM_COL32(150, 255, 150, 255) : IM_COL32(0, 255, 0, 255));
+                if (sZ.x > -90000.0f) drawList->AddCircleFilled(sZ, 5.0f, (activeDragAxis == DragAxis::Z) ? IM_COL32(150, 150, 255, 255) : IM_COL32(0, 0, 255, 255));
+            }
+        }
+
+        if (activeGizmo == GizmoType::SCALE)
+        {
+            if (sX.x > -90000.0f)
+            {
+                float thickness = (activeDragAxis == DragAxis::X) ? 3.0f : 1.5f;
+                ImU32 color = (activeDragAxis == DragAxis::X) ? IM_COL32(255, 120, 120, 255) : IM_COL32(255, 0, 0, 255);
+                drawList->AddLine(sP, sX, color, thickness);
+                drawList->AddRectFilled(ImVec2(sX.x - 4, sX.y - 4), ImVec2(sX.x + 4, sX.y + 4), color);
+            }
+            if (sY.x > -90000.0f)
+            {
+                float thickness = (activeDragAxis == DragAxis::Y) ? 3.0f : 1.5f;
+                ImU32 color = (activeDragAxis == DragAxis::Y) ? IM_COL32(120, 255, 120, 255) : IM_COL32(0, 255, 0, 255);
+                drawList->AddLine(sP, sY, color, thickness);
+                drawList->AddRectFilled(ImVec2(sY.x - 4, sY.y - 4), ImVec2(sY.x + 4, sY.y + 4), color);
+            }
+            if (sZ.x > -90000.0f)
+            {
+                float thickness = (activeDragAxis == DragAxis::Z) ? 3.0f : 1.5f;
+                ImU32 color = (activeDragAxis == DragAxis::Z) ? IM_COL32(120, 120, 255, 255) : IM_COL32(0, 0, 255, 255);
+                drawList->AddLine(sP, sZ, color, thickness);
+                drawList->AddRectFilled(ImVec2(sZ.x - 4, sZ.y - 4), ImVec2(sZ.x + 4, sZ.y + 4), color);
+            }
+        }
+
+        if (activeGizmo == GizmoType::RECT)
+        {
+            glm::vec3 halfX(L * 0.8f, 0.0f, 0.0f);
+            glm::vec3 halfZ(0.0f, 0.0f, L * 0.8f);
+            
+            ImVec2 tl = projectPoint(pivotPos - halfX + halfZ, view, proj, windowPos, windowSize);
+            ImVec2 tr = projectPoint(pivotPos + halfX + halfZ, view, proj, windowPos, windowSize);
+            ImVec2 br = projectPoint(pivotPos + halfX - halfZ, view, proj, windowPos, windowSize);
+            ImVec2 bl = projectPoint(pivotPos - halfX - halfZ, view, proj, windowPos, windowSize);
+
+            if (tl.x > -90000.0f && tr.x > -90000.0f && br.x > -90000.0f && bl.x > -90000.0f)
+            {
+                ImU32 rectColor = IM_COL32(200, 200, 200, 150);
+                drawList->AddQuad(tl, tr, br, bl, rectColor, 1.5f);
+                
+                if (sX.x > -90000.0f) drawList->AddCircleFilled(sX, 4.0f, IM_COL32(255, 0, 0, 255));
+                if (sZ.x > -90000.0f) drawList->AddCircleFilled(sZ, 4.0f, IM_COL32(0, 0, 255, 255));
+            }
+        }
+    }
+
+    // 5. Draw 3D Camera Gizmo and frustum
+    glm::vec3 camPos = mainCameraPos;
+    glm::vec3 camTarget = mainCameraTarget;
+    glm::vec3 forwardVector = glm::normalize(camTarget - camPos);
+    glm::vec3 rightVector = glm::cross(forwardVector, glm::vec3(0.0f, 1.0f, 0.0f));
+    if (glm::length(rightVector) < 0.01f) rightVector = glm::vec3(1.0f, 0.0f, 0.0f);
+    else rightVector = glm::normalize(rightVector);
+    glm::vec3 upVector = glm::cross(rightVector, forwardVector);
+
+    float frustumDist = 0.5f;
+    float frustumW = 0.25f;
+    float frustumH = 0.18f;
+
+    glm::vec3 cameraBaseCenter = camPos + forwardVector * frustumDist;
+    glm::vec3 c0 = cameraBaseCenter - rightVector * frustumW + upVector * frustumH;
+    glm::vec3 c1 = cameraBaseCenter + rightVector * frustumW + upVector * frustumH;
+    glm::vec3 c2 = cameraBaseCenter + rightVector * frustumW - upVector * frustumH;
+    glm::vec3 c3 = cameraBaseCenter - rightVector * frustumW - upVector * frustumH;
+
+    ImVec2 scamPos = projectPoint(camPos, view, proj, windowPos, windowSize);
+    ImVec2 sc0 = projectPoint(c0, view, proj, windowPos, windowSize);
+    ImVec2 sc1 = projectPoint(c1, view, proj, windowPos, windowSize);
+    ImVec2 sc2 = projectPoint(c2, view, proj, windowPos, windowSize);
+    ImVec2 sc3 = projectPoint(c3, view, proj, windowPos, windowSize);
+
+    ImU32 frustumColor = IM_COL32(0, 240, 255, 255);
+    
+    if (scamPos.x > -90000.0f)
+    {
+        // Draw frustum lines
+        if (sc0.x > -90000.0f) drawList->AddLine(scamPos, sc0, frustumColor, 1.5f);
+        if (sc1.x > -90000.0f) drawList->AddLine(scamPos, sc1, frustumColor, 1.5f);
+        if (sc2.x > -90000.0f) drawList->AddLine(scamPos, sc2, frustumColor, 1.5f);
+        if (sc3.x > -90000.0f) drawList->AddLine(scamPos, sc3, frustumColor, 1.5f);
+
+        // Draw lens borders
+        if (sc0.x > -90000.0f && sc1.x > -90000.0f) drawList->AddLine(sc0, sc1, frustumColor, 1.5f);
+        if (sc1.x > -90000.0f && sc2.x > -90000.0f) drawList->AddLine(sc1, sc2, frustumColor, 1.5f);
+        if (sc2.x > -90000.0f && sc3.x > -90000.0f) drawList->AddLine(sc2, sc3, frustumColor, 1.5f);
+        if (sc3.x > -90000.0f && sc0.x > -90000.0f) drawList->AddLine(sc3, sc0, frustumColor, 1.5f);
+
+        // Draw camera body behind apex
+        glm::vec3 bodyBack = camPos - forwardVector * 0.15f;
+        glm::vec3 b0 = bodyBack - rightVector * 0.12f + upVector * 0.09f;
+        glm::vec3 b1 = bodyBack + rightVector * 0.12f + upVector * 0.09f;
+        glm::vec3 b2 = bodyBack + rightVector * 0.12f - upVector * 0.09f;
+        glm::vec3 b3 = bodyBack - rightVector * 0.12f - upVector * 0.09f;
+
+        ImVec2 sb0 = projectPoint(b0, view, proj, windowPos, windowSize);
+        ImVec2 sb1 = projectPoint(b1, view, proj, windowPos, windowSize);
+        ImVec2 sb2 = projectPoint(b2, view, proj, windowPos, windowSize);
+        ImVec2 sb3 = projectPoint(b3, view, proj, windowPos, windowSize);
+
+        if (sb0.x > -90000.0f && sb1.x > -90000.0f && sb2.x > -90000.0f && sb3.x > -90000.0f)
+        {
+            drawList->AddLine(sb0, sb1, frustumColor, 1.0f);
+            drawList->AddLine(sb1, sb2, frustumColor, 1.0f);
+            drawList->AddLine(sb2, sb3, frustumColor, 1.0f);
+            drawList->AddLine(sb3, sb0, frustumColor, 1.0f);
+
+            drawList->AddLine(scamPos, sb0, frustumColor, 1.0f);
+            drawList->AddLine(scamPos, sb1, frustumColor, 1.0f);
+            drawList->AddLine(scamPos, sb2, frustumColor, 1.0f);
+            drawList->AddLine(scamPos, sb3, frustumColor, 1.0f);
+        }
+
+        // Draw camera icon (filled circle) & label
+        drawList->AddCircleFilled(scamPos, 7.0f, IM_COL32(0, 240, 255, 255));
+        drawList->AddCircle(scamPos, 11.0f, IM_COL32(0, 240, 255, 120), 0, 1.5f);
+        drawList->AddText(ImVec2(scamPos.x + 12.0f, scamPos.y - 7.0f), IM_COL32(0, 240, 255, 255), "🎥 Main Camera");
+
+        // Target line
+        ImVec2 sorPoint = projectPoint(camTarget, view, proj, windowPos, windowSize);
+        if (sorPoint.x > -90000.0f)
+        {
+            drawList->AddLine(scamPos, sorPoint, IM_COL32(0, 240, 255, 100), 1.0f);
+        }
+    }
+}
+void VulkanApp::drawGameView(const ImVec2& windowPos, const ImVec2& windowSize)
+{
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+    // 1. Draw Space Gradient Background
+    drawList->AddRectFilledMultiColor(
+        windowPos, 
+        ImVec2(windowPos.x + windowSize.x, windowPos.y + windowSize.y),
+        IM_COL32(6, 10, 20, 255),   // Top-Left
+        IM_COL32(8, 12, 24, 255),   // Top-Right
+        IM_COL32(16, 26, 46, 255),  // Bottom-Right
+        IM_COL32(10, 18, 32, 255)   // Bottom-Left
+    );
+
+    // 2. Draw Planetary Nebula Glow
+    drawList->AddCircleFilled(ImVec2(windowPos.x + windowSize.x * 0.75f, windowPos.y + windowSize.y * 0.70f), 130.0f, IM_COL32(0, 120, 255, 12), 64);
+    drawList->AddCircleFilled(ImVec2(windowPos.x + windowSize.x * 0.75f, windowPos.y + windowSize.y * 0.70f), 80.0f, IM_COL32(100, 180, 255, 18), 64);
+    drawList->AddCircleFilled(ImVec2(windowPos.x + windowSize.x * 0.25f, windowPos.y + windowSize.y * 0.30f), 200.0f, IM_COL32(120, 80, 255, 8), 64);
+
+    // 3. Draw Stars
+    for (int i = 0; i < 40; ++i)
+    {
+        float sx = static_cast<float>((i * 13579) % static_cast<int>(windowSize.x - 20) + 10);
+        float sy = static_cast<float>((i * 24680) % static_cast<int>(windowSize.y - 20) + 10);
+        float radius = (i % 4 == 0) ? 1.5f : (i % 7 == 0 ? 2.0f : 1.0f);
+        ImU32 starCol = (i % 6 == 0) ? IM_COL32(200, 230, 255, 230) : IM_COL32(255, 255, 255, 160);
+        if (i % 12 == 0) {
+            drawList->AddLine(ImVec2(windowPos.x + sx - 3, windowPos.y + sy), ImVec2(windowPos.x + sx + 3, windowPos.y + sy), IM_COL32(255, 255, 255, 150));
+            drawList->AddLine(ImVec2(windowPos.x + sx, windowPos.y + sy - 3), ImVec2(windowPos.x + sx, windowPos.y + sy + 3), IM_COL32(255, 255, 255, 150));
+        }
+        drawList->AddCircleFilled(ImVec2(windowPos.x + sx, windowPos.y + sy), radius, starCol);
+    }
+
+    // Camera Matrices for Game view rendering (POV)
+    glm::mat4 gameProj = glm::perspective(glm::radians(mainCameraFov), windowSize.x / windowSize.y, mainCameraNear, mainCameraFar);
+    glm::mat4 gameView = glm::lookAt(mainCameraPos, mainCameraTarget, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    // 4. Draw Ground Platform in Game View (represented by XZ grid lines)
+    float gridY = -1.5f;
+    for (int i = -4; i <= 4; ++i)
+    {
+        glm::vec3 p1(i, gridY, -4.0f);
+        glm::vec3 p2(i, gridY, 4.0f);
+        ImVec2 sp1 = projectPoint(p1, gameView, gameProj, windowPos, windowSize);
+        ImVec2 sp2 = projectPoint(p2, gameView, gameProj, windowPos, windowSize);
+        if (sp1.x > -90000.0f && sp2.x > -90000.0f)
+            drawList->AddLine(sp1, sp2, IM_COL32(50, 80, 100, 180), 1.0f);
+
+        glm::vec3 p3(-4.0f, gridY, i);
+        glm::vec3 p4(4.0f, gridY, i);
+        ImVec2 sp3 = projectPoint(p3, gameView, gameProj, windowPos, windowSize);
+        ImVec2 sp4 = projectPoint(p4, gameView, gameProj, windowPos, windowSize);
+        if (sp3.x > -90000.0f && sp4.x > -90000.0f)
+            drawList->AddLine(sp3, sp4, IM_COL32(50, 80, 100, 180), 1.0f);
+    }
+
+    // 5. Draw all 3D objects in the Game View (from Main Camera perspective)
+    ImGui::SetCursorScreenPos(windowPos);
+    if (gameViewDescriptorSet) {
+        ImGui::Image((ImTextureID)gameViewDescriptorSet, windowSize);
+    }
+
+    // 6. Draw Game HUD (Score Overlay)
+    drawList->AddRectFilled(ImVec2(windowPos.x + 10, windowPos.y + 10), ImVec2(windowPos.x + 220, windowPos.y + 85), IM_COL32(15, 20, 30, 200), 4.0f);
+    drawList->AddRect(ImVec2(windowPos.x + 10, windowPos.y + 10), ImVec2(windowPos.x + 220, windowPos.y + 85), IM_COL32(0, 180, 255, 150), 4.0f);
+
+    drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 15), IM_COL32(0, 240, 255, 255), "ANTIGRAVITY mini-game");
+    char scoreText[64];
+    snprintf(scoreText, sizeof(scoreText), "Score: %d", gameScore);
+    drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 35), IM_COL32(50, 255, 100, 255), scoreText);
+    char hiText[64];
+    snprintf(hiText, sizeof(hiText), "High Score: %d", highScore);
+    drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 50), IM_COL32(255, 215, 0, 255), hiText);
+    
+    if (mode == AppMode::PLAY)
+    {
+        drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 65), IM_COL32(200, 200, 200, 255), "Keys: WASD + Space (Jump)");
+    }
+    else
+    {
+        drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 65), IM_COL32(255, 150, 0, 255), "EDIT MODE: Click PLAY above");
+    }
+}
+
+glm::mat4 VulkanApp::getWorldMatrix(const std::vector<SceneObject>& objects, int index) const
+{
+    if (index < 0 || index >= objects.size()) return glm::mat4(1.0f);
+    
+    glm::mat4 localMat = glm::mat4(1.0f);
+    localMat = glm::translate(localMat, objects[index].position);
+    localMat = glm::rotate(localMat, glm::radians(objects[index].rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+    localMat = glm::rotate(localMat, glm::radians(objects[index].rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+    localMat = glm::rotate(localMat, glm::radians(objects[index].rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+    localMat = glm::scale(localMat, objects[index].scale);
+    
+    if (objects[index].parentId != -1)
+    {
+        return getWorldMatrix(objects, objects[index].parentId) * localMat;
+    }
+    return localMat;
+}
+
+void VulkanApp::saveHistory()
+{
+    undoStack.push_back(sceneObjects);
+    redoStack.clear();
+}
+
+void VulkanApp::undo()
+{
+    if (!undoStack.empty())
+    {
+        redoStack.push_back(sceneObjects);
+        sceneObjects = undoStack.back();
+        undoStack.pop_back();
+    }
+}
+
+void VulkanApp::redo()
+{
+    if (!redoStack.empty())
+    {
+        undoStack.push_back(sceneObjects);
+        sceneObjects = redoStack.back();
+        redoStack.pop_back();
+    }
+}
+
+void VulkanApp::initializeDefaultScene()
+{
+    sceneObjects.clear();
+    gameScore = 0;
+    
+    // 1. Player Cube
+    SceneObject player;
+    player.name = "Player Cube";
+    player.type = ObjectType::CUBE;
+    player.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    player.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+    player.scale = glm::vec3(0.5f, 0.5f, 0.5f);
+    player.color = glm::vec4(0.0f, 0.8f, 1.0f, 1.0f);
+    player.isPhysicsEnabled = true;
+    player.velocity = glm::vec3(0.0f);
+    player.id = 0;
+    player.meshId = primitiveCubeMeshId;     // <-- assign mesh!
+    player.bodyData = physEngine.createBody(ColliderType::BOX, player.position, player.scale, true);
+    sceneObjects.push_back(player);
+    
+    playerStartPos = player.position;
+
+    // 2. Collectible Sphere
+    SceneObject target;
+    target.id = 1;
+    target.name = "Gold Collectible";
+    target.type = ObjectType::SPHERE;
+    target.position = glm::vec3(1.5f, -1.0f, 1.0f);
+    target.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+    target.scale = glm::vec3(0.3f, 0.3f, 0.3f);
+    target.color = glm::vec4(1.0f, 0.84f, 0.0f, 1.0f);
+    target.isPhysicsEnabled = false;
+    target.meshId = primitiveSphereMeshId;   // <-- assign mesh!
+    target.bodyData = physEngine.createBody(ColliderType::SPHERE, target.position, target.scale, true);
+    sceneObjects.push_back(target);
+
+    // 3. Ground Obstacle Plane
+    SceneObject ground;
+    ground.id = 2;
+    ground.name = "Ground Obstacle";
+    ground.type = ObjectType::PLANE;
+    ground.position = glm::vec3(0.0f, -1.5f, 0.0f);
+    ground.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+    ground.scale = glm::vec3(5.0f, 0.1f, 5.0f);
+    ground.color = glm::vec4(0.3f, 0.3f, 0.35f, 1.0f);
+    ground.isPhysicsEnabled = false;
+    ground.meshId = primitivePlaneMeshId;    // <-- assign mesh!
+    ground.bodyData = physEngine.createBody(ColliderType::PLANE, ground.position, ground.scale, false);
+    sceneObjects.push_back(ground);
+
+    // 4. Directional Light (represented as a small cube gizmo)
+    SceneObject sun;
+    sun.id = 3;
+    sun.name = "Directional Light";
+    sun.type = ObjectType::LIGHT;
+    sun.position = glm::vec3(2.0f, 3.0f, 1.0f);
+    sun.rotation = glm::vec3(45.0f, 45.0f, 0.0f);
+    sun.scale = glm::vec3(0.3f, 0.3f, 0.3f);
+    sun.color = glm::vec4(1.0f, 1.0f, 0.9f, 1.0f);
+    sun.isPhysicsEnabled = false;
+    sun.meshId = primitiveCubeMeshId;        // <-- assign mesh (small cube gizmo)
+    sceneObjects.push_back(sun);
+    
+    selectedObjectIndex = 0;
+    saveHistory(); // Save initial state
+}
+
+
+void VulkanApp::updatePhysics(float deltaTime)
+{
+    // Make sure deltaTime is reasonable
+    if (deltaTime > 0.1f) deltaTime = 0.1f;
+
+    SceneObject* player = nullptr;
+    for (auto& obj : sceneObjects)
+    {
+        if (obj.name == "Player Cube")
+        {
+            player = &obj;
+            break;
+        }
+    }
+
+    if (player)
+    {
+        // 1. Apply gravity
+        player->velocity.y -= 9.81f * deltaTime;
+
+        // 2. Keyboard control inputs (WASD & Arrow Keys)
+        float speed = 3.0f;
+        glm::vec3 moveDir(0.0f);
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+            moveDir.z -= 1.0f;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+            moveDir.z += 1.0f;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+            moveDir.x -= 1.0f;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+            moveDir.x += 1.0f;
+
+        if (glm::length(moveDir) > 0.0f)
+        {
+            moveDir = glm::normalize(moveDir);
+            player->position.x += moveDir.x * speed * deltaTime;
+            player->position.z += moveDir.z * speed * deltaTime;
+        }
+
+        // Jump (allow only when grounded)
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        {
+            float groundY = -1.5f;
+            float halfHeight = player->scale.y * 0.5f;
+            if (player->position.y - halfHeight <= groundY + 0.01f)
+            {
+                player->velocity.y = 5.0f; // Jump force
+            }
+        }
+
+        // 3. Update player position
+        player->position.y += player->velocity.y * deltaTime;
+
+        // 4. Ground Collision
+        float groundY = -1.5f;
+        float halfHeight = player->scale.y * 0.5f;
+        if (player->position.y - halfHeight < groundY)
+        {
+            player->position.y = groundY + halfHeight;
+            player->velocity.y = -player->velocity.y * 0.5f; // Bouncing physics
+            if (glm::abs(player->velocity.y) < 0.1f) player->velocity.y = 0.0f;
+        }
+
+        // Grid boundaries constraint
+        player->position.x = std::clamp(player->position.x, -5.0f, 5.0f);
+        player->position.z = std::clamp(player->position.z, -5.0f, 5.0f);
+
+        // 5. Update main camera target to follow player cube
+        mainCameraTarget = player->position;
+        // Keep camera at offset position
+        mainCameraPos = player->position + glm::vec3(2.5f, 2.5f, 2.5f);
+
+        // 6. Collision detection with Collectible target
+        SceneObject* target = nullptr;
+        for (auto& obj : sceneObjects)
+        {
+            if (obj.name == "Gold Collectible")
+            {
+                target = &obj;
+                break;
+            }
+        }
+
+        if (target)
+        {
+            float dist = glm::distance(player->position, target->position);
+            float limit = (player->scale.x + target->scale.x) * 0.5f;
+            if (dist < limit)
+            {
+                // Increment score and relocate target
+                gameScore++;
+                if (gameScore > highScore) highScore = gameScore;
+
+                float rx = -3.0f + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / 6.0f));
+                float rz = -3.0f + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / 6.0f));
+                target->position = glm::vec3(rx, -1.2f, rz);
+            }
+        }
+    }
+}
+
+void VulkanApp::draw3DObject(int objIndex, const glm::mat4& view, const glm::mat4& proj, const ImVec2& offset, const ImVec2& size)
+{
+    const SceneObject& obj = sceneObjects[objIndex];
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    ImU32 col = IM_COL32(obj.color.r * 255, obj.color.g * 255, obj.color.b * 255, obj.color.a * 255);
+
+    // Build Model Matrix
+    glm::mat4 model = getWorldMatrix(sceneObjects, objIndex);
+
+    if (obj.type == ObjectType::CUBE)
+    {
+        // 8 Corners of a Cube
+        glm::vec3 localV[8] = {
+            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, 0.5f, -0.5f}, {-0.5f, 0.5f, -0.5f},
+            {-0.5f, -0.5f,  0.5f}, {0.5f, -0.5f,  0.5f}, {0.5f, 0.5f,  0.5f}, {-0.5f, 0.5f,  0.5f}
+        };
+        ImVec2 projV[8];
+        for (int i = 0; i < 8; ++i)
+        {
+            glm::vec3 worldPos = glm::vec3(model * glm::vec4(localV[i], 1.0f));
+            projV[i] = projectPoint(worldPos, view, proj, offset, size);
+        }
+
+        auto drawEdge = [&](int idx1, int idx2) {
+            if (projV[idx1].x > -90000.0f && projV[idx2].x > -90000.0f)
+                drawList->AddLine(projV[idx1], projV[idx2], col, 1.5f);
+        };
+
+        // Front Face
+        drawEdge(0, 1); drawEdge(1, 2); drawEdge(2, 3); drawEdge(3, 0);
+        // Back Face
+        drawEdge(4, 5); drawEdge(5, 6); drawEdge(6, 7); drawEdge(7, 4);
+        // Side connectors
+        drawEdge(0, 4); drawEdge(1, 5); drawEdge(2, 6); drawEdge(3, 7);
+    }
+    else if (obj.type == ObjectType::SPHERE)
+    {
+        // Draw 3 Orthogonal circles
+        const int numSegments = 16;
+        ImVec2 prevXZ, prevXY, prevYZ;
+        for (int i = 0; i <= numSegments; ++i)
+        {
+            float angle = (i * 2.0f * 3.14159f) / numSegments;
+            
+            // XZ Ring
+            glm::vec3 ptXZ(cos(angle) * 0.5f, 0.0f, sin(angle) * 0.5f);
+            glm::vec3 wXZ = glm::vec3(model * glm::vec4(ptXZ, 1.0f));
+            ImVec2 pXZ = projectPoint(wXZ, view, proj, offset, size);
+            if (i > 0 && prevXZ.x > -90000.0f && pXZ.x > -90000.0f)
+                drawList->AddLine(prevXZ, pXZ, col, 1.5f);
+            prevXZ = pXZ;
+
+            // XY Ring
+            glm::vec3 ptXY(cos(angle) * 0.5f, sin(angle) * 0.5f, 0.0f);
+            glm::vec3 wXY = glm::vec3(model * glm::vec4(ptXY, 1.0f));
+            ImVec2 pXY = projectPoint(wXY, view, proj, offset, size);
+            if (i > 0 && prevXY.x > -90000.0f && pXY.x > -90000.0f)
+                drawList->AddLine(prevXY, pXY, col, 1.5f);
+            prevXY = pXY;
+        }
+    }
+    else if (obj.type == ObjectType::PLANE)
+    {
+        // 4 Corners in local space
+        glm::vec3 localP[4] = {
+            {-0.5f, 0.0f, -0.5f}, {0.5f, 0.0f, -0.5f}, {0.5f, 0.0f, 0.5f}, {-0.5f, 0.0f, 0.5f}
+        };
+        ImVec2 projP[4];
+        for (int i = 0; i < 4; ++i)
+        {
+            glm::vec3 worldPos = glm::vec3(model * glm::vec4(localP[i], 1.0f));
+            projP[i] = projectPoint(worldPos, view, proj, offset, size);
+        }
+
+        if (projP[0].x > -90000.0f && projP[1].x > -90000.0f && projP[2].x > -90000.0f && projP[3].x > -90000.0f)
+        {
+            drawList->AddQuadFilled(projP[0], projP[1], projP[2], projP[3], IM_COL32(obj.color.r * 255, obj.color.g * 255, obj.color.b * 255, 35));
+            drawList->AddQuad(projP[0], projP[1], projP[2], projP[3], col, 1.5f);
+        }
+    }
+    else if (obj.type == ObjectType::LIGHT)
+    {
+        ImVec2 center = projectPoint(obj.position, view, proj, offset, size);
+        if (center.x > -90000.0f)
+        {
+            // Light symbol (bulb symbol)
+            drawList->AddCircleFilled(center, 4.0f, IM_COL32(255, 255, 100, 255));
+            drawList->AddCircle(center, 8.0f, col, 0, 1.5f);
+            
+            // Calculate actual light direction from rotation
+            glm::mat4 rotM = glm::mat4(1.0f);
+            rotM = glm::rotate(rotM, glm::radians(obj.rotation.x), glm::vec3(1, 0, 0));
+            rotM = glm::rotate(rotM, glm::radians(obj.rotation.y), glm::vec3(0, 1, 0));
+            rotM = glm::rotate(rotM, glm::radians(obj.rotation.z), glm::vec3(0, 0, 1));
+            glm::vec3 lookDir = glm::normalize(glm::vec3(rotM * glm::vec4(0.0f, -1.0f, 0.0f, 0.0f)));
+            glm::vec3 right = glm::normalize(glm::vec3(rotM * glm::vec4(1.0f, 0.0f, 0.0f, 0.0f)));
+            glm::vec3 up = glm::normalize(glm::vec3(rotM * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
+
+            // 1. Draw Camera-like frustum for the light
+            float frustumDist = 0.6f;
+            float frustumW = 0.35f;
+            float frustumH = 0.35f;
+
+            glm::vec3 baseCenter = obj.position + lookDir * frustumDist;
+            glm::vec3 c0 = baseCenter - right * frustumW + up * frustumH;
+            glm::vec3 c1 = baseCenter + right * frustumW + up * frustumH;
+            glm::vec3 c2 = baseCenter + right * frustumW - up * frustumH;
+            glm::vec3 c3 = baseCenter - right * frustumW - up * frustumH;
+
+            ImVec2 sc0 = projectPoint(c0, view, proj, offset, size);
+            ImVec2 sc1 = projectPoint(c1, view, proj, offset, size);
+            ImVec2 sc2 = projectPoint(c2, view, proj, offset, size);
+            ImVec2 sc3 = projectPoint(c3, view, proj, offset, size);
+
+            ImU32 frustumCol = IM_COL32(255, 255, 100, 255);
+            if (sc0.x > -90000.0f) drawList->AddLine(center, sc0, frustumCol, 1.5f);
+            if (sc1.x > -90000.0f) drawList->AddLine(center, sc1, frustumCol, 1.5f);
+            if (sc2.x > -90000.0f) drawList->AddLine(center, sc2, frustumCol, 1.5f);
+            if (sc3.x > -90000.0f) drawList->AddLine(center, sc3, frustumCol, 1.5f);
+
+            if (sc0.x > -90000.0f && sc1.x > -90000.0f) drawList->AddLine(sc0, sc1, frustumCol, 1.5f);
+            if (sc1.x > -90000.0f && sc2.x > -90000.0f) drawList->AddLine(sc1, sc2, frustumCol, 1.5f);
+            if (sc2.x > -90000.0f && sc3.x > -90000.0f) drawList->AddLine(sc2, sc3, frustumCol, 1.5f);
+            if (sc3.x > -90000.0f && sc0.x > -90000.0f) drawList->AddLine(sc3, sc0, frustumCol, 1.5f);
+            
+            // 2. Draw main ray to the ground (y = 0)
+            float t = (lookDir.y < -0.001f) ? (-obj.position.y / lookDir.y) : 10.0f;
+            if (t < 0.0f || t > 50.0f) t = 10.0f;
+            
+            glm::vec3 endPt = obj.position + lookDir * t;
+            ImVec2 end = projectPoint(endPt, view, proj, offset, size);
+            
+            if (end.x > -90000.0f)
+            {
+                // Main light direction ray
+                drawList->AddLine(center, end, IM_COL32(255, 255, 100, 150), 1.0f);
+                
+                // Draw a cross on the plane where the light hits
+                glm::vec3 p1 = endPt + glm::vec3(1, 0, 0);
+                glm::vec3 p2 = endPt + glm::vec3(-1, 0, 0);
+                glm::vec3 p3 = endPt + glm::vec3(0, 0, 1);
+                glm::vec3 p4 = endPt + glm::vec3(0, 0, -1);
+                ImVec2 sp1 = projectPoint(p1, view, proj, offset, size);
+                ImVec2 sp2 = projectPoint(p2, view, proj, offset, size);
+                ImVec2 sp3 = projectPoint(p3, view, proj, offset, size);
+                ImVec2 sp4 = projectPoint(p4, view, proj, offset, size);
+                if (sp1.x > -90000.0f && sp2.x > -90000.0f) drawList->AddLine(sp1, sp2, IM_COL32(255, 150, 0, 150), 1.5f);
+                if (sp3.x > -90000.0f && sp4.x > -90000.0f) drawList->AddLine(sp3, sp4, IM_COL32(255, 150, 0, 150), 1.5f);
+            }
+        }
+    }
+}
+
+void VulkanApp::saveScene(const std::string& filename)
+{
+    std::ofstream out(filename);
+    if (!out.is_open()) return;
+
+    out << "# ShapeRenderer Scene File\n";
+    for (const auto& obj : sceneObjects)
+    {
+        out << "object: " << obj.name << "\n";
+        out << "type: " << static_cast<int>(obj.type) << "\n";
+        out << "position: " << obj.position.x << " " << obj.position.y << " " << obj.position.z << "\n";
+        out << "rotation: " << obj.rotation.x << " " << obj.rotation.y << " " << obj.rotation.z << "\n";
+        out << "scale: " << obj.scale.x << " " << obj.scale.y << " " << obj.scale.z << "\n";
+        out << "color: " << obj.color.r << " " << obj.color.g << " " << obj.color.b << " " << obj.color.a << "\n";
+        out << "physics: " << (obj.isPhysicsEnabled ? 1 : 0) << "\n\n";
+    }
+    out.close();
+}
+
+void VulkanApp::loadScene(const std::string& filename)
+{
+    std::ifstream in(filename);
+    if (!in.is_open()) return;
+
+    sceneObjects.clear();
+    std::string line;
+    SceneObject current;
+    bool hasObj = false;
+
+    while (std::getline(in, line))
+    {
+        if (line.empty() || line[0] == '#') continue;
+
+        std::stringstream ss(line);
+        std::string key;
+        ss >> key;
+
+        if (key == "object:")
+        {
+            if (hasObj)
+            {
+                sceneObjects.push_back(current);
+            }
+            std::string name;
+            std::getline(ss, name);
+            if (!name.empty() && name[0] == ' ') name = name.substr(1);
+            current = SceneObject();
+            current.name = name;
+            hasObj = true;
+        }
+        else if (key == "type:")
+        {
+            int t;
+            ss >> t;
+            current.type = static_cast<ObjectType>(t);
+        }
+        else if (key == "position:")
+        {
+            ss >> current.position.x >> current.position.y >> current.position.z;
+        }
+        else if (key == "rotation:")
+        {
+            ss >> current.rotation.x >> current.rotation.y >> current.rotation.z;
+        }
+        else if (key == "scale:")
+        {
+            ss >> current.scale.x >> current.scale.y >> current.scale.z;
+        }
+        else if (key == "color:")
+        {
+            ss >> current.color.r >> current.color.g >> current.color.b >> current.color.a;
+        }
+        else if (key == "physics:")
+        {
+            int p;
+            ss >> p;
+            current.isPhysicsEnabled = (p == 1);
+        }
+    }
+    if (hasObj)
+    {
+        sceneObjects.push_back(current);
+    }
+    in.close();
+
+    // Reset starting position for player cube if loaded
+    for (auto& obj : sceneObjects)
+    {
+        if (obj.name == "Player Cube")
+        {
+            playerStartPos = obj.position;
+        }
+        // Assign mesh based on object type (meshId is not saved/loaded)
+        switch (obj.type) {
+            case ObjectType::CUBE:  obj.meshId = primitiveCubeMeshId;   break;
+            case ObjectType::SPHERE: obj.meshId = primitiveSphereMeshId; break;
+            case ObjectType::PLANE: obj.meshId = primitivePlaneMeshId;  break;
+            case ObjectType::LIGHT: obj.meshId = primitiveCubeMeshId;   break;
+            default: obj.meshId = -1; break;
+        }
+    }
+    selectedObjectIndex = 0;
+}
+
+void VulkanApp::createCommandBuffers()
+{
+    commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = commandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
+
+    if (vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate command buffers!");
+    }
+}
+
+void VulkanApp::createSyncObjects()
+{
+    imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to create synchronization objects for a frame!");
+        }
+    }
+}
+
+void VulkanApp::updateUniformBuffer(uint32_t currentImage)
+{
+    UniformBufferObject ubo{};
+    
+    // Scene Camera UBO
+    glm::vec3 camPos(
+        sceneCameraDistance * cos(glm::radians(sceneRotationX)) * sin(glm::radians(sceneRotationY)),
+        sceneCameraDistance * sin(glm::radians(sceneRotationX)),
+        sceneCameraDistance * cos(glm::radians(sceneRotationX)) * cos(glm::radians(sceneRotationY))
+    );
+    ubo.view = glm::lookAt(camPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
+    ubo.proj[1][1] *= -1;
+    // Find directional light
+    glm::vec3 lightP = glm::vec3(0.0f, 10.0f, 0.0f);
+    glm::vec3 lightC = glm::vec3(1.0f, 1.0f, 1.0f);
+    glm::vec3 lightRot = glm::vec3(0.0f, 0.0f, 0.0f);
+    for (const auto& obj : sceneObjects) {
+        if (obj.type == ObjectType::LIGHT) {
+            lightP = obj.position;
+            lightC = glm::vec3(obj.color);
+            lightRot = obj.rotation;
+            break;
+        }
+    }
+
+    // Calculate light forward and up vectors based on rotation
+    glm::mat4 rotM = glm::mat4(1.0f);
+    rotM = glm::rotate(rotM, glm::radians(lightRot.x), glm::vec3(1, 0, 0));
+    rotM = glm::rotate(rotM, glm::radians(lightRot.y), glm::vec3(0, 1, 0));
+    rotM = glm::rotate(rotM, glm::radians(lightRot.z), glm::vec3(0, 0, 1));
+    
+    // Default light direction is down (0, -1, 0)
+    glm::vec3 lightDir = glm::normalize(glm::vec3(rotM * glm::vec4(0.0f, -1.0f, 0.0f, 0.0f)));
+    // Default up vector for the light camera is forward (0, 0, -1) to prevent singularity
+    glm::vec3 lightUp = glm::normalize(glm::vec3(rotM * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
+
+    // Update Light Space Matrix
+    glm::mat4 lightProjection = glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, -20.0f, 50.0f);
+    lightProjection[1][1] *= -1;
+    glm::mat4 lightView = glm::lookAt(lightP, lightP + lightDir, lightUp);
+    glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+
+    ubo.lightPos = lightP;
+    ubo.lightColor = lightC;
+    ubo.lightSpaceMatrix = lightSpaceMatrix;
+    ubo.lightDir = lightDir;
+    ubo.enableShadows = enableShadowMapping ? 1.0f : 0.0f;
+    ubo.viewPos = camPos;
+    memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+
+    // Game (Main) Camera UBO
+    UniformBufferObject gameUbo{};
+    gameUbo.lightPos = lightP;
+    gameUbo.lightColor = lightC;
+    gameUbo.lightSpaceMatrix = lightSpaceMatrix;
+    gameUbo.lightDir = lightDir;
+    gameUbo.enableShadows = enableShadowMapping ? 1.0f : 0.0f;
+    gameUbo.viewPos = mainCameraPos;
+    gameUbo.view = glm::lookAt(mainCameraPos, mainCameraTarget, glm::vec3(0.0f, 1.0f, 0.0f));
+    gameUbo.proj = glm::perspective(glm::radians(mainCameraFov),
+        (float)WIDTH / (float)HEIGHT, mainCameraNear, mainCameraFar);
+    gameUbo.proj[1][1] *= -1;
+    memcpy(gameUniformBuffersMapped[currentImage], &gameUbo, sizeof(gameUbo));
+}
+
+void VulkanApp::drawFrame()
+{
+    vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+
+    uint32_t imageIndex;
+    VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        recreateSwapChain();
+        return;
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    {
+        throw std::runtime_error("Failed to acquire swap chain image!");
+    }
+
+    // Update physics in Play mode
+    if (mode == AppMode::PLAY)
+    {
+        updatePhysics(ImGui::GetIO().DeltaTime);
+    }
+
+    updateUniformBuffer(currentFrame);
+
+    renderImGuiUI();
+
+    vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
+    vkResetCommandBuffer(commandBuffers[currentFrame], 0);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if (vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to begin recording command buffer!");
+    }
+
+    // SHADOW PASS
+    VkRenderPassBeginInfo shadowPassInfo{};
+    shadowPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    shadowPassInfo.renderPass = shadowRenderPass;
+    shadowPassInfo.framebuffer = shadowFramebuffer;
+    shadowPassInfo.renderArea.offset = {0, 0};
+    shadowPassInfo.renderArea.extent = {2048, 2048};
+
+    VkClearValue shadowClearValues{};
+    shadowClearValues.depthStencil = {1.0f, 0};
+    shadowPassInfo.clearValueCount = 1;
+    shadowPassInfo.pClearValues = &shadowClearValues;
+
+    vkCmdBeginRenderPass(commandBuffers[currentFrame], &shadowPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPipeline);
+
+    VkViewport shadowViewport{};
+    shadowViewport.x = 0.0f;
+    shadowViewport.y = 0.0f;
+    shadowViewport.width = 2048.0f;
+    shadowViewport.height = 2048.0f;
+    shadowViewport.minDepth = 0.0f;
+    shadowViewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &shadowViewport);
+
+    VkRect2D shadowScissor{};
+    shadowScissor.offset = {0, 0};
+    shadowScissor.extent = {2048, 2048};
+    vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &shadowScissor);
+    
+    // Depth bias to prevent acne
+    vkCmdSetDepthBias(commandBuffers[currentFrame], 1.25f, 0.0f, 1.75f);
+
+    vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
+    // Draw objects into shadow map
+    if (enableShadowMapping) {
+        for (const auto& obj : sceneObjects) {
+        if (obj.meshId >= 0 && obj.meshId < meshes.size()) {
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, obj.position);
+            model = glm::rotate(model, glm::radians(obj.rotation.x), glm::vec3(1, 0, 0));
+            model = glm::rotate(model, glm::radians(obj.rotation.y), glm::vec3(0, 1, 0));
+            model = glm::rotate(model, glm::radians(obj.rotation.z), glm::vec3(0, 0, 1));
+            model = glm::scale(model, obj.scale);
+
+            vkCmdPushConstants(commandBuffers[currentFrame], shadowPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &model);
+
+            VkBuffer vertexBuffers[] = {meshes[obj.meshId].vertexBuffer};
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, vertexBuffers, offsets);
+            vkCmdBindIndexBuffer(commandBuffers[currentFrame], meshes[obj.meshId].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(commandBuffers[currentFrame], static_cast<uint32_t>(meshes[obj.meshId].indices.size()), 1, 0, 0, 0);
+        }
+        }
+    }
+    vkCmdEndRenderPass(commandBuffers[currentFrame]);
+
+    // 1. Offscreen Render Pass (Draw 3D Scene)
+    VkRenderPassBeginInfo offscreenInfo{};
+    offscreenInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    offscreenInfo.renderPass = offscreenRenderPass;
+    offscreenInfo.framebuffer = offscreenFramebuffer;
+    offscreenInfo.renderArea.offset = {0, 0};
+    offscreenInfo.renderArea.extent = {WIDTH, HEIGHT};
+
+    std::array<VkClearValue, 2> offscreenClearValues{};
+    offscreenClearValues[0].color = {{backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f}};
+    offscreenClearValues[1].depthStencil = {1.0f, 0};
+    offscreenInfo.clearValueCount = static_cast<uint32_t>(offscreenClearValues.size());
+    offscreenInfo.pClearValues = offscreenClearValues.data();
+
+    vkCmdBeginRenderPass(commandBuffers[currentFrame], &offscreenInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float)WIDTH;
+    viewport.height = (float)HEIGHT;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = {WIDTH, HEIGHT};
+    vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &scissor);
+
+    // Bind UBO Set (Set 0)
+    vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
+    for (size_t i = 0; i < sceneObjects.size(); ++i) {
+        VkDescriptorSet texSet = defaultTexture.descriptorSet;
+        if (sceneObjects[i].textureId >= 0 && sceneObjects[i].textureId < textures.size()) {
+            texSet = textures[sceneObjects[i].textureId].descriptorSet;
+        }
+        vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texSet, 0, nullptr);
+
+        if (sceneObjects[i].meshId >= 0 && sceneObjects[i].meshId < meshes.size()) {
+            PushConstants push{};
+            push.model = getWorldMatrix(sceneObjects, i);
+            vkCmdPushConstants(commandBuffers[currentFrame], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &push);
+
+            VkBuffer vertexBuffers[] = { meshes[sceneObjects[i].meshId].vertexBuffer };
+            VkDeviceSize offsets[] = { 0 };
+            vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, vertexBuffers, offsets);
+            vkCmdBindIndexBuffer(commandBuffers[currentFrame], meshes[sceneObjects[i].meshId].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+            vkCmdDrawIndexed(commandBuffers[currentFrame], meshes[sceneObjects[i].meshId].indexCount, 1, 0, 0, 0);
+        }
+    }
+    vkCmdEndRenderPass(commandBuffers[currentFrame]);
+
+    // 2. Game View Render Pass (Main Camera)
+    VkRenderPassBeginInfo gamePassInfo{};
+    gamePassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    gamePassInfo.renderPass = offscreenRenderPass;
+    gamePassInfo.framebuffer = gameFramebuffer;
+    gamePassInfo.renderArea.offset = {0, 0};
+    gamePassInfo.renderArea.extent = {WIDTH, HEIGHT};
+
+    std::array<VkClearValue, 2> gameClearValues{};
+    gameClearValues[0].color = {{backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f}};
+    gameClearValues[1].depthStencil = {1.0f, 0};
+    gamePassInfo.clearValueCount = static_cast<uint32_t>(gameClearValues.size());
+    gamePassInfo.pClearValues = gameClearValues.data();
+
+    vkCmdBeginRenderPass(commandBuffers[currentFrame], &gamePassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+    vkCmdSetViewport(commandBuffers[currentFrame], 0, 1, &viewport);
+    vkCmdSetScissor(commandBuffers[currentFrame], 0, 1, &scissor);
+
+    // Bind GAME camera UBO (Set 0)
+    vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &gameDescriptorSets[currentFrame], 0, nullptr);
+
+    for (size_t i = 0; i < sceneObjects.size(); ++i) {
+        VkDescriptorSet texSet = defaultTexture.descriptorSet;
+        if (sceneObjects[i].textureId >= 0 && sceneObjects[i].textureId < textures.size()) {
+            texSet = textures[sceneObjects[i].textureId].descriptorSet;
+        }
+        vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texSet, 0, nullptr);
+
+        if (sceneObjects[i].meshId >= 0 && sceneObjects[i].meshId < meshes.size()) {
+            PushConstants push{};
+            push.model = getWorldMatrix(sceneObjects, i);
+            vkCmdPushConstants(commandBuffers[currentFrame], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &push);
+            VkBuffer vbs[] = { meshes[sceneObjects[i].meshId].vertexBuffer };
+            VkDeviceSize offs[] = { 0 };
+            vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, vbs, offs);
+            vkCmdBindIndexBuffer(commandBuffers[currentFrame], meshes[sceneObjects[i].meshId].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(commandBuffers[currentFrame], meshes[sceneObjects[i].meshId].indexCount, 1, 0, 0, 0);
+        }
+    }
+    vkCmdEndRenderPass(commandBuffers[currentFrame]);
+
+    // 3. Main Render Pass (Draw ImGui only)
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderPass;
+    renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+    renderPassInfo.renderArea.offset = { 0, 0 };
+    renderPassInfo.renderArea.extent = swapChainExtent;
+    
+    // Clear with a dark background for the borders outside ImGui panels
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+    clearValues[1].depthStencil = { 1.0f, 0 };
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
+
+    vkCmdBeginRenderPass(commandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[currentFrame]);
+    vkCmdEndRenderPass(commandBuffers[currentFrame]);
+
+    if (vkEndCommandBuffer(commandBuffers[currentFrame]) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to record command buffer!");
+    }
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = { imageAvailableSemaphores[currentFrame] };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
+
+    VkSemaphore signalSemaphores[] = { renderFinishedSemaphores[currentFrame] };
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to submit draw command buffer!");
+    }
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+
+    VkSwapchainKHR swapChains[] = { swapChain };
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized)
+    {
+        framebufferResized = false;
+        recreateSwapChain();
+    }
+    else if (result != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to present swap chain image!");
+    }
+
+    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void VulkanApp::cleanupSwapChain()
+{
+    if (depthImageView != VK_NULL_HANDLE)
+    {
+        vkDestroyImageView(device, depthImageView, nullptr);
+    }
+    if (depthImage != VK_NULL_HANDLE)
+    {
+        vkDestroyImage(device, depthImage, nullptr);
+    }
+    if (depthImageMemory != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(device, depthImageMemory, nullptr);
+    }
+
+    for (auto framebuffer : swapChainFramebuffers)
+    {
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
+
+    for (auto imageView : swapChainImageViews)
+    {
+        vkDestroyImageView(device, imageView, nullptr);
+    }
+
+    if (swapChain != VK_NULL_HANDLE)
+    {
+        vkDestroySwapchainKHR(device, swapChain, nullptr);
+    }
+}
+
+void VulkanApp::recreateSwapChain()
+{
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(window, &width, &height);
+    while (width == 0 || height == 0)
+    {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(device);
+
+    cleanupSwapChain();
+
+    createSwapChain();
+    createImageViews();
+    createDepthResources();
+    createFramebuffers();
+}
+
+void VulkanApp::mainLoop()
+{
+    while (!glfwWindowShouldClose(window))
+    {
+        glfwPollEvents();
+        drawFrame();
+    }
+
+    vkDeviceWaitIdle(device);
+}
+
+void VulkanApp::cleanupImGui()
+{
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    if (imguiDescriptorPool != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorPool(device, imguiDescriptorPool, nullptr);
+    }
+}
+
+void VulkanApp::cleanup()
+{
+    cleanupImGui();
+    cleanupSwapChain();
+
+    if (pipelineLayout != VK_NULL_HANDLE)
+    {
+        vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    }
+    if (graphicsPipeline != VK_NULL_HANDLE)
+    {
+        vkDestroyPipeline(device, graphicsPipeline, nullptr);
+    }
+    if (renderPass != VK_NULL_HANDLE)
+    {
+        vkDestroyRenderPass(device, renderPass, nullptr);
+    }
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        if (uniformBuffers[i] != VK_NULL_HANDLE)
+        {
+            vkDestroyBuffer(device, uniformBuffers[i], nullptr);
+        }
+        if (uniformBuffersMemory[i] != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+        }
+    }
+
+    if (descriptorPool != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    }
+    if (uboSetLayout != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorSetLayout(device, uboSetLayout, nullptr);
+    }
+    if (textureSetLayout != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorSetLayout(device, textureSetLayout, nullptr);
+    }
+
+    if (indexBuffer != VK_NULL_HANDLE)
+    {
+        vkDestroyBuffer(device, indexBuffer, nullptr);
+    }
+    if (indexBufferMemory != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(device, indexBufferMemory, nullptr);
+    }
+
+    if (vertexBuffer != VK_NULL_HANDLE)
+    {
+        vkDestroyBuffer(device, vertexBuffer, nullptr);
+    }
+    if (vertexBufferMemory != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(device, vertexBufferMemory, nullptr);
+    }
+
+    // Cleanup procedural meshes
+    for (auto& mesh : meshes)
+    {
+        if (mesh.vertexBuffer != VK_NULL_HANDLE)
+            vkDestroyBuffer(device, mesh.vertexBuffer, nullptr);
+        if (mesh.vertexBufferMemory != VK_NULL_HANDLE)
+            vkFreeMemory(device, mesh.vertexBufferMemory, nullptr);
+        if (mesh.indexBuffer != VK_NULL_HANDLE)
+            vkDestroyBuffer(device, mesh.indexBuffer, nullptr);
+        if (mesh.indexBufferMemory != VK_NULL_HANDLE)
+            vkFreeMemory(device, mesh.indexBufferMemory, nullptr);
+    }
+    meshes.clear();
+
+    // Cleanup game view resources
+    if (gameFramebuffer != VK_NULL_HANDLE) vkDestroyFramebuffer(device, gameFramebuffer, nullptr);
+    if (gameColorImageView != VK_NULL_HANDLE) vkDestroyImageView(device, gameColorImageView, nullptr);
+    if (gameColorImage != VK_NULL_HANDLE) vkDestroyImage(device, gameColorImage, nullptr);
+    if (gameColorImageMemory != VK_NULL_HANDLE) vkFreeMemory(device, gameColorImageMemory, nullptr);
+    if (gameDepthImageView != VK_NULL_HANDLE) vkDestroyImageView(device, gameDepthImageView, nullptr);
+    if (gameDepthImage != VK_NULL_HANDLE) vkDestroyImage(device, gameDepthImage, nullptr);
+    if (gameDepthImageMemory != VK_NULL_HANDLE) vkFreeMemory(device, gameDepthImageMemory, nullptr);
+    if (gameSampler != VK_NULL_HANDLE) vkDestroySampler(device, gameSampler, nullptr);
+    for (size_t i = 0; i < gameUniformBuffers.size(); i++) {
+        if (gameUniformBuffers[i] != VK_NULL_HANDLE) vkDestroyBuffer(device, gameUniformBuffers[i], nullptr);
+        if (gameUniformBuffersMemory[i] != VK_NULL_HANDLE) vkFreeMemory(device, gameUniformBuffersMemory[i], nullptr);
+    }
+
+
+    // Cleanup textures
+    if (defaultTexture.image != VK_NULL_HANDLE) {
+        vkDestroyImageView(device, defaultTexture.view, nullptr);
+        vkDestroyImage(device, defaultTexture.image, nullptr);
+        vkFreeMemory(device, defaultTexture.memory, nullptr);
+    }
+    for (auto& tex : textures) {
+        if (tex.image != VK_NULL_HANDLE) {
+            vkDestroyImageView(device, tex.view, nullptr);
+            vkDestroyImage(device, tex.image, nullptr);
+            vkFreeMemory(device, tex.memory, nullptr);
+        }
+    }
+    textures.clear();
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        if (imageAvailableSemaphores[i] != VK_NULL_HANDLE)
+        {
+            vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
+        }
+        if (renderFinishedSemaphores[i] != VK_NULL_HANDLE)
+        {
+            vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
+        }
+        if (inFlightFences[i] != VK_NULL_HANDLE)
+        {
+            vkDestroyFence(device, inFlightFences[i], nullptr);
+        }
+    }
+
+    if (commandPool != VK_NULL_HANDLE)
+    {
+        vkDestroyCommandPool(device, commandPool, nullptr);
+    }
+
+    if (device != VK_NULL_HANDLE)
+    {
+        vkDestroyDevice(device, nullptr);
+    }
+
+    if (surface != VK_NULL_HANDLE)
+    {
+        vkDestroySurfaceKHR(instance, surface, nullptr);
+    }
+
+    if (instance != VK_NULL_HANDLE)
+    {
+        vkDestroyInstance(instance, nullptr);
+    }
+
+    if (window)
+    {
+        glfwDestroyWindow(window);
+    }
+
+    glfwTerminate();
+}
+
+
+void VulkanApp::createShadowRenderPass() {
+    VkAttachmentDescription depthAttachment{};
+    depthAttachment.format = VK_FORMAT_D32_SFLOAT;
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+
+    VkAttachmentReference depthAttachmentRef{};
+    depthAttachmentRef.attachment = 0;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 0;
+    subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+    std::array<VkSubpassDependency, 2> dependencies;
+    dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependencies[0].dstSubpass = 0;
+    dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    dependencies[1].srcSubpass = 0;
+    dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+    dependencies[1].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dependencies[1].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    VkRenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &depthAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+    renderPassInfo.pDependencies = dependencies.data();
+
+    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &shadowRenderPass) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create shadow render pass!");
+    }
+}
+
+void VulkanApp::createShadowResources() {
+    createImage(2048, 2048, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, shadowImage, shadowImageMemory);
+
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = shadowImage;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = VK_FORMAT_D32_SFLOAT;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    if (vkCreateImageView(device, &viewInfo, nullptr, &shadowImageView) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create shadow image view!");
+    }
+
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.maxAnisotropy = 1.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 1.0f;
+    samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+    if (vkCreateSampler(device, &samplerInfo, nullptr, &shadowSampler) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create shadow sampler!");
+    }
+
+    VkFramebufferCreateInfo framebufferInfo{};
+    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebufferInfo.renderPass = shadowRenderPass;
+    framebufferInfo.attachmentCount = 1;
+    framebufferInfo.pAttachments = &shadowImageView;
+    framebufferInfo.width = 2048;
+    framebufferInfo.height = 2048;
+    framebufferInfo.layers = 1;
+
+    if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &shadowFramebuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create shadow framebuffer!");
+    }
+}
+
+void VulkanApp::createShadowPipeline() {
+    auto vertShaderCode = readFile("shadow_vert.spv");
+    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertShaderStageInfo.module = vertShaderModule;
+    vertShaderStageInfo.pName = "main";
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = 2048.0f;
+    viewport.height = 2048.0f;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = { 2048, 2048 };
+
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.pViewports = &viewport;
+    viewportState.scissorCount = 1;
+    viewportState.pScissors = &scissor;
+
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_NONE; // Render both faces to avoid peter-panning
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.depthBiasEnable = VK_TRUE;
+
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthWriteEnable = VK_TRUE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.stencilTestEnable = VK_FALSE;
+
+    std::array<VkPushConstantRange, 1> pushConstantRange{};
+    pushConstantRange[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstantRange[0].offset = 0;
+    pushConstantRange[0].size = sizeof(glm::mat4); // model
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &uboSetLayout; // Reuse main UBO layout
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = pushConstantRange.data();
+
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &shadowPipelineLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create shadow pipeline layout!");
+    }
+    
+    std::vector<VkDynamicState> dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_DEPTH_BIAS };
+    VkPipelineDynamicStateCreateInfo dynamicStateInfo{};
+    dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicStateInfo.pDynamicStates = dynamicStates.data();
+
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 1;
+    pipelineInfo.pStages = &vertShaderStageInfo;
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = &depthStencil;
+    pipelineInfo.layout = shadowPipelineLayout;
+    pipelineInfo.renderPass = shadowRenderPass;
+    pipelineInfo.subpass = 0;
+    pipelineInfo.pDynamicState = &dynamicStateInfo;
+
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &shadowPipeline) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create shadow graphics pipeline!");
+    }
+
+    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+}
