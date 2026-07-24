@@ -41,6 +41,10 @@ public:
     void update(float deltaTime);
 
     // Create a rigid body with full physics parameters
+    PhysicsBodyData* createBody(ColliderType type, glm::vec3 position, glm::quat rotation, glm::vec3 scale,
+                                 BodyMotionType motionType, float mass = 1.0f,
+                                 float friction = 0.5f, float restitution = 0.3f);
+
     PhysicsBodyData* createBody(ColliderType type, glm::vec3 position, glm::vec3 scale,
                                  BodyMotionType motionType, float mass = 1.0f,
                                  float friction = 0.5f, float restitution = 0.3f);

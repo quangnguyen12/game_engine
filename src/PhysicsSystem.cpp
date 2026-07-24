@@ -135,8 +135,8 @@ void PhysEngine::update(float deltaTime) {
     physicsSystem->Update(deltaTime, cCollisionSteps, tempAllocator, jobSystem);
 }
 
-// Full-featured createBody with all physics parameters
-PhysicsBodyData* PhysEngine::createBody(ColliderType type, glm::vec3 position, glm::vec3 scale,
+// Full-featured createBody with all physics parameters and initial rotation
+PhysicsBodyData* PhysEngine::createBody(ColliderType type, glm::vec3 position, glm::quat rotation, glm::vec3 scale,
                                          BodyMotionType motionType, float mass,
                                          float friction, float restitution) {
     if (!physicsSystem) return nullptr;
@@ -156,11 +156,12 @@ PhysicsBodyData* PhysEngine::createBody(ColliderType type, glm::vec3 position, g
         CapsuleShapeSettings settings(halfHeight, radius);
         shape = settings.Create().Get();
     } else if (type == ColliderType::PLANE) {
-        BoxShapeSettings settings(Vec3(scale.x * 0.5f, 0.1f, scale.z * 0.5f));
+        BoxShapeSettings settings(Vec3(scale.x * 0.5f, std::max(0.05f, scale.y * 0.5f), scale.z * 0.5f));
         shape = settings.Create().Get();
     }
     
     RVec3 jphPos(position.x, position.y, position.z);
+    Quat jphRot(rotation.x, rotation.y, rotation.z, rotation.w);
     
     // Map BodyMotionType to Jolt types
     EMotionType joltMotionType;
@@ -181,7 +182,7 @@ PhysicsBodyData* PhysEngine::createBody(ColliderType type, glm::vec3 position, g
             break;
     }
     
-    BodyCreationSettings settings(shape, jphPos, Quat::sIdentity(), joltMotionType, layer);
+    BodyCreationSettings settings(shape, jphPos, jphRot, joltMotionType, layer);
     settings.mFriction = friction;
     settings.mRestitution = restitution;
     
@@ -203,6 +204,12 @@ PhysicsBodyData* PhysEngine::createBody(ColliderType type, glm::vec3 position, g
     data->motionType = motionType;
     bodies.push_back(data);
     return data;
+}
+
+PhysicsBodyData* PhysEngine::createBody(ColliderType type, glm::vec3 position, glm::vec3 scale,
+                                         BodyMotionType motionType, float mass,
+                                         float friction, float restitution) {
+    return createBody(type, position, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, motionType, mass, friction, restitution);
 }
 
 // Legacy overload for backward compatibility

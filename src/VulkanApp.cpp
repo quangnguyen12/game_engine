@@ -4475,8 +4475,13 @@ void VulkanApp::initializeDefaultScene()
     player.isPhysicsEnabled = true;
     player.velocity = glm::vec3(0.0f);
     player.id = 0;
-    player.meshId = primitiveCubeMeshId;     // <-- assign mesh!
-    player.bodyData = physEngine.createBody(ColliderType::BOX, player.position, player.scale, BodyMotionType::DYNAMIC, 1.0f, 0.5f, 0.3f);
+    player.meshId = primitiveCubeMeshId;
+
+    auto playerRb = std::make_shared<RigidBodyComponent>();
+    playerRb->colliderType = ColliderType::BOX;
+    playerRb->motionType = BodyMotionType::DYNAMIC;
+    playerRb->mass = 1.0f;
+    player.components.push_back(playerRb);
     sceneObjects.push_back(player);
     
     playerStartPos = player.position;
@@ -4490,9 +4495,14 @@ void VulkanApp::initializeDefaultScene()
     target.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
     target.scale = glm::vec3(0.3f, 0.3f, 0.3f);
     target.color = glm::vec4(1.0f, 0.84f, 0.0f, 1.0f);
-    target.isPhysicsEnabled = false;
-    target.meshId = primitiveSphereMeshId;   // <-- assign mesh!
-    target.bodyData = physEngine.createBody(ColliderType::SPHERE, target.position, target.scale, BodyMotionType::DYNAMIC, 0.5f, 0.5f, 0.5f);
+    target.isPhysicsEnabled = true;
+    target.meshId = primitiveSphereMeshId;
+
+    auto targetRb = std::make_shared<RigidBodyComponent>();
+    targetRb->colliderType = ColliderType::SPHERE;
+    targetRb->motionType = BodyMotionType::DYNAMIC;
+    targetRb->mass = 0.5f;
+    target.components.push_back(targetRb);
     sceneObjects.push_back(target);
 
     // 3. Ground Obstacle Plane
@@ -4504,12 +4514,17 @@ void VulkanApp::initializeDefaultScene()
     ground.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
     ground.scale = glm::vec3(5.0f, 0.1f, 5.0f);
     ground.color = glm::vec4(0.3f, 0.3f, 0.35f, 1.0f);
-    ground.isPhysicsEnabled = false;
-    ground.meshId = primitivePlaneMeshId;    // <-- assign mesh!
-    ground.bodyData = physEngine.createBody(ColliderType::PLANE, ground.position, ground.scale, BodyMotionType::STATIC, 0.0f, 0.8f, 0.1f);
+    ground.isPhysicsEnabled = true;
+    ground.meshId = primitivePlaneMeshId;
+
+    auto groundRb = std::make_shared<RigidBodyComponent>();
+    groundRb->colliderType = ColliderType::PLANE;
+    groundRb->motionType = BodyMotionType::STATIC;
+    groundRb->mass = 0.0f;
+    ground.components.push_back(groundRb);
     sceneObjects.push_back(ground);
 
-    // 4. Directional Light (represented as a small cube gizmo)
+    // 4. Directional Light
     SceneObject sun;
     sun.id = 3;
     sun.name = "Directional Light";
@@ -4519,11 +4534,12 @@ void VulkanApp::initializeDefaultScene()
     sun.scale = glm::vec3(0.3f, 0.3f, 0.3f);
     sun.color = glm::vec4(1.0f, 1.0f, 0.9f, 1.0f);
     sun.isPhysicsEnabled = false;
-    sun.meshId = primitiveCubeMeshId;        // <-- assign mesh (small cube gizmo)
+    sun.meshId = primitiveCubeMeshId;
     sceneObjects.push_back(sun);
     
     selectedObjectIndex = 0;
-    saveHistory(); // Save initial state
+    initPhysicsBodies();
+    saveHistory();
 }
 
 
@@ -4634,14 +4650,15 @@ void VulkanApp::updatePhysics(float deltaTime)
             }
         }
 
-        // Grid boundaries constraint
-        player->position.x = std::clamp(player->position.x, -5.0f, 5.0f);
-        player->position.z = std::clamp(player->position.z, -5.0f, 5.0f);
-
-        // Write position back to Jolt body
-        if (player->bodyData)
+        // Optional boundary clamping if fell below floor
+        if (player->position.y < -20.0f)
         {
-            physEngine.setBodyPosition(player->bodyData, player->position);
+            player->position = glm::vec3(0.0f, 2.0f, 0.0f);
+            if (player->bodyData)
+            {
+                physEngine.setBodyPosition(player->bodyData, player->position);
+                physEngine.setLinearVelocity(player->bodyData, glm::vec3(0.0f));
+            }
         }
 
         // Update main camera target to follow player cube
@@ -4693,28 +4710,28 @@ void VulkanApp::initPhysicsBodies()
         if (obj.isPhysicsEnabled || obj.hasComponent(ComponentType::RIGIDBODY_PHYSICS))
         {
             auto rb = obj.getComponent<RigidBodyComponent>();
-            ColliderType ct = ColliderType::BOX;
-            BodyMotionType mt = BodyMotionType::DYNAMIC;
-            float mass = 1.0f;
-            float friction = 0.5f;
-            float restitution = 0.3f;
-
-            if (rb)
+            if (!rb)
             {
-                ct = rb->colliderType;
-                mt = rb->motionType;
-                mass = rb->mass;
-                friction = rb->friction;
-                restitution = rb->restitution;
-            }
-            else
-            {
-                // Determine collider from ObjectType
-                if (obj.type == ObjectType::SPHERE) ct = ColliderType::SPHERE;
-                else if (obj.type == ObjectType::PLANE) ct = ColliderType::PLANE;
+                rb = std::make_shared<RigidBodyComponent>();
+                if (obj.type == ObjectType::SPHERE) rb->colliderType = ColliderType::SPHERE;
+                else if (obj.type == ObjectType::PLANE) {
+                    rb->colliderType = ColliderType::PLANE;
+                    rb->motionType = BodyMotionType::STATIC;
+                }
+                obj.components.push_back(rb);
             }
 
-            obj.bodyData = physEngine.createBody(ct, obj.position, obj.scale, mt, mass, friction, restitution);
+            obj.isPhysicsEnabled = true;
+
+            ColliderType ct = rb->colliderType;
+            BodyMotionType mt = rb->motionType;
+            float mass = rb->mass;
+            float friction = rb->friction;
+            float restitution = rb->restitution;
+
+            glm::quat rotQuat = glm::quat(glm::radians(obj.rotation));
+
+            obj.bodyData = physEngine.createBody(ct, obj.position, rotQuat, obj.scale, mt, mass, friction, restitution);
         }
     }
 }
@@ -4728,9 +4745,6 @@ void VulkanApp::syncPhysicsToTransform()
         auto rb = obj.getComponent<RigidBodyComponent>();
         if (!rb) continue;
         if (rb->motionType == BodyMotionType::STATIC) continue;
-
-        // Skip player cube - gameplay code handles its position
-        if (obj.name == "Player Cube") continue;
 
         // Read position/rotation from Jolt Physics
         obj.position = physEngine.getBodyPosition(obj.bodyData);
