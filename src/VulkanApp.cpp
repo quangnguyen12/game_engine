@@ -2678,11 +2678,9 @@ void VulkanApp::renderImGuiUI()
     float windowHeight = static_cast<float>(height);
 
     float menuBarHeight = 25.0f;
-    float bottomBarHeight = 95.0f;
-    float leftPanelWidth = 260.0f;
-    float rightPanelWidth = 330.0f;
+    float effectiveBottomHeight = showAssetBrowserPanel ? bottomPanelHeight : 0.0f;
+    float centerHeight = windowHeight - menuBarHeight - effectiveBottomHeight;
     float centerWidth = windowWidth - leftPanelWidth - rightPanelWidth;
-    float centerHeight = windowHeight - menuBarHeight - bottomBarHeight;
 
     if (centerWidth < 100.0f) centerWidth = 100.0f;
     if (centerHeight < 100.0f) centerHeight = 100.0f;
@@ -2813,9 +2811,11 @@ void VulkanApp::renderImGuiUI()
     }
 
     // 2. Hierarchy Panel (Left Window)
-    ImGui::SetNextWindowPos(ImVec2(0.0f, menuBarHeight));
-    ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, centerHeight));
-    if (ImGui::Begin("Hierarchy", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+    ImGui::SetNextWindowPos(ImVec2(0.0f, menuBarHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, centerHeight), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Hierarchy", nullptr, ImGuiWindowFlags_NoCollapse))
+    {
+        leftPanelWidth = ImGui::GetWindowWidth();
     {
         // Add Object button
         if (ImGui::Button(" + Create ", ImVec2(-1, 25)))
@@ -3005,9 +3005,11 @@ void VulkanApp::renderImGuiUI()
     }
 
     // 5. Inspector Panel (Right Window)
-    ImGui::SetNextWindowPos(ImVec2(windowWidth - rightPanelWidth, menuBarHeight));
-    ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, centerHeight));
-    if (ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+    ImGui::SetNextWindowPos(ImVec2(windowWidth - rightPanelWidth, menuBarHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, centerHeight), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_NoCollapse))
+    {
+        rightPanelWidth = ImGui::GetWindowWidth();
     {
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
         

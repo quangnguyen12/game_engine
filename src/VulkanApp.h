@@ -690,6 +690,11 @@ private:
     bool showProfilerPanel = true;
     bool showAssetBrowserPanel = true;
     std::unordered_map<std::string, Texture> assetThumbnails;
+
+    // Resizable UI panel dimensions
+    float leftPanelWidth = 260.0f;
+    float rightPanelWidth = 330.0f;
+    float bottomPanelHeight = 220.0f;
     
     // Play mode game state
     int gameScore = 0;
