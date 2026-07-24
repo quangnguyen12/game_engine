@@ -2379,10 +2379,10 @@ void VulkanApp::drawAssetBrowserPanel(float windowWidth, float bottomBarHeight)
 {
     if (!showAssetBrowserPanel) return;
 
-    ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetIO().DisplaySize.y - bottomPanelHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetIO().DisplaySize.y - bottomPanelHeight), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(windowWidth, bottomPanelHeight), ImGuiCond_FirstUseEver);
 
-    if (ImGui::Begin("📁 Project Assets & Drag-and-Drop Browser", &showAssetBrowserPanel, ImGuiWindowFlags_NoCollapse))
+    if (ImGui::Begin("📁 Project Assets & Drag-and-Drop Browser", &showAssetBrowserPanel, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove))
     {
         if (ImGui::BeginTabBar("AssetBrowserTabs"))
         {
@@ -2811,9 +2811,9 @@ void VulkanApp::renderImGuiUI()
     }
 
     // 2. Hierarchy Panel (Left Window)
-    ImGui::SetNextWindowPos(ImVec2(0.0f, menuBarHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0.0f, menuBarHeight), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, centerHeight), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Hierarchy", nullptr, ImGuiWindowFlags_NoCollapse))
+    if (ImGui::Begin("Hierarchy", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove))
     {
         leftPanelWidth = ImGui::GetWindowWidth();
         // Add Object button
@@ -3004,9 +3004,9 @@ void VulkanApp::renderImGuiUI()
     }
 
     // 5. Inspector Panel (Right Window)
-    ImGui::SetNextWindowPos(ImVec2(windowWidth - rightPanelWidth, menuBarHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(windowWidth - rightPanelWidth, menuBarHeight), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, centerHeight), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_NoCollapse))
+    if (ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove))
     {
         rightPanelWidth = ImGui::GetWindowWidth();
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
@@ -3414,9 +3414,9 @@ void VulkanApp::renderImGuiUI()
     ImGui::End();
 
     // 6. Project Console / Status Bar (Bottom Window)
-    ImGui::SetNextWindowPos(ImVec2(0.0f, windowHeight - bottomPanelHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0.0f, windowHeight - bottomPanelHeight), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(windowWidth, bottomPanelHeight), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Console / Project Logs", nullptr, ImGuiWindowFlags_NoCollapse))
+    if (ImGui::Begin("Console / Project Logs", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove))
     {
         ImGui::TextColored(ImVec4(0.3f, 0.85f, 0.4f, 1.0f), "[INFO] Render Device: %s", selectedGpuName.c_str());
         if (mode == AppMode::PLAY) {
