@@ -489,7 +489,7 @@ private:
     ImVec2 projectPoint(const glm::vec3& p, const glm::mat4& view, const glm::mat4& proj, const ImVec2& offset, const ImVec2& size);
     bool getRayFromScreenPos(const ImVec2& mousePos, const ImVec2& windowPos, const ImVec2& windowSize, const glm::mat4& view, const glm::mat4& proj, glm::vec3& rayOrigin, glm::vec3& rayDir);
     bool intersectRayPlane(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& planePoint, const glm::vec3& planeNormal, glm::vec3& hitPoint);
-    float getClosestPointOnAxis(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& pivotPos, const glm::vec3& axisDir);
+    float getClosestPointOnAxis(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& pivotPos, const glm::vec3& axisDir, const glm::vec3& cameraPos);
     void drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize);
     void drawGameView(const ImVec2& windowPos, const ImVec2& windowSize);
     void updateProfilerMetrics(float deltaTime);

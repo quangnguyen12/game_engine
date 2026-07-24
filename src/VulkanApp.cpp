@@ -3445,10 +3445,10 @@ bool VulkanApp::intersectRayPlane(const glm::vec3& rayOrigin, const glm::vec3& r
     return true;
 }
 
-float VulkanApp::getClosestPointOnAxis(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& pivotPos, const glm::vec3& axisDir)
+float VulkanApp::getClosestPointOnAxis(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& pivotPos, const glm::vec3& axisDir, const glm::vec3& cameraPos)
 {
     glm::vec3 a = glm::normalize(axisDir);
-    glm::vec3 camDir = mainCameraPos - pivotPos;
+    glm::vec3 camDir = cameraPos - pivotPos;
     if (glm::length(camDir) < 0.001f) camDir = glm::vec3(0.0f, 0.0f, 1.0f);
     else camDir = glm::normalize(camDir);
 
@@ -3456,12 +3456,24 @@ float VulkanApp::getClosestPointOnAxis(const glm::vec3& rayOrigin, const glm::ve
     glm::vec3 side = glm::cross(a, camDir);
     if (glm::length(side) < 0.001f)
     {
-        side = glm::cross(a, glm::vec3(0.0f, 1.0f, 0.0f));
+        side = glm::cross(a, glm::vec3(0.0f, 0.0f, 1.0f));
         if (glm::length(side) < 0.001f)
             side = glm::cross(a, glm::vec3(1.0f, 0.0f, 0.0f));
     }
+    if (glm::length(side) < 0.001f)
+    {
+        side = glm::vec3(1.0f, 0.0f, 0.0f);
+    }
     side = glm::normalize(side);
-    glm::vec3 planeNormal = glm::normalize(glm::cross(side, a));
+    glm::vec3 planeNormal = glm::cross(side, a);
+    if (glm::length(planeNormal) < 0.001f)
+    {
+        planeNormal = glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+    else
+    {
+        planeNormal = glm::normalize(planeNormal);
+    }
 
     // Intersect mouse ray with plane passing through pivotPos
     glm::vec3 hitPoint;
@@ -3552,7 +3564,7 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                 {
                     if (gizmoDragState.axis == DragAxis::X || gizmoDragState.axis == DragAxis::Y || gizmoDragState.axis == DragAxis::Z)
                     {
-                        float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir);
+                        float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir, cameraWorldPos);
                         float delta = curAxisVal - gizmoDragState.startAxisVal;
                         posRef = gizmoDragState.startObjPos + gizmoDragState.axisDir * delta;
                     }
@@ -3590,7 +3602,7 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                 {
                     if (gizmoDragState.axis == DragAxis::X || gizmoDragState.axis == DragAxis::Y || gizmoDragState.axis == DragAxis::Z)
                     {
-                        float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir);
+                        float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir, cameraWorldPos);
                         float delta = curAxisVal - gizmoDragState.startAxisVal;
                         int idx = (gizmoDragState.axis == DragAxis::X) ? 0 : (gizmoDragState.axis == DragAxis::Y) ? 1 : 2;
                         scaleRef = gizmoDragState.startObjScale;
@@ -3611,7 +3623,7 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                 {
                     if (gizmoDragState.axis == DragAxis::X || gizmoDragState.axis == DragAxis::Z)
                     {
-                        float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir);
+                        float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir, cameraWorldPos);
                         float delta = curAxisVal - gizmoDragState.startAxisVal;
                         int idx = (gizmoDragState.axis == DragAxis::X) ? 0 : 2;
                         scaleRef = gizmoDragState.startObjScale;
@@ -3638,14 +3650,7 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                     }
                 }
 
-                // Lock boundaries for special game objects
-                if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
-                {
-                    if (sceneObjects[selectedObjectIndex].name == "Ground Obstacle")
-                        sceneObjects[selectedObjectIndex].position.y = -1.5f;
-                    if (sceneObjects[selectedObjectIndex].name == "Gold Collectible")
-                        sceneObjects[selectedObjectIndex].position.y = -1.2f;
-                }
+
 
                 // Re-update pivotPos and project handle positions so Gizmo stays 100% attached to object while dragging
                 if (hasSelection)
@@ -3765,17 +3770,17 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                 if (hoveredDragAxis == DragAxis::X)
                 {
                     gizmoDragState.axisDir = glm::vec3(1.0f, 0.0f, 0.0f);
-                    gizmoDragState.startAxisVal = getClosestPointOnAxis(rayOrig, rayDir, pivotPos, gizmoDragState.axisDir);
+                    gizmoDragState.startAxisVal = getClosestPointOnAxis(rayOrig, rayDir, pivotPos, gizmoDragState.axisDir, cameraWorldPos);
                 }
                 else if (hoveredDragAxis == DragAxis::Y)
                 {
                     gizmoDragState.axisDir = glm::vec3(0.0f, 1.0f, 0.0f);
-                    gizmoDragState.startAxisVal = getClosestPointOnAxis(rayOrig, rayDir, pivotPos, gizmoDragState.axisDir);
+                    gizmoDragState.startAxisVal = getClosestPointOnAxis(rayOrig, rayDir, pivotPos, gizmoDragState.axisDir, cameraWorldPos);
                 }
                 else if (hoveredDragAxis == DragAxis::Z)
                 {
                     gizmoDragState.axisDir = glm::vec3(0.0f, 0.0f, 1.0f);
-                    gizmoDragState.startAxisVal = getClosestPointOnAxis(rayOrig, rayDir, pivotPos, gizmoDragState.axisDir);
+                    gizmoDragState.startAxisVal = getClosestPointOnAxis(rayOrig, rayDir, pivotPos, gizmoDragState.axisDir, cameraWorldPos);
                 }
                 else if (hoveredDragAxis == DragAxis::FREE)
                 {
