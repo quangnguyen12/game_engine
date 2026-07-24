@@ -4487,6 +4487,45 @@ void VulkanApp::initializeDefaultScene()
     playerRb->motionType = BodyMotionType::DYNAMIC;
     playerRb->mass = 1.0f;
     player.components.push_back(playerRb);
+
+    // Pre-attach WASD Movement Lua Script
+    std::string playerLuaScript = R"(local PlayerWASD = {}
+
+function PlayerWASD:onStart(obj)
+    self.speed = 4.0
+    print("[Lua] PlayerWASD started on: " .. obj.name)
+end
+
+function PlayerWASD:onUpdate(obj, dt)
+    local moveX = 0.0
+    local moveZ = 0.0
+
+    if Input.isKeyPressed("W") or Input.isKeyPressed("UP") then moveZ = moveZ - 1.0 end
+    if Input.isKeyPressed("S") or Input.isKeyPressed("DOWN") then moveZ = moveZ + 1.0 end
+    if Input.isKeyPressed("A") or Input.isKeyPressed("LEFT") then moveX = moveX - 1.0 end
+    if Input.isKeyPressed("D") or Input.isKeyPressed("RIGHT") then moveX = moveX + 1.0 end
+
+    if moveX ~= 0.0 and moveZ ~= 0.0 then
+        moveX = moveX * 0.7071
+        moveZ = moveZ * 0.7071
+    end
+
+    obj.position.x = obj.position.x + moveX * self.speed * dt
+    obj.position.z = obj.position.z + moveZ * self.speed * dt
+
+    if moveX ~= 0.0 or moveZ ~= 0.0 then
+        local angle = math.deg(math.atan(moveX, -moveZ))
+        obj.rotation.y = angle
+    end
+
+    if Input.isKeyPressed("SPACE") and obj.position.y <= 0.05 then
+        obj.velocity.y = 5.0
+    end
+end
+
+return PlayerWASD
+)";
+    player.luaScripts.push_back(playerLuaScript);
     sceneObjects.push_back(player);
     
     playerStartPos = player.position;
@@ -4593,67 +4632,7 @@ void VulkanApp::updatePhysics(float deltaTime)
 
     if (player)
     {
-        // Keyboard control inputs (WASD & Arrow Keys)
-        float speed = 3.0f;
-        glm::vec3 moveDir(0.0f);
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-            moveDir.z -= 1.0f;
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-            moveDir.z += 1.0f;
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-            moveDir.x -= 1.0f;
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-            moveDir.x += 1.0f;
-
-        if (glm::length(moveDir) > 0.0f)
-        {
-            moveDir = glm::normalize(moveDir);
-            if (player->bodyData)
-            {
-                // Apply movement as force through Jolt
-                auto rb = player->getComponent<RigidBodyComponent>();
-                float forceMag = speed * (rb ? rb->mass : 1.0f) * 10.0f;
-                physEngine.addForce(player->bodyData, moveDir * forceMag);
-            }
-            else
-            {
-                player->position.x += moveDir.x * speed * deltaTime;
-                player->position.z += moveDir.z * speed * deltaTime;
-            }
-        }
-
-        // Jump (allow only when grounded)
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        {
-            float groundY = -1.5f;
-            float halfHeight = player->scale.y * 0.5f;
-            if (player->position.y - halfHeight <= groundY + 0.1f)
-            {
-                if (player->bodyData)
-                {
-                    physEngine.addImpulse(player->bodyData, glm::vec3(0.0f, 5.0f, 0.0f));
-                }
-                else
-                {
-                    player->velocity.y = 5.0f;
-                }
-            }
-        }
-
-        // Fallback manual physics if no Jolt body
-        if (!player->bodyData)
-        {
-            player->velocity.y -= 9.81f * deltaTime;
-            player->position.y += player->velocity.y * deltaTime;
-            float groundY = -1.5f;
-            float halfHeight = player->scale.y * 0.5f;
-            if (player->position.y - halfHeight < groundY)
-            {
-                player->position.y = groundY + halfHeight;
-                player->velocity.y = -player->velocity.y * 0.5f;
-                if (glm::abs(player->velocity.y) < 0.1f) player->velocity.y = 0.0f;
-            }
-        }
+        // Movement is now fully driven by Lua scripts (e.g. PlayerWASD.lua)
 
         // Optional boundary clamping if fell below floor
         if (player->position.y < -20.0f)
