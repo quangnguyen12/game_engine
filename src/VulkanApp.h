@@ -499,6 +499,7 @@ private:
     int loadTextureAsset(const std::string& filePath);
     void drawAssetBrowserPanel(float windowWidth, float bottomBarHeight);
     void openFileInExternalEditor(const std::string& filePath);
+    void toggleGameFullscreen();
     void initializeDefaultScene();
     void updatePhysics(float deltaTime);
     void initPhysicsBodies();
@@ -690,6 +691,10 @@ private:
     bool showProfilerPanel = true;
     bool showAssetBrowserPanel = true;
     bool isGameFullscreen = false;
+    int savedWindowX = 100;
+    int savedWindowY = 100;
+    int savedWindowW = 1280;
+    int savedWindowH = 720;
     std::unordered_map<std::string, Texture> assetThumbnails;
 
     // Resizable UI panel dimensions

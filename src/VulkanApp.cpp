@@ -2667,7 +2667,7 @@ void VulkanApp::renderImGuiUI()
         }
         if (ImGui::IsKeyPressed(ImGuiKey_Escape) && isGameFullscreen)
         {
-            isGameFullscreen = false;
+            toggleGameFullscreen();
         }
         if (ImGui::IsKeyPressed(ImGuiKey_Y))
         {
@@ -2995,40 +2995,12 @@ void VulkanApp::renderImGuiUI()
     }
     ImGui::End();
 
-    // 4. Game View (Center-Right Window or Secondary Monitor Fullscreen)
+    // 4. Game View (Center-Right Window or Native Hardware Fullscreen on Monitor 2)
     if (isGameFullscreen)
     {
-        int monitorCount = 0;
-        GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
-        float fsX = 0.0f, fsY = 0.0f, fsW = windowWidth, fsH = windowHeight;
-
-        if (monitors && monitorCount > 1)
-        {
-            // Position on Secondary Monitor (Monitor #2)
-            int mx = 0, my = 0;
-            glfwGetMonitorPos(monitors[1], &mx, &my);
-            const GLFWvidmode* mode = glfwGetVideoMode(monitors[1]);
-            if (mode)
-            {
-                fsX = static_cast<float>(mx);
-                fsY = static_cast<float>(my);
-                fsW = static_cast<float>(mode->width);
-                fsH = static_cast<float>(mode->height);
-            }
-        }
-        else if (monitors && monitorCount > 0)
-        {
-            const GLFWvidmode* mode = glfwGetVideoMode(monitors[0]);
-            if (mode)
-            {
-                fsW = static_cast<float>(mode->width);
-                fsH = static_cast<float>(mode->height);
-            }
-        }
-
-        ImGui::SetNextWindowPos(ImVec2(fsX, fsY), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(fsW, fsH), ImGuiCond_Always);
-        if (ImGui::Begin("Game View (Fullscreen)", &isGameFullscreen, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings))
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_Always);
+        if (ImGui::Begin("Game View Fullscreen", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings))
         {
             drawGameView(ImGui::GetWindowPos(), ImGui::GetWindowSize());
         }
@@ -4512,7 +4484,7 @@ void VulkanApp::drawGameView(const ImVec2& windowPos, const ImVec2& windowSize)
     std::string fsBtnLabel = isGameFullscreen ? "\xe2\x86\xa9\xef\xb8\x8f Exit Fullscreen (ESC)" : "\xf0\x9f\x97\xa5\xef\xb8\x8f Fullscreen (Monitor 2)";
     if (ImGui::Button(fsBtnLabel.c_str(), ImVec2(195, 30)))
     {
-        isGameFullscreen = !isGameFullscreen;
+        toggleGameFullscreen();
     }
     ImGui::PopStyleColor();
 }
@@ -4897,6 +4869,33 @@ void VulkanApp::syncPhysicsToTransform()
             avel *= (1.0f - rb->angularDrag);
             physEngine.setAngularVelocity(obj.bodyData, avel);
         }
+    }
+}
+
+void VulkanApp::toggleGameFullscreen()
+{
+    isGameFullscreen = !isGameFullscreen;
+
+    int monitorCount = 0;
+    GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
+    if (!monitors || monitorCount == 0) return;
+
+    if (isGameFullscreen)
+    {
+        glfwGetWindowPos(window, &savedWindowX, &savedWindowY);
+        glfwGetWindowSize(window, &savedWindowW, &savedWindowH);
+
+        // Target Monitor #2 if connected, otherwise Monitor #1
+        GLFWmonitor* targetMonitor = (monitorCount > 1) ? monitors[1] : monitors[0];
+        const GLFWvidmode* mode = glfwGetVideoMode(targetMonitor);
+        if (mode)
+        {
+            glfwSetWindowMonitor(window, targetMonitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        }
+    }
+    else
+    {
+        glfwSetWindowMonitor(window, NULL, savedWindowX, savedWindowY, savedWindowW, savedWindowH, 0);
     }
 }
 
