@@ -2390,7 +2390,76 @@ void VulkanApp::drawAssetBrowserPanel(float windowWidth, float bottomBarHeight)
                             ImGui::SetCursorScreenPos(p);
                             ImGui::Selectable("##CardSelect", false, 0, ImVec2(cardWidth, cardHeight));
 
-                            // Icon / Thumbnail
+                            // Drag & Drop Source attached directly to the full card Selectable item
+                            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+                            {
+                                if (ext == ".obj" || ext == ".glb" || ext == ".gltf")
+                                {
+                                    ImGui::SetDragDropPayload("DND_ASSET_MODEL", pathStr.c_str(), pathStr.size() + 1);
+                                    ImGui::Text("📦 Dragging 3D Model '%s'\nDrop into Scene View to place object!", filenameStr.c_str());
+                                }
+                                else if (ext == ".lua")
+                                {
+                                    ImGui::SetDragDropPayload("DND_ASSET_LUA", pathStr.c_str(), pathStr.size() + 1);
+                                    ImGui::Text("📖 Dragging Lua Script '%s'\nDrop into Inspector / Hierarchy to attach script!", filenameStr.c_str());
+                                }
+                                else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
+                                {
+                                    ImGui::SetDragDropPayload("DND_ASSET_TEXTURE", pathStr.c_str(), pathStr.size() + 1);
+                                    ImGui::Text("🖼️ Dragging Texture '%s'\nDrop onto Object in Scene / Inspector to apply!", filenameStr.c_str());
+                                }
+                                else
+                                {
+                                    ImGui::SetDragDropPayload("DND_ASSET_PATH", pathStr.c_str(), pathStr.size() + 1);
+                                    ImGui::Text("📄 Dragging File '%s'", filenameStr.c_str());
+                                }
+                                ImGui::EndDragDropSource();
+                            }
+
+                            // Double Click Action on full card Selectable
+                            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                            {
+                                if (ext == ".obj" || ext == ".glb" || ext == ".gltf")
+                                {
+                                    saveHistory();
+                                    int meshId = load3DModelAsset(pathStr);
+                                    if (meshId >= 0)
+                                    {
+                                        SceneObject newObj;
+                                        newObj.id = sceneObjects.size();
+                                        newObj.name = entry.path().stem().string();
+                                        newObj.position = glm::vec3(0.0f);
+                                        newObj.scale = glm::vec3(1.0f);
+                                        newObj.color = glm::vec4(1.0f);
+                                        newObj.meshId = meshId;
+                                        sceneObjects.push_back(newObj);
+                                        selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+                                    }
+                                }
+                                else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
+                                {
+                                    saveHistory();
+                                    int texId = loadTextureAsset(pathStr);
+                                    if (texId >= 0 && selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+                                    {
+                                        sceneObjects[selectedObjectIndex].textureId = texId;
+                                    }
+                                }
+                                else if (ext == ".lua")
+                                {
+                                    if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+                                    {
+                                        std::ifstream t(pathStr);
+                                        if (t.is_open())
+                                        {
+                                            std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+                                            sceneObjects[selectedObjectIndex].luaScript = scriptContent;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Icon / Thumbnail visuals
                             if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
                             {
                                 if (assetThumbnails.find(pathStr) == assetThumbnails.end())
@@ -2441,77 +2510,6 @@ void VulkanApp::drawAssetBrowserPanel(float windowWidth, float bottomBarHeight)
                             std::string displayFilename = filenameStr;
                             if (displayFilename.size() > 11) displayFilename = displayFilename.substr(0, 9) + "..";
                             ImGui::SetCursorScreenPos(ImVec2(p.x + 6.0f, p.y + cardHeight - 20.0f));
-                            ImGui::TextDisabled("%s", displayFilename.c_str());
-
-                            // Drag & Drop Source
-                            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
-                            {
-                                if (ext == ".obj" || ext == ".glb" || ext == ".gltf")
-                                {
-                                    ImGui::SetDragDropPayload("DND_ASSET_MODEL", pathStr.c_str(), pathStr.size() + 1);
-                                    ImGui::Text("📦 Dragging 3D Model '%s'\nDrop into Scene View to place object!", filenameStr.c_str());
-                                }
-                                else if (ext == ".lua")
-                                {
-                                    ImGui::SetDragDropPayload("DND_ASSET_LUA", pathStr.c_str(), pathStr.size() + 1);
-                                    ImGui::Text("📖 Dragging Lua Script '%s'\nDrop into Inspector / Hierarchy to attach script!", filenameStr.c_str());
-                                }
-                                else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
-                                {
-                                    ImGui::SetDragDropPayload("DND_ASSET_TEXTURE", pathStr.c_str(), pathStr.size() + 1);
-                                    ImGui::Text("🖼️ Dragging Texture '%s'\nDrop onto Object in Scene / Inspector to apply!", filenameStr.c_str());
-                                }
-                                else
-                                {
-                                    ImGui::SetDragDropPayload("DND_ASSET_PATH", pathStr.c_str(), pathStr.size() + 1);
-                                    ImGui::Text("📄 Dragging File '%s'", filenameStr.c_str());
-                                }
-                                ImGui::EndDragDropSource();
-                            }
-
-                            // Double Click Action
-                            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                            {
-                                if (ext == ".obj" || ext == ".glb" || ext == ".gltf")
-                                {
-                                    saveHistory();
-                                    int meshId = load3DModelAsset(pathStr);
-                                    if (meshId >= 0)
-                                    {
-                                        SceneObject newObj;
-                                        newObj.id = sceneObjects.size();
-                                        newObj.name = entry.path().stem().string();
-                                        newObj.position = glm::vec3(0.0f);
-                                        newObj.scale = glm::vec3(1.0f);
-                                        newObj.color = glm::vec4(1.0f);
-                                        newObj.meshId = meshId;
-                                        sceneObjects.push_back(newObj);
-                                        selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
-                                    }
-                                }
-                                else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
-                                {
-                                    saveHistory();
-                                    int texId = loadTextureAsset(pathStr);
-                                    if (texId >= 0 && selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
-                                    {
-                                        sceneObjects[selectedObjectIndex].textureId = texId;
-                                    }
-                                }
-                                else if (ext == ".lua")
-                                {
-                                    if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
-                                    {
-                                        std::ifstream t(pathStr);
-                                        if (t.is_open())
-                                        {
-                                            std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
-                                            sceneObjects[selectedObjectIndex].luaScript = scriptContent;
-                                        }
-                                    }
-                                }
-                            }
-
                             ImGui::EndGroup();
                             ImGui::PopID();
                             col = (col + 1) % cols;
