@@ -2379,8 +2379,8 @@ void VulkanApp::drawAssetBrowserPanel(float windowWidth, float bottomBarHeight)
 {
     if (!showAssetBrowserPanel) return;
 
-    ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetIO().DisplaySize.y - bottomBarHeight));
-    ImGui::SetNextWindowSize(ImVec2(windowWidth, bottomBarHeight));
+    ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetIO().DisplaySize.y - bottomPanelHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(windowWidth, bottomPanelHeight), ImGuiCond_FirstUseEver);
 
     if (ImGui::Begin("📁 Project Assets & Drag-and-Drop Browser", &showAssetBrowserPanel, ImGuiWindowFlags_NoCollapse))
     {
@@ -2816,7 +2816,6 @@ void VulkanApp::renderImGuiUI()
     if (ImGui::Begin("Hierarchy", nullptr, ImGuiWindowFlags_NoCollapse))
     {
         leftPanelWidth = ImGui::GetWindowWidth();
-    {
         // Add Object button
         if (ImGui::Button(" + Create ", ImVec2(-1, 25)))
         {
@@ -3010,7 +3009,6 @@ void VulkanApp::renderImGuiUI()
     if (ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_NoCollapse))
     {
         rightPanelWidth = ImGui::GetWindowWidth();
-    {
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
         
         static char nameBuf[64] = "";
@@ -3416,9 +3414,9 @@ void VulkanApp::renderImGuiUI()
     ImGui::End();
 
     // 6. Project Console / Status Bar (Bottom Window)
-    ImGui::SetNextWindowPos(ImVec2(0.0f, windowHeight - bottomBarHeight));
-    ImGui::SetNextWindowSize(ImVec2(windowWidth, bottomBarHeight));
-    if (ImGui::Begin("Console / Project Logs", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+    ImGui::SetNextWindowPos(ImVec2(0.0f, windowHeight - bottomPanelHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(windowWidth, bottomPanelHeight), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Console / Project Logs", nullptr, ImGuiWindowFlags_NoCollapse))
     {
         ImGui::TextColored(ImVec4(0.3f, 0.85f, 0.4f, 1.0f), "[INFO] Render Device: %s", selectedGpuName.c_str());
         if (mode == AppMode::PLAY) {
@@ -3435,7 +3433,7 @@ void VulkanApp::renderImGuiUI()
     drawProfilerPanel();
 
     // 8. Asset Browser Panel & Drag-and-Drop System
-    drawAssetBrowserPanel(windowWidth, bottomBarHeight);
+    drawAssetBrowserPanel(windowWidth, bottomPanelHeight);
 
     ImGui::Render();
 }
