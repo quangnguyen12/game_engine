@@ -2917,11 +2917,12 @@ void VulkanApp::renderImGuiUI()
         if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
         {
             auto& obj = sceneObjects[selectedObjectIndex];
+            obj.syncComponents();
             
             // Name Header
-            ImGui::Text("🔍 Selected Object: ");
+            ImGui::Text("🔍 Entity (GameObject): ");
             ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "%s", obj.name.c_str());
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "%s (ID: %d)", obj.name.c_str(), obj.id);
             ImGui::Separator();
 
             // Properties
@@ -2944,106 +2945,221 @@ void VulkanApp::renderImGuiUI()
             ImGui::Separator();
             ImGui::Spacing();
 
-            // Transform
-            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+            // --- COMPONENT-BASED INSPECTOR RENDERING ---
+
+            // 1. Transform Component (Always present on Entity)
+            if (ImGui::CollapsingHeader("📌 Transform Component", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                ImGui::DragFloat3("Position", &obj.position.x, 0.05f);
-                ImGui::DragFloat3("Rotation", &obj.rotation.x, 0.5f);
-                ImGui::DragFloat3("Scale", &obj.scale.x, 0.02f, 0.01f, 10.0f);
+                ImGui::DragFloat3("Position (X,Y,Z)", &obj.position.x, 0.05f);
+                ImGui::DragFloat3("Rotation (X,Y,Z)", &obj.rotation.x, 0.5f);
+                ImGui::DragFloat3("Scale (X,Y,Z)", &obj.scale.x, 0.02f, 0.01f, 10.0f);
             }
             ImGui::Spacing();
 
-            // Renderer Details & Colors
-            if (ImGui::CollapsingHeader("Mesh Settings", ImGuiTreeNodeFlags_DefaultOpen))
+            // 2. Mesh Renderer Component
+            if (obj.hasComponent(ComponentType::MESH_RENDERER))
             {
-                ImGui::ColorEdit4("Mesh Color", &obj.color.x);
-                
-                ImGui::Spacing();
-                ImGui::Text("Asset Loading");
-                if (ImGui::Button("Load 3D Mesh (.obj, .glb, .gltf)", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+                if (ImGui::CollapsingHeader("🧊 Mesh Renderer Component", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    const char* filterPatterns[3] = { "*.obj", "*.glb", "*.gltf" };
-                    const char* filePath = tinyfd_openFileDialog("Load 3D Model", "", 3, filterPatterns, "3D Model files", 0);
-                    if (filePath)
+                    ImGui::ColorEdit4("Mesh Color", &obj.color.x);
+                    
+                    ImGui::Spacing();
+                    if (ImGui::Button("Load 3D Mesh (.obj, .glb, .gltf)", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
                     {
-                        try {
-                            Mesh newMesh;
-                            loadModel(filePath, newMesh);
-                            createMeshBuffers(newMesh);
-                            meshes.push_back(newMesh);
-                            obj.meshId = static_cast<int>(meshes.size()) - 1;
-                        }
-                        catch (const std::exception& e) {
-                            tinyfd_messageBox("Error", e.what(), "ok", "error", 1);
-                        }
-                    }
-                }
-                
-                if (ImGui::Button("Load Material Texture", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
-                {
-                    const char* filterPatterns[2] = { "*.png", "*.jpg" };
-                    const char* filePath = tinyfd_openFileDialog("Load Texture", "", 2, filterPatterns, "Image Files", 0);
-                    if (filePath)
-                    {
-                        try {
-                            Texture newTexture;
-                            loadTexture(filePath, newTexture);
-                            textures.push_back(newTexture);
-                            obj.textureId = static_cast<int>(textures.size()) - 1;
-                        }
-                        catch (const std::exception& e) {
-                            tinyfd_messageBox("Error", e.what(), "ok", "error", 1);
-                        }
-                    }
-                }
-                ImGui::Spacing();
-                
-                if (obj.name == "Player Cube" || obj.name == "Gold Collectible")
-                {
-                    ImGui::TextDisabled("Physics: (Locked for Game Objects)");
-                }
-                else
-                {
-                    ImGui::Checkbox("Enable Gravity Physics", &obj.isPhysicsEnabled);
-                }
-            }
-            ImGui::Spacing();
-            
-            if (ImGui::CollapsingHeader("📖 Lua Scripting (OOP - Drag .lua file here)", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                ImGui::TextDisabled("Write OOP script for this object or drag a .lua file here!");
-                static char scriptBuf[8192];
-                strncpy(scriptBuf, obj.luaScript.c_str(), sizeof(scriptBuf));
-                if (ImGui::InputTextMultiline("##LuaScript", scriptBuf, sizeof(scriptBuf), ImVec2(-1.0f, 200.0f), ImGuiInputTextFlags_AllowTabInput))
-                {
-                    obj.luaScript = scriptBuf;
-                }
-
-                if (ImGui::BeginDragDropTarget())
-                {
-                    if (const ImGuiPayload* payloadLua = ImGui::AcceptDragDropPayload("DND_ASSET_LUA"))
-                    {
-                        const char* assetPath = static_cast<const char*>(payloadLua->Data);
-                        std::ifstream t(assetPath);
-                        if (t.is_open())
+                        const char* filterPatterns[3] = { "*.obj", "*.glb", "*.gltf" };
+                        const char* filePath = tinyfd_openFileDialog("Load 3D Model", "", 3, filterPatterns, "3D Model files", 0);
+                        if (filePath)
                         {
-                            std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
-                            obj.luaScript = scriptContent;
+                            try {
+                                Mesh newMesh;
+                                loadModel(filePath, newMesh);
+                                createMeshBuffers(newMesh);
+                                meshes.push_back(newMesh);
+                                obj.meshId = static_cast<int>(meshes.size()) - 1;
+                            }
+                            catch (const std::exception& e) {
+                                tinyfd_messageBox("Error", e.what(), "ok", "error", 1);
+                            }
                         }
                     }
-                    ImGui::EndDragDropTarget();
+                    
+                    if (ImGui::Button("Load Material Texture", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+                    {
+                        const char* filterPatterns[2] = { "*.png", "*.jpg" };
+                        const char* filePath = tinyfd_openFileDialog("Load Texture", "", 2, filterPatterns, "Image Files", 0);
+                        if (filePath)
+                        {
+                            try {
+                                Texture newTexture;
+                                loadTexture(filePath, newTexture);
+                                textures.push_back(newTexture);
+                                obj.textureId = static_cast<int>(textures.size()) - 1;
+                            }
+                            catch (const std::exception& e) {
+                                tinyfd_messageBox("Error", e.what(), "ok", "error", 1);
+                            }
+                        }
+                    }
+
+                    if (obj.name != "Player Cube" && obj.name != "Gold Collectible")
+                    {
+                        ImGui::Spacing();
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.2f, 0.2f, 1.0f));
+                        if (ImGui::Button("🗑️ Remove Mesh Renderer", ImVec2(-1, 24)))
+                        {
+                            obj.removeComponent(ComponentType::MESH_RENDERER);
+                            obj.meshId = -1;
+                        }
+                        ImGui::PopStyleColor();
+                    }
                 }
+                ImGui::Spacing();
             }
+
+            // 3. RigidBody Physics Component
+            if (obj.hasComponent(ComponentType::RIGIDBODY_PHYSICS) || obj.isPhysicsEnabled)
+            {
+                if (ImGui::CollapsingHeader("⚖️ RigidBody Physics Component", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    if (obj.name == "Player Cube" || obj.name == "Gold Collectible")
+                    {
+                        ImGui::TextDisabled("Physics: (Locked for Game Objects)");
+                    }
+                    else
+                    {
+                        ImGui::Checkbox("Enable Gravity Physics", &obj.isPhysicsEnabled);
+                        ImGui::Text("Velocity: (%.2f, %.2f, %.2f)", obj.velocity.x, obj.velocity.y, obj.velocity.z);
+
+                        ImGui::Spacing();
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.2f, 0.2f, 1.0f));
+                        if (ImGui::Button("🗑️ Remove RigidBody Component", ImVec2(-1, 24)))
+                        {
+                            obj.removeComponent(ComponentType::RIGIDBODY_PHYSICS);
+                            obj.isPhysicsEnabled = false;
+                        }
+                        ImGui::PopStyleColor();
+                    }
+                }
+                ImGui::Spacing();
+            }
+
+            // 4. Lua Script Component
+            if (obj.hasComponent(ComponentType::LUA_SCRIPT) || !obj.luaScript.empty())
+            {
+                if (ImGui::CollapsingHeader("📖 Lua Script Component (Drag .lua here)", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::TextDisabled("Write OOP script for this object or drag a .lua file here!");
+                    static char scriptBuf[8192];
+                    strncpy(scriptBuf, obj.luaScript.c_str(), sizeof(scriptBuf));
+                    if (ImGui::InputTextMultiline("##LuaScript", scriptBuf, sizeof(scriptBuf), ImVec2(-1.0f, 180.0f), ImGuiInputTextFlags_AllowTabInput))
+                    {
+                        obj.luaScript = scriptBuf;
+                    }
+
+                    if (ImGui::BeginDragDropTarget())
+                    {
+                        if (const ImGuiPayload* payloadLua = ImGui::AcceptDragDropPayload("DND_ASSET_LUA"))
+                        {
+                            const char* assetPath = static_cast<const char*>(payloadLua->Data);
+                            std::ifstream t(assetPath);
+                            if (t.is_open())
+                            {
+                                std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+                                obj.luaScript = scriptContent;
+                            }
+                        }
+                        ImGui::EndDragDropTarget();
+                    }
+
+                    ImGui::Spacing();
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.2f, 0.2f, 1.0f));
+                    if (ImGui::Button("🗑️ Remove Lua Script Component", ImVec2(-1, 24)))
+                    {
+                        obj.removeComponent(ComponentType::LUA_SCRIPT);
+                        obj.luaScript = "";
+                    }
+                    ImGui::PopStyleColor();
+                }
+                ImGui::Spacing();
+            }
+
+            // 5. Light Component
+            if (obj.hasComponent(ComponentType::LIGHT) || obj.type == ObjectType::LIGHT)
+            {
+                if (ImGui::CollapsingHeader("💡 Light Component", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::ColorEdit4("Light Color", &obj.color.x);
+                }
+                ImGui::Spacing();
+            }
+
+            // --- ADD COMPONENT BUTTON & POPUP MENU ---
+            ImGui::Separator();
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.55f, 0.35f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.7f, 0.45f, 1.0f));
+            if (ImGui::Button(" ➕ Add Component ", ImVec2(-1, 32)))
+            {
+                ImGui::OpenPopup("AddComponentPopup");
+            }
+            ImGui::PopStyleColor(2);
+
+            if (ImGui::BeginPopup("AddComponentPopup"))
+            {
+                ImGui::TextDisabled("-- Add New Component --");
+                ImGui::Separator();
+
+                if (!obj.hasComponent(ComponentType::MESH_RENDERER))
+                {
+                    if (ImGui::MenuItem("🧊 Mesh Renderer Component"))
+                    {
+                        auto meshComp = std::make_shared<MeshRendererComponent>();
+                        meshComp->meshId = primitiveCubeMeshId;
+                        obj.meshId = primitiveCubeMeshId;
+                        obj.components.push_back(meshComp);
+                    }
+                }
+                if (!obj.hasComponent(ComponentType::RIGIDBODY_PHYSICS))
+                {
+                    if (ImGui::MenuItem("⚖️ RigidBody Physics Component"))
+                    {
+                        auto rbComp = std::make_shared<RigidBodyComponent>();
+                        obj.isPhysicsEnabled = true;
+                        obj.components.push_back(rbComp);
+                    }
+                }
+                if (!obj.hasComponent(ComponentType::LUA_SCRIPT))
+                {
+                    if (ImGui::MenuItem("📖 Lua Script Component"))
+                    {
+                        auto luaComp = std::make_shared<LuaScriptComponent>();
+                        luaComp->scriptContent = "-- Entity Lua Script\nfunction onUpdate(dt)\nend\n";
+                        obj.luaScript = luaComp->scriptContent;
+                        obj.components.push_back(luaComp);
+                    }
+                }
+                if (!obj.hasComponent(ComponentType::LIGHT))
+                {
+                    if (ImGui::MenuItem("💡 Light Component"))
+                    {
+                        auto lightComp = std::make_shared<LightComponent>();
+                        obj.type = ObjectType::LIGHT;
+                        obj.components.push_back(lightComp);
+                    }
+                }
+                ImGui::EndPopup();
+            }
+
             ImGui::Spacing();
 
-            // Delete object button
+            // Delete Entity button
             if (obj.name != "Player Cube" && obj.name != "Gold Collectible" && obj.name != "Ground Obstacle")
             {
                 ImGui::Separator();
                 ImGui::Spacing();
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
-                if (ImGui::Button(" Delete Object ", ImVec2(-1, 30)))
+                if (ImGui::Button(" 🗑️ Delete Entity (GameObject) ", ImVec2(-1, 30)))
                 {
                     sceneObjects.erase(sceneObjects.begin() + selectedObjectIndex);
                     selectedObjectIndex = 0;

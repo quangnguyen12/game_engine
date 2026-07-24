@@ -139,6 +139,79 @@ struct ProfilerMetrics
     }
 };
 
+enum class ComponentType
+{
+    TRANSFORM,
+    MESH_RENDERER,
+    RIGIDBODY_PHYSICS,
+    LUA_SCRIPT,
+    LIGHT
+};
+
+class Component
+{
+public:
+    ComponentType type;
+    bool enabled = true;
+
+    virtual ~Component() = default;
+    virtual const char* getName() const = 0;
+};
+
+class TransformComponent : public Component
+{
+public:
+    glm::vec3 position = glm::vec3(0.0f);
+    glm::vec3 rotation = glm::vec3(0.0f);
+    glm::vec3 scale = glm::vec3(1.0f);
+
+    TransformComponent() { type = ComponentType::TRANSFORM; }
+    const char* getName() const override { return "📌 Transform"; }
+};
+
+class MeshRendererComponent : public Component
+{
+public:
+    int meshId = -1;
+    int textureId = -1;
+    glm::vec4 color = glm::vec4(1.0f);
+    bool visible = true;
+
+    MeshRendererComponent() { type = ComponentType::MESH_RENDERER; }
+    const char* getName() const override { return "🧊 Mesh Renderer"; }
+};
+
+class RigidBodyComponent : public Component
+{
+public:
+    bool useGravity = true;
+    float mass = 1.0f;
+    glm::vec3 velocity = glm::vec3(0.0f);
+
+    RigidBodyComponent() { type = ComponentType::RIGIDBODY_PHYSICS; }
+    const char* getName() const override { return "⚖️ RigidBody Physics"; }
+};
+
+class LuaScriptComponent : public Component
+{
+public:
+    std::string scriptPath = "";
+    std::string scriptContent = "";
+
+    LuaScriptComponent() { type = ComponentType::LUA_SCRIPT; }
+    const char* getName() const override { return "📖 Lua Script Component"; }
+};
+
+class LightComponent : public Component
+{
+public:
+    glm::vec4 color = glm::vec4(1.0f, 1.0f, 0.8f, 1.0f);
+    float intensity = 1.0f;
+
+    LightComponent() { type = ComponentType::LIGHT; }
+    const char* getName() const override { return "💡 Light Component"; }
+};
+
 struct SceneObject
 {
     int id = -1;
@@ -147,6 +220,11 @@ struct SceneObject
 
     std::string name;
     ObjectType type;
+
+    // Component storage for Hybrid ECS System
+    std::vector<std::shared_ptr<Component>> components;
+
+    // Proxy variables for backward compatibility & easy data access
     glm::vec3 position = glm::vec3(0.0f);
     glm::vec3 rotation = glm::vec3(0.0f);
     glm::vec3 scale = glm::vec3(1.0f);
@@ -162,6 +240,73 @@ struct SceneObject
     // Rendering variables
     int meshId = -1;
     int textureId = -1;
+
+    // Component helper methods
+    template<typename T>
+    std::shared_ptr<T> getComponent() const
+    {
+        for (const auto& comp : components)
+        {
+            if (auto casted = std::dynamic_pointer_cast<T>(comp))
+                return casted;
+        }
+        return nullptr;
+    }
+
+    bool hasComponent(ComponentType compType) const
+    {
+        for (const auto& comp : components)
+        {
+            if (comp->type == compType) return true;
+        }
+        return false;
+    }
+
+    void removeComponent(ComponentType compType)
+    {
+        components.erase(
+            std::remove_if(components.begin(), components.end(),
+                [compType](const std::shared_ptr<Component>& c) { return c->type == compType; }),
+            components.end());
+    }
+
+    void syncComponents()
+    {
+        if (!hasComponent(ComponentType::TRANSFORM))
+        {
+            auto trans = std::make_shared<TransformComponent>();
+            trans->position = position;
+            trans->rotation = rotation;
+            trans->scale = scale;
+            components.push_back(trans);
+        }
+        if (meshId >= 0 && !hasComponent(ComponentType::MESH_RENDERER))
+        {
+            auto mesh = std::make_shared<MeshRendererComponent>();
+            mesh->meshId = meshId;
+            mesh->textureId = textureId;
+            mesh->color = color;
+            components.push_back(mesh);
+        }
+        if (isPhysicsEnabled && !hasComponent(ComponentType::RIGIDBODY_PHYSICS))
+        {
+            auto rb = std::make_shared<RigidBodyComponent>();
+            rb->velocity = velocity;
+            components.push_back(rb);
+        }
+        if (!luaScript.empty() && !hasComponent(ComponentType::LUA_SCRIPT))
+        {
+            auto lua = std::make_shared<LuaScriptComponent>();
+            lua->scriptContent = luaScript;
+            components.push_back(lua);
+        }
+        if (type == ObjectType::LIGHT && !hasComponent(ComponentType::LIGHT))
+        {
+            auto light = std::make_shared<LightComponent>();
+            light->color = color;
+            components.push_back(light);
+        }
+    }
 };
 
 struct QueueFamilyIndices
