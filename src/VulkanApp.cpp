@@ -2885,6 +2885,8 @@ void VulkanApp::renderImGuiUI()
             // List all objects in the scene database
             for (size_t i = 0; i < sceneObjects.size(); ++i)
             {
+                ImGui::PushID(static_cast<int>(i));
+
                 std::string icon = "🧊 ";
                 if (sceneObjects[i].type == ObjectType::SPHERE) icon = "🟡 ";
                 if (sceneObjects[i].type == ObjectType::PLANE) icon = "🟩 ";
@@ -2934,8 +2936,7 @@ void VulkanApp::renderImGuiUI()
                 }
 
                 // Right-Click Context Menu for Hierarchy Items
-                std::string contextPopupId = "EntityContextMenu_" + std::to_string(i);
-                if (ImGui::BeginPopupContextItem(contextPopupId.c_str()))
+                if (ImGui::BeginPopupContextItem())
                 {
                     selectedObjectIndex = static_cast<int>(i);
                     ImGui::TextDisabled("Entity: %s", sceneObjects[i].name.c_str());
@@ -2958,10 +2959,13 @@ void VulkanApp::renderImGuiUI()
                         sceneObjects.erase(sceneObjects.begin() + i);
                         selectedObjectIndex = -1;
                         ImGui::EndPopup();
+                        ImGui::PopID();
                         break;
                     }
                     ImGui::EndPopup();
                 }
+
+                ImGui::PopID();
             }
 
             ImGui::Spacing();
