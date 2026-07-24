@@ -2207,9 +2207,9 @@ void VulkanApp::updateProfilerMetrics(float deltaTime)
     vramBytes += fbW * fbH * 4 * 2; // Offscreen Depth & Game Depth
     vramBytes += 2048 * 2048 * 4;   // Shadow Map
     vramBytes += swapChainImages.size() * fbW * fbH * 4;
-    for (const auto& tex : textures)
+    for (size_t i = 0; i < textures.size(); ++i)
     {
-        vramBytes += tex.width * tex.height * 4;
+        vramBytes += 1024 * 1024 * 4;
     }
     profilerMetrics.vramUsageMB = static_cast<float>(vramBytes) / (1024.0f * 1024.0f);
 
