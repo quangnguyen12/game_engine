@@ -2611,6 +2611,63 @@ ImVec2 VulkanApp::projectPoint(const glm::vec3& p, const glm::mat4& view, const 
     return ImVec2(x, y);
 }
 
+bool VulkanApp::getRayFromScreenPos(const ImVec2& mousePos, const ImVec2& windowPos, const ImVec2& windowSize, const glm::mat4& view, const glm::mat4& proj, glm::vec3& rayOrigin, glm::vec3& rayDir)
+{
+    if (windowSize.x <= 0.0f || windowSize.y <= 0.0f) return false;
+
+    float mouseRelX = mousePos.x - windowPos.x;
+    float mouseRelY = mousePos.y - windowPos.y;
+
+    float ndcX = (mouseRelX / windowSize.x) * 2.0f - 1.0f;
+    float ndcY = 1.0f - (mouseRelY / windowSize.y) * 2.0f;
+
+    glm::mat4 invVP = glm::inverse(proj * view);
+
+    glm::vec4 nearNDC(ndcX, ndcY, -1.0f, 1.0f);
+    glm::vec4 farNDC(ndcX, ndcY, 1.0f, 1.0f);
+
+    glm::vec4 nearWorld = invVP * nearNDC;
+    if (std::abs(nearWorld.w) < 1e-6f) return false;
+    nearWorld /= nearWorld.w;
+
+    glm::vec4 farWorld = invVP * farNDC;
+    if (std::abs(farWorld.w) < 1e-6f) return false;
+    farWorld /= farWorld.w;
+
+    rayOrigin = glm::vec3(nearWorld);
+    rayDir = glm::normalize(glm::vec3(farWorld - nearWorld));
+    return true;
+}
+
+bool VulkanApp::intersectRayPlane(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& planePoint, const glm::vec3& planeNormal, glm::vec3& hitPoint)
+{
+    float denom = glm::dot(rayDir, planeNormal);
+    if (std::abs(denom) < 1e-6f) return false;
+
+    float t = glm::dot(planePoint - rayOrigin, planeNormal) / denom;
+    if (t < 0.0f) return false;
+
+    hitPoint = rayOrigin + t * rayDir;
+    return true;
+}
+
+float VulkanApp::getClosestPointOnAxis(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& pivotPos, const glm::vec3& axisDir)
+{
+    glm::vec3 uAxis = glm::normalize(axisDir);
+    glm::vec3 uRay = glm::normalize(rayDir);
+
+    float b = glm::dot(uAxis, uRay);
+    float denom = 1.0f - b * b;
+    if (denom < 1e-5f) return 0.0f; // Ray is parallel to axis line
+
+    glm::vec3 w0 = rayOrigin - pivotPos;
+    float d = glm::dot(uAxis, w0);
+    float e = glm::dot(uRay, w0);
+
+    float s = (d - b * e) / denom;
+    return s;
+}
+
 void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
 {
     ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -2618,12 +2675,16 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
     // Draw background
     drawList->AddRectFilled(windowPos, ImVec2(windowPos.x + windowSize.x, windowPos.y + windowSize.y), IM_COL32(40, 40, 40, 255));
 
-    // Calculate Camera Matrices first so we can project centers of objects for drag selection
+    // Calculate Camera Matrices
     glm::mat4 proj = glm::perspective(glm::radians(45.0f), windowSize.x / windowSize.y, 0.1f, 100.0f);
     glm::mat4 view = glm::mat4(1.0f);
     view = glm::translate(view, glm::vec3(0.0f, 0.0f, -sceneCameraDistance));
     view = glm::rotate(view, glm::radians(sceneRotationX), glm::vec3(1.0f, 0.0f, 0.0f));
     view = glm::rotate(view, glm::radians(sceneRotationY), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    glm::mat4 invView = glm::inverse(view);
+    glm::vec3 cameraWorldPos = glm::vec3(invView[3]);
+    glm::vec3 cameraForward = glm::normalize(glm::vec3(-invView[2]));
 
     // Tool Overlay
     drawList->AddRectFilled(ImVec2(windowPos.x + 10, windowPos.y + 10), ImVec2(windowPos.x + 360, windowPos.y + 35), IM_COL32(20, 20, 20, 200), 4.0f);
@@ -2640,7 +2701,7 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
     {
         pivotPos = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
     }
-    
+
     // Project selected object center and axis handles
     ImVec2 sP(-99999.0f, -99999.0f);
     ImVec2 sX(-99999.0f, -99999.0f);
@@ -2656,12 +2717,309 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
         sZ = projectPoint(pivotPos + glm::vec3(0.0f, 0.0f, L), view, proj, windowPos, windowSize);
     }
 
-    if (activeGizmo == GizmoType::HAND)
+    ImVec2 mousePos = ImGui::GetMousePos();
+    bool isMouseInWindow = ImGui::IsWindowHovered();
+
+    // 1. ACTIVE DRAGGING EXECUTION
+    if (gizmoDragState.isDragging)
     {
-        isDraggingObject = false;
-        activeDragAxis = DragAxis::NONE;
-        
-        // In Hand mode, dragging rotates the view
+        if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && hasSelection)
+        {
+            glm::vec3 curRayOrig, curRayDir;
+            if (getRayFromScreenPos(mousePos, windowPos, windowSize, view, proj, curRayOrig, curRayDir))
+            {
+                glm::vec3 dummyRot(0.0f), dummyScale(1.0f);
+                glm::vec3& posRef = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
+                glm::vec3& rotRef = (selectedObjectIndex == -1) ? dummyRot : sceneObjects[selectedObjectIndex].rotation;
+                glm::vec3& scaleRef = (selectedObjectIndex == -1) ? dummyScale : sceneObjects[selectedObjectIndex].scale;
+
+                if (gizmoDragState.gizmoType == GizmoType::TRANSLATE || gizmoDragState.gizmoType == GizmoType::TRANSFORM_COMBINED)
+                {
+                    if (gizmoDragState.axis == DragAxis::X || gizmoDragState.axis == DragAxis::Y || gizmoDragState.axis == DragAxis::Z)
+                    {
+                        float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir);
+                        float delta = curAxisVal - gizmoDragState.startAxisVal;
+                        posRef = gizmoDragState.startObjPos + gizmoDragState.axisDir * delta;
+                    }
+                    else if (gizmoDragState.axis == DragAxis::FREE)
+                    {
+                        glm::vec3 curHit;
+                        if (intersectRayPlane(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.planeNormal, curHit))
+                        {
+                            glm::vec3 delta = curHit - gizmoDragState.startHitPoint;
+                            posRef = gizmoDragState.startObjPos + delta;
+                        }
+                    }
+                }
+                else if (gizmoDragState.gizmoType == GizmoType::ROTATE)
+                {
+                    if (gizmoDragState.axis == DragAxis::X || gizmoDragState.axis == DragAxis::Y || gizmoDragState.axis == DragAxis::Z)
+                    {
+                        glm::vec3 curHit;
+                        if (intersectRayPlane(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.planeNormal, curHit))
+                        {
+                            glm::vec3 dirVec = curHit - gizmoDragState.pivotPos;
+                            if (glm::length(dirVec) > 0.001f)
+                            {
+                                float curAngle = atan2(glm::dot(dirVec, gizmoDragState.rotBasisV), glm::dot(dirVec, gizmoDragState.rotBasisU));
+                                float deltaAngle = curAngle - gizmoDragState.startAngle;
+                                while (deltaAngle > glm::pi<float>()) deltaAngle -= glm::two_pi<float>();
+                                while (deltaAngle < -glm::pi<float>()) deltaAngle += glm::two_pi<float>();
+
+                                rotRef = gizmoDragState.startObjRot + gizmoDragState.axisDir * glm::degrees(deltaAngle);
+                            }
+                        }
+                    }
+                }
+                else if (gizmoDragState.gizmoType == GizmoType::SCALE)
+                {
+                    if (gizmoDragState.axis == DragAxis::X || gizmoDragState.axis == DragAxis::Y || gizmoDragState.axis == DragAxis::Z)
+                    {
+                        float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir);
+                        float delta = curAxisVal - gizmoDragState.startAxisVal;
+                        int idx = (gizmoDragState.axis == DragAxis::X) ? 0 : (gizmoDragState.axis == DragAxis::Y) ? 1 : 2;
+                        scaleRef = gizmoDragState.startObjScale;
+                        scaleRef[idx] = glm::max(0.01f, gizmoDragState.startObjScale[idx] + delta / L);
+                    }
+                    else if (gizmoDragState.axis == DragAxis::FREE)
+                    {
+                        glm::vec3 curHit;
+                        if (intersectRayPlane(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.planeNormal, curHit))
+                        {
+                            float curDist = glm::distance(curHit, gizmoDragState.pivotPos);
+                            float scaleFactor = (gizmoDragState.startDist > 0.001f) ? (curDist / gizmoDragState.startDist) : 1.0f;
+                            scaleRef = glm::max(glm::vec3(0.01f), gizmoDragState.startObjScale * scaleFactor);
+                        }
+                    }
+                }
+                else if (gizmoDragState.gizmoType == GizmoType::RECT)
+                {
+                    if (gizmoDragState.axis == DragAxis::X || gizmoDragState.axis == DragAxis::Z)
+                    {
+                        float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir);
+                        float delta = curAxisVal - gizmoDragState.startAxisVal;
+                        int idx = (gizmoDragState.axis == DragAxis::X) ? 0 : 2;
+                        scaleRef = gizmoDragState.startObjScale;
+                        scaleRef[idx] = glm::max(0.01f, gizmoDragState.startObjScale[idx] + delta / L);
+                    }
+                }
+
+                // Snap support when Ctrl is held down
+                if (ImGui::GetIO().KeyCtrl && selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+                {
+                    auto& obj = sceneObjects[selectedObjectIndex];
+                    if (activeGizmo == GizmoType::TRANSLATE) {
+                        obj.position.x = std::round(obj.position.x * 2.0f) / 2.0f;
+                        obj.position.y = std::round(obj.position.y * 2.0f) / 2.0f;
+                        obj.position.z = std::round(obj.position.z * 2.0f) / 2.0f;
+                    } else if (activeGizmo == GizmoType::ROTATE) {
+                        obj.rotation.x = std::round(obj.rotation.x / 15.0f) * 15.0f;
+                        obj.rotation.y = std::round(obj.rotation.y / 15.0f) * 15.0f;
+                        obj.rotation.z = std::round(obj.rotation.z / 15.0f) * 15.0f;
+                    } else if (activeGizmo == GizmoType::SCALE || activeGizmo == GizmoType::RECT) {
+                        obj.scale.x = std::round(obj.scale.x / 0.1f) * 0.1f;
+                        obj.scale.y = std::round(obj.scale.y / 0.1f) * 0.1f;
+                        obj.scale.z = std::round(obj.scale.z / 0.1f) * 0.1f;
+                    }
+                }
+
+                // Lock boundaries for special game objects
+                if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+                {
+                    if (sceneObjects[selectedObjectIndex].name == "Ground Obstacle")
+                        sceneObjects[selectedObjectIndex].position.y = -1.5f;
+                    if (sceneObjects[selectedObjectIndex].name == "Gold Collectible")
+                        sceneObjects[selectedObjectIndex].position.y = -1.2f;
+                }
+            }
+        }
+        else
+        {
+            // Release mouse
+            gizmoDragState.isDragging = false;
+            gizmoDragState.axis = DragAxis::NONE;
+            activeDragAxis = DragAxis::NONE;
+            isDraggingObject = false;
+        }
+    }
+
+    // 2. HOVER DETECTION AND DRAG INITIALIZATION
+    hoveredDragAxis = DragAxis::NONE;
+    if (hasSelection && sP.x > -90000.0f && activeGizmo != GizmoType::HAND && !gizmoDragState.isDragging)
+    {
+        auto distToSeg = [](glm::vec2 p, glm::vec2 a, glm::vec2 b) -> float {
+            glm::vec2 ab = b - a;
+            float len2 = glm::dot(ab, ab);
+            if (len2 < 0.001f) return glm::distance(p, a);
+            float t = glm::clamp(glm::dot(p - a, ab) / len2, 0.0f, 1.0f);
+            glm::vec2 proj = a + t * ab;
+            return glm::distance(p, proj);
+        };
+
+        glm::vec2 mPos(mousePos.x, mousePos.y);
+        float distCenter = glm::distance(mPos, glm::vec2(sP.x, sP.y));
+        float distX = (sX.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sX.x, sX.y)) : 99999.0f;
+        float distY = (sY.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sY.x, sY.y)) : 99999.0f;
+        float distZ = (sZ.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sZ.x, sZ.y)) : 99999.0f;
+
+        if (activeGizmo == GizmoType::TRANSLATE || activeGizmo == GizmoType::TRANSFORM_COMBINED || activeGizmo == GizmoType::SCALE)
+        {
+            if (distCenter < 14.0f) hoveredDragAxis = DragAxis::FREE;
+            else if (distX < 12.0f) hoveredDragAxis = DragAxis::X;
+            else if (distY < 12.0f) hoveredDragAxis = DragAxis::Y;
+            else if (distZ < 12.0f) hoveredDragAxis = DragAxis::Z;
+        }
+        else if (activeGizmo == GizmoType::ROTATE)
+        {
+            float bestRingDist = 12.0f;
+            const int numSegs = 36;
+            for (int i = 0; i < numSegs; ++i)
+            {
+                float a1 = (i * 2.0f * 3.14159f) / numSegs;
+                float a2 = ((i + 1) * 2.0f * 3.14159f) / numSegs;
+
+                // X ring (YZ plane)
+                ImVec2 rx1 = projectPoint(pivotPos + glm::vec3(0.0f, cos(a1) * L, sin(a1) * L), view, proj, windowPos, windowSize);
+                ImVec2 rx2 = projectPoint(pivotPos + glm::vec3(0.0f, cos(a2) * L, sin(a2) * L), view, proj, windowPos, windowSize);
+                if (rx1.x > -90000.0f && rx2.x > -90000.0f) {
+                    float d = distToSeg(mPos, glm::vec2(rx1.x, rx1.y), glm::vec2(rx2.x, rx2.y));
+                    if (d < bestRingDist) { bestRingDist = d; hoveredDragAxis = DragAxis::X; }
+                }
+
+                // Y ring (XZ plane)
+                ImVec2 ry1 = projectPoint(pivotPos + glm::vec3(cos(a1) * L, 0.0f, sin(a1) * L), view, proj, windowPos, windowSize);
+                ImVec2 ry2 = projectPoint(pivotPos + glm::vec3(cos(a2) * L, 0.0f, sin(a2) * L), view, proj, windowPos, windowSize);
+                if (ry1.x > -90000.0f && ry2.x > -90000.0f) {
+                    float d = distToSeg(mPos, glm::vec2(ry1.x, ry1.y), glm::vec2(ry2.x, ry2.y));
+                    if (d < bestRingDist) { bestRingDist = d; hoveredDragAxis = DragAxis::Y; }
+                }
+
+                // Z ring (XY plane)
+                ImVec2 rz1 = projectPoint(pivotPos + glm::vec3(cos(a1) * L, sin(a1) * L, 0.0f), view, proj, windowPos, windowSize);
+                ImVec2 rz2 = projectPoint(pivotPos + glm::vec3(cos(a2) * L, sin(a2) * L, 0.0f), view, proj, windowPos, windowSize);
+                if (rz1.x > -90000.0f && rz2.x > -90000.0f) {
+                    float d = distToSeg(mPos, glm::vec2(rz1.x, rz1.y), glm::vec2(rz2.x, rz2.y));
+                    if (d < bestRingDist) { bestRingDist = d; hoveredDragAxis = DragAxis::Z; }
+                }
+            }
+        }
+        else if (activeGizmo == GizmoType::RECT)
+        {
+            if (distX < 12.0f) hoveredDragAxis = DragAxis::X;
+            else if (distZ < 12.0f) hoveredDragAxis = DragAxis::Z;
+        }
+    }
+
+    if (hoveredDragAxis != DragAxis::NONE || gizmoDragState.isDragging)
+    {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+    }
+
+    // Handle mouse click to start drag or select object
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && isMouseInWindow && !gizmoDragState.isDragging)
+    {
+        if (hoveredDragAxis != DragAxis::NONE && hasSelection)
+        {
+            saveHistory();
+            gizmoDragState.isDragging = true;
+            gizmoDragState.axis = hoveredDragAxis;
+            gizmoDragState.gizmoType = activeGizmo;
+            activeDragAxis = hoveredDragAxis;
+            isDraggingObject = true;
+
+            gizmoDragState.startObjPos = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
+            gizmoDragState.startObjRot = (selectedObjectIndex == -1) ? glm::vec3(0.0f) : sceneObjects[selectedObjectIndex].rotation;
+            gizmoDragState.startObjScale = (selectedObjectIndex == -1) ? glm::vec3(1.0f) : sceneObjects[selectedObjectIndex].scale;
+            gizmoDragState.pivotPos = pivotPos;
+
+            glm::vec3 rayOrig, rayDir;
+            getRayFromScreenPos(mousePos, windowPos, windowSize, view, proj, rayOrig, rayDir);
+
+            if (activeGizmo == GizmoType::TRANSLATE || activeGizmo == GizmoType::TRANSFORM_COMBINED || activeGizmo == GizmoType::SCALE || activeGizmo == GizmoType::RECT)
+            {
+                if (hoveredDragAxis == DragAxis::X)
+                {
+                    gizmoDragState.axisDir = glm::vec3(1.0f, 0.0f, 0.0f);
+                    gizmoDragState.startAxisVal = getClosestPointOnAxis(rayOrig, rayDir, pivotPos, gizmoDragState.axisDir);
+                }
+                else if (hoveredDragAxis == DragAxis::Y)
+                {
+                    gizmoDragState.axisDir = glm::vec3(0.0f, 1.0f, 0.0f);
+                    gizmoDragState.startAxisVal = getClosestPointOnAxis(rayOrig, rayDir, pivotPos, gizmoDragState.axisDir);
+                }
+                else if (hoveredDragAxis == DragAxis::Z)
+                {
+                    gizmoDragState.axisDir = glm::vec3(0.0f, 0.0f, 1.0f);
+                    gizmoDragState.startAxisVal = getClosestPointOnAxis(rayOrig, rayDir, pivotPos, gizmoDragState.axisDir);
+                }
+                else if (hoveredDragAxis == DragAxis::FREE)
+                {
+                    gizmoDragState.planeNormal = cameraForward;
+                    intersectRayPlane(rayOrig, rayDir, pivotPos, gizmoDragState.planeNormal, gizmoDragState.startHitPoint);
+                    gizmoDragState.startDist = glm::distance(gizmoDragState.startHitPoint, pivotPos);
+                }
+            }
+            else if (activeGizmo == GizmoType::ROTATE)
+            {
+                if (hoveredDragAxis == DragAxis::X)
+                {
+                    gizmoDragState.axisDir = glm::vec3(1.0f, 0.0f, 0.0f);
+                    gizmoDragState.planeNormal = glm::vec3(1.0f, 0.0f, 0.0f);
+                    gizmoDragState.rotBasisU = glm::vec3(0.0f, 1.0f, 0.0f);
+                    gizmoDragState.rotBasisV = glm::vec3(0.0f, 0.0f, 1.0f);
+                }
+                else if (hoveredDragAxis == DragAxis::Y)
+                {
+                    gizmoDragState.axisDir = glm::vec3(0.0f, 1.0f, 0.0f);
+                    gizmoDragState.planeNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+                    gizmoDragState.rotBasisU = glm::vec3(1.0f, 0.0f, 0.0f);
+                    gizmoDragState.rotBasisV = glm::vec3(0.0f, 0.0f, 1.0f);
+                }
+                else if (hoveredDragAxis == DragAxis::Z)
+                {
+                    gizmoDragState.axisDir = glm::vec3(0.0f, 0.0f, 1.0f);
+                    gizmoDragState.planeNormal = glm::vec3(0.0f, 0.0f, 1.0f);
+                    gizmoDragState.rotBasisU = glm::vec3(1.0f, 0.0f, 0.0f);
+                    gizmoDragState.rotBasisV = glm::vec3(0.0f, 1.0f, 0.0f);
+                }
+                intersectRayPlane(rayOrig, rayDir, pivotPos, gizmoDragState.planeNormal, gizmoDragState.startHitPoint);
+                glm::vec3 dirVec = gizmoDragState.startHitPoint - pivotPos;
+                gizmoDragState.startAngle = atan2(glm::dot(dirVec, gizmoDragState.rotBasisV), glm::dot(dirVec, gizmoDragState.rotBasisU));
+            }
+        }
+        else
+        {
+            // Click to select center object
+            float minDistance = 22.0f;
+            int closestIdx = -2;
+
+            ImVec2 camScreenPos = projectPoint(mainCameraPos, view, proj, windowPos, windowSize);
+            if (camScreenPos.x > -90000.0f)
+            {
+                float dist = glm::distance(glm::vec2(mousePos.x, mousePos.y), glm::vec2(camScreenPos.x, camScreenPos.y));
+                if (dist < minDistance) { minDistance = dist; closestIdx = -1; }
+            }
+
+            for (size_t i = 0; i < sceneObjects.size(); ++i)
+            {
+                ImVec2 screenPos = projectPoint(sceneObjects[i].position, view, proj, windowPos, windowSize);
+                if (screenPos.x > -90000.0f)
+                {
+                    float dist = glm::distance(glm::vec2(mousePos.x, mousePos.y), glm::vec2(screenPos.x, screenPos.y));
+                    if (dist < minDistance) { minDistance = dist; closestIdx = static_cast<int>(i); }
+                }
+            }
+
+            if (closestIdx != -2)
+            {
+                selectedObjectIndex = closestIdx;
+            }
+        }
+    }
+
+    // Camera Navigation Orbiting (Hand tool or dragging background)
+    if (activeGizmo == GizmoType::HAND || (!gizmoDragState.isDragging && hoveredDragAxis == DragAxis::NONE && ImGui::IsMouseDown(ImGuiMouseButton_Left) && isMouseInWindow))
+    {
         ImGui::SetCursorScreenPos(windowPos);
         ImGui::InvisibleButton("##SceneDragArea", windowSize);
         if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
@@ -2672,227 +3030,6 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
             ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
         }
     }
-    else
-    {
-        // Handle selection and dragging of objects/gizmo handles
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
-        {
-            ImVec2 mousePos = ImGui::GetMousePos();
-            bool clickedGizmo = false;
-
-            if (hasSelection && sP.x > -90000.0f)
-            {
-                auto distToSeg = [](glm::vec2 p, glm::vec2 a, glm::vec2 b) -> float {
-                    glm::vec2 ab = b - a;
-                    float len2 = glm::dot(ab, ab);
-                    if (len2 < 0.001f) return glm::distance(p, a);
-                    float t = glm::clamp(glm::dot(p - a, ab) / len2, 0.0f, 1.0f);
-                    glm::vec2 proj = a + t * ab;
-                    return glm::distance(p, proj);
-                };
-
-                glm::vec2 mPos(mousePos.x, mousePos.y);
-                float distLineX = (sX.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sX.x, sX.y)) : 99999.0f;
-                float distLineY = (sY.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sY.x, sY.y)) : 99999.0f;
-                float distLineZ = (sZ.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sZ.x, sZ.y)) : 99999.0f;
-
-                float distTipX = (sX.x > -90000.0f) ? glm::distance(mPos, glm::vec2(sX.x, sX.y)) : 99999.0f;
-                float distTipY = (sY.x > -90000.0f) ? glm::distance(mPos, glm::vec2(sY.x, sY.y)) : 99999.0f;
-                float distTipZ = (sZ.x > -90000.0f) ? glm::distance(mPos, glm::vec2(sZ.x, sZ.y)) : 99999.0f;
-
-                // Check click on gizmo handles (tip or stem line)
-                if (distTipX < 18.0f || distLineX < 10.0f)
-                {
-                    activeDragAxis = DragAxis::X;
-                    isDraggingObject = true;
-                    clickedGizmo = true;
-                }
-                else if ((distTipY < 18.0f || distLineY < 10.0f) && activeGizmo != GizmoType::RECT)
-                {
-                    activeDragAxis = DragAxis::Y;
-                    isDraggingObject = true;
-                    clickedGizmo = true;
-                }
-                else if (distTipZ < 18.0f || distLineZ < 10.0f)
-                {
-                    activeDragAxis = DragAxis::Z;
-                    isDraggingObject = true;
-                    clickedGizmo = true;
-                }
-            }
-
-            if (!clickedGizmo)
-            {
-                // Click to select/drag center
-                float minDistance = 22.0f; // radius in pixels
-                int closestIdx = -2; // -2 = none
-
-                // Check Camera gizmo
-                ImVec2 camScreenPos = projectPoint(mainCameraPos, view, proj, windowPos, windowSize);
-                if (camScreenPos.x > -90000.0f)
-                {
-                    float dist = glm::distance(glm::vec2(mousePos.x, mousePos.y), glm::vec2(camScreenPos.x, camScreenPos.y));
-                    if (dist < minDistance)
-                    {
-                        minDistance = dist;
-                        closestIdx = -1;
-                    }
-                }
-
-                // Check scene objects
-                for (size_t i = 0; i < sceneObjects.size(); ++i)
-                {
-                    ImVec2 screenPos = projectPoint(sceneObjects[i].position, view, proj, windowPos, windowSize);
-                    if (screenPos.x > -90000.0f)
-                    {
-                        float dist = glm::distance(glm::vec2(mousePos.x, mousePos.y), glm::vec2(screenPos.x, screenPos.y));
-                        if (dist < minDistance)
-                        {
-                            minDistance = dist;
-                            closestIdx = static_cast<int>(i);
-                        }
-                    }
-                }
-
-                if (closestIdx != -2)
-                {
-                    selectedObjectIndex = closestIdx;
-                    isDraggingObject = true;
-                    activeDragAxis = DragAxis::FREE;
-                }
-            }
-        }
-
-        if (isDraggingObject && ImGui::IsMouseDown(ImGuiMouseButton_Left) && hasSelection)
-        {
-            float sens = 0.002f * sceneCameraDistance;
-            ImVec2 mouseDelta = ImGui::GetIO().MouseDelta;
-
-            // Get reference to the object's fields
-            glm::vec3 dummyRot(0.0f);
-            glm::vec3 dummyScale(1.0f);
-            glm::vec3& posRef = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
-            glm::vec3& rotRef = (selectedObjectIndex == -1) ? dummyRot : sceneObjects[selectedObjectIndex].rotation;
-            glm::vec3& scaleRef = (selectedObjectIndex == -1) ? dummyScale : sceneObjects[selectedObjectIndex].scale;
-
-            auto projectDrag = [&](const ImVec2& sTip, const ImVec2& sCenter, float& valToMod) {
-                glm::vec2 axisVec(sTip.x - sCenter.x, sTip.y - sCenter.y);
-                float len = glm::length(axisVec);
-                if (len > 1.0f)
-                {
-                    axisVec = glm::normalize(axisVec);
-                    float projDelta = mouseDelta.x * axisVec.x + mouseDelta.y * axisVec.y;
-                    valToMod += projDelta * sens * 2.0f;
-                }
-            };
-
-            if (activeGizmo == GizmoType::TRANSLATE || activeGizmo == GizmoType::TRANSFORM_COMBINED)
-            {
-                if (activeDragAxis == DragAxis::X) projectDrag(sX, sP, posRef.x);
-                else if (activeDragAxis == DragAxis::Y) projectDrag(sY, sP, posRef.y);
-                else if (activeDragAxis == DragAxis::Z) projectDrag(sZ, sP, posRef.z);
-                else if (activeDragAxis == DragAxis::FREE)
-                {
-                    // Translate in camera view plane
-                    glm::mat4 orbitMat = glm::mat4(1.0f);
-                    orbitMat = glm::rotate(orbitMat, glm::radians(sceneRotationX), glm::vec3(1.0f, 0.0f, 0.0f));
-                    orbitMat = glm::rotate(orbitMat, glm::radians(sceneRotationY), glm::vec3(0.0f, 1.0f, 0.0f));
-                    glm::mat4 invOrbit = glm::inverse(orbitMat);
-                    glm::vec3 rightVec = glm::vec3(invOrbit[0]);
-                    glm::vec3 upVec = glm::vec3(invOrbit[1]);
-
-                    posRef += rightVec * (mouseDelta.x * sens) - upVec * (mouseDelta.y * sens);
-                }
-            }
-
-            if (activeGizmo == GizmoType::ROTATE || activeGizmo == GizmoType::TRANSFORM_COMBINED)
-            {
-                float rotSens = 0.5f;
-                float dragVal = mouseDelta.x * rotSens - mouseDelta.y * rotSens;
-                
-                if (activeDragAxis == DragAxis::X) rotRef.x += dragVal;
-                else if (activeDragAxis == DragAxis::Y) rotRef.y += dragVal;
-                else if (activeDragAxis == DragAxis::Z) rotRef.z += dragVal;
-            }
-
-            if (activeGizmo == GizmoType::SCALE)
-            {
-                if (activeDragAxis == DragAxis::X) projectDrag(sX, sP, scaleRef.x);
-                else if (activeDragAxis == DragAxis::Y) projectDrag(sY, sP, scaleRef.y);
-                else if (activeDragAxis == DragAxis::Z) projectDrag(sZ, sP, scaleRef.z);
-                else if (activeDragAxis == DragAxis::FREE)
-                {
-                    ImVec2 curM = ImGui::GetMousePos();
-                    ImVec2 prevM = ImVec2(curM.x - mouseDelta.x, curM.y - mouseDelta.y);
-                    float dPrev = glm::distance(glm::vec2(prevM.x, prevM.y), glm::vec2(sP.x, sP.y));
-                    float dCur = glm::distance(glm::vec2(curM.x, curM.y), glm::vec2(sP.x, sP.y));
-                    float deltaDist = (dCur - dPrev) * 0.015f;
-                    if (std::abs(deltaDist) < 0.0001f)
-                        deltaDist = (mouseDelta.x - mouseDelta.y) * 0.01f;
-                    scaleRef += glm::vec3(deltaDist);
-                }
-                scaleRef = glm::max(scaleRef, glm::vec3(0.01f));
-            }
-
-            if (activeGizmo == GizmoType::RECT)
-            {
-                if (activeDragAxis == DragAxis::X) projectDrag(sX, sP, scaleRef.x);
-                else if (activeDragAxis == DragAxis::Z) projectDrag(sZ, sP, scaleRef.z);
-                else if (activeDragAxis == DragAxis::FREE)
-                {
-                    projectDrag(sX, sP, posRef.x);
-                    projectDrag(sZ, sP, posRef.z);
-                }
-                scaleRef = glm::max(scaleRef, glm::vec3(0.01f));
-            }
-
-            // Lock boundaries for special game objects
-            if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
-            {
-                if (sceneObjects[selectedObjectIndex].name == "Ground Obstacle")
-                    sceneObjects[selectedObjectIndex].position.y = -1.5f;
-                if (sceneObjects[selectedObjectIndex].name == "Gold Collectible")
-                    sceneObjects[selectedObjectIndex].position.y = -1.2f;
-            }
-        }
-        if (ImGui::GetIO().KeyCtrl && selectedObjectIndex >= 0 && selectedObjectIndex < sceneObjects.size())
-        {
-            auto& obj = sceneObjects[selectedObjectIndex];
-            if (activeGizmo == GizmoType::TRANSLATE) {
-                obj.position.x = std::round(obj.position.x);
-                obj.position.y = std::round(obj.position.y);
-                obj.position.z = std::round(obj.position.z);
-            } else if (activeGizmo == GizmoType::ROTATE) {
-                obj.rotation.x = std::round(obj.rotation.x / 15.0f) * 15.0f;
-                obj.rotation.y = std::round(obj.rotation.y / 15.0f) * 15.0f;
-                obj.rotation.z = std::round(obj.rotation.z / 15.0f) * 15.0f;
-            } else if (activeGizmo == GizmoType::SCALE || activeGizmo == GizmoType::RECT) {
-                obj.scale.x = std::round(obj.scale.x / 0.5f) * 0.5f;
-                obj.scale.y = std::round(obj.scale.y / 0.5f) * 0.5f;
-                obj.scale.z = std::round(obj.scale.z / 0.5f) * 0.5f;
-            }
-        }
-        
-        else
-        {
-            if (isDraggingObject) saveHistory();
-            isDraggingObject = false;
-            activeDragAxis = DragAxis::NONE;
-            
-            // Handle mouse drag to rotate view inside the Scene window
-            ImGui::SetCursorScreenPos(windowPos);
-            ImGui::InvisibleButton("##SceneDragArea", windowSize);
-            if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-            {
-                ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
-                sceneRotationY += delta.x * 0.5f;
-                sceneRotationX += delta.y * 0.5f;
-                ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
-            }
-        }
-    }
-
-
 
     if (ImGui::IsItemHovered())
     {
@@ -2952,66 +3089,68 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
         }
     }
 
-    // 3. Draw All Scene Objects in 3D
+    // 3. Draw All Scene Objects in 3D Offscreen View
     ImGui::SetCursorScreenPos(windowPos);
     if (offscreenDescriptorSet) {
         ImGui::Image((ImTextureID)offscreenDescriptorSet, windowSize);
     }
 
     // 4. Draw Gizmos & Selection Highlights
+    DragAxis activeHighlight = gizmoDragState.isDragging ? gizmoDragState.axis : hoveredDragAxis;
     if (hasSelection && sP.x > -90000.0f && activeGizmo != GizmoType::HAND)
     {
         // Pivot Center indicator
-        drawList->AddCircle(sP, 11.0f, IM_COL32(255, 255, 0, 255), 0, 1.5f);
-        drawList->AddLine(ImVec2(sP.x - 7, sP.y), ImVec2(sP.x + 7, sP.y), IM_COL32(255, 255, 0, 255), 1.0f);
-        drawList->AddLine(ImVec2(sP.x, sP.y - 7), ImVec2(sP.x, sP.y + 7), IM_COL32(255, 255, 0, 255), 1.0f);
+        ImU32 centerCol = (activeHighlight == DragAxis::FREE) ? IM_COL32(255, 255, 100, 255) : IM_COL32(255, 255, 0, 255);
+        drawList->AddCircle(sP, (activeHighlight == DragAxis::FREE) ? 13.0f : 11.0f, centerCol, 0, 2.0f);
+        drawList->AddLine(ImVec2(sP.x - 7, sP.y), ImVec2(sP.x + 7, sP.y), centerCol, 1.5f);
+        drawList->AddLine(ImVec2(sP.x, sP.y - 7), ImVec2(sP.x, sP.y + 7), centerCol, 1.5f);
 
         if (activeGizmo == GizmoType::TRANSLATE || activeGizmo == GizmoType::TRANSFORM_COMBINED)
         {
             // X-Axis (Red)
             if (sX.x > -90000.0f)
             {
-                float thickness = (activeDragAxis == DragAxis::X) ? 3.0f : 1.5f;
-                ImU32 color = (activeDragAxis == DragAxis::X) ? IM_COL32(255, 120, 120, 255) : IM_COL32(255, 0, 0, 255);
-                drawList->AddLine(sP, sX, color, thickness);
-                drawList->AddRectFilled(ImVec2(sX.x - 5, sX.y - 5), ImVec2(sX.x + 5, sX.y + 5), color);
+                float thick = (activeHighlight == DragAxis::X) ? 3.5f : 1.8f;
+                ImU32 col = (activeHighlight == DragAxis::X) ? IM_COL32(255, 130, 130, 255) : IM_COL32(255, 40, 40, 255);
+                drawList->AddLine(sP, sX, col, thick);
+                drawList->AddRectFilled(ImVec2(sX.x - 5, sX.y - 5), ImVec2(sX.x + 5, sX.y + 5), col);
             }
 
             // Y-Axis (Green)
             if (sY.x > -90000.0f)
             {
-                float thickness = (activeDragAxis == DragAxis::Y) ? 3.0f : 1.5f;
-                ImU32 color = (activeDragAxis == DragAxis::Y) ? IM_COL32(120, 255, 120, 255) : IM_COL32(0, 255, 0, 255);
-                drawList->AddLine(sP, sY, color, thickness);
-                drawList->AddRectFilled(ImVec2(sY.x - 5, sY.y - 5), ImVec2(sY.x + 5, sY.y + 5), color);
+                float thick = (activeHighlight == DragAxis::Y) ? 3.5f : 1.8f;
+                ImU32 col = (activeHighlight == DragAxis::Y) ? IM_COL32(130, 255, 130, 255) : IM_COL32(40, 255, 40, 255);
+                drawList->AddLine(sP, sY, col, thick);
+                drawList->AddRectFilled(ImVec2(sY.x - 5, sY.y - 5), ImVec2(sY.x + 5, sY.y + 5), col);
             }
 
             // Z-Axis (Blue)
             if (sZ.x > -90000.0f)
             {
-                float thickness = (activeDragAxis == DragAxis::Z) ? 3.0f : 1.5f;
-                ImU32 color = (activeDragAxis == DragAxis::Z) ? IM_COL32(120, 120, 255, 255) : IM_COL32(0, 0, 255, 255);
-                drawList->AddLine(sP, sZ, color, thickness);
-                drawList->AddRectFilled(ImVec2(sZ.x - 5, sZ.y - 5), ImVec2(sZ.x + 5, sZ.y + 5), color);
+                float thick = (activeHighlight == DragAxis::Z) ? 3.5f : 1.8f;
+                ImU32 col = (activeHighlight == DragAxis::Z) ? IM_COL32(130, 130, 255, 255) : IM_COL32(40, 40, 255, 255);
+                drawList->AddLine(sP, sZ, col, thick);
+                drawList->AddRectFilled(ImVec2(sZ.x - 5, sZ.y - 5), ImVec2(sZ.x + 5, sZ.y + 5), col);
             }
         }
-        
+
         if (activeGizmo == GizmoType::ROTATE || activeGizmo == GizmoType::TRANSFORM_COMBINED)
         {
-            // Draw Orthogonal Circles in 3D
-            const int numSegs = 24;
+            const int numSegs = 36;
             ImVec2 prevX, prevY, prevZ;
             for (int i = 0; i <= numSegs; ++i)
             {
                 float a = (i * 2.0f * 3.14159f) / numSegs;
-                
+
                 // X-Ring (Red - YZ plane)
                 glm::vec3 ptX = pivotPos + glm::vec3(0.0f, cos(a) * L, sin(a) * L);
                 ImVec2 sPtX = projectPoint(ptX, view, proj, windowPos, windowSize);
                 if (i > 0 && prevX.x > -90000.0f && sPtX.x > -90000.0f)
                 {
-                    ImU32 col = (activeDragAxis == DragAxis::X) ? IM_COL32(255, 150, 150, 255) : IM_COL32(255, 50, 50, 180);
-                    drawList->AddLine(prevX, sPtX, col, (activeDragAxis == DragAxis::X) ? 3.0f : 1.5f);
+                    bool isH = (activeHighlight == DragAxis::X);
+                    ImU32 col = isH ? IM_COL32(255, 140, 140, 255) : IM_COL32(255, 60, 60, 200);
+                    drawList->AddLine(prevX, sPtX, col, isH ? 3.5f : 1.8f);
                 }
                 prevX = sPtX;
 
@@ -3020,8 +3159,9 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                 ImVec2 sPtY = projectPoint(ptY, view, proj, windowPos, windowSize);
                 if (i > 0 && prevY.x > -90000.0f && sPtY.x > -90000.0f)
                 {
-                    ImU32 col = (activeDragAxis == DragAxis::Y) ? IM_COL32(150, 255, 150, 255) : IM_COL32(50, 255, 50, 180);
-                    drawList->AddLine(prevY, sPtY, col, (activeDragAxis == DragAxis::Y) ? 3.0f : 1.5f);
+                    bool isH = (activeHighlight == DragAxis::Y);
+                    ImU32 col = isH ? IM_COL32(140, 255, 140, 255) : IM_COL32(60, 255, 60, 200);
+                    drawList->AddLine(prevY, sPtY, col, isH ? 3.5f : 1.8f);
                 }
                 prevY = sPtY;
 
@@ -3030,18 +3170,18 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                 ImVec2 sPtZ = projectPoint(ptZ, view, proj, windowPos, windowSize);
                 if (i > 0 && prevZ.x > -90000.0f && sPtZ.x > -90000.0f)
                 {
-                    ImU32 col = (activeDragAxis == DragAxis::Z) ? IM_COL32(150, 150, 255, 255) : IM_COL32(50, 50, 255, 180);
-                    drawList->AddLine(prevZ, sPtZ, col, (activeDragAxis == DragAxis::Z) ? 3.0f : 1.5f);
+                    bool isH = (activeHighlight == DragAxis::Z);
+                    ImU32 col = isH ? IM_COL32(140, 140, 255, 255) : IM_COL32(60, 60, 255, 200);
+                    drawList->AddLine(prevZ, sPtZ, col, isH ? 3.5f : 1.8f);
                 }
                 prevZ = sPtZ;
             }
 
-            // Draw small handle dots on the axes tips for clicking
             if (activeGizmo == GizmoType::ROTATE)
             {
-                if (sX.x > -90000.0f) drawList->AddCircleFilled(sX, 5.0f, (activeDragAxis == DragAxis::X) ? IM_COL32(255, 150, 150, 255) : IM_COL32(255, 0, 0, 255));
-                if (sY.x > -90000.0f) drawList->AddCircleFilled(sY, 5.0f, (activeDragAxis == DragAxis::Y) ? IM_COL32(150, 255, 150, 255) : IM_COL32(0, 255, 0, 255));
-                if (sZ.x > -90000.0f) drawList->AddCircleFilled(sZ, 5.0f, (activeDragAxis == DragAxis::Z) ? IM_COL32(150, 150, 255, 255) : IM_COL32(0, 0, 255, 255));
+                if (sX.x > -90000.0f) drawList->AddCircleFilled(sX, 5.0f, (activeHighlight == DragAxis::X) ? IM_COL32(255, 160, 160, 255) : IM_COL32(255, 0, 0, 255));
+                if (sY.x > -90000.0f) drawList->AddCircleFilled(sY, 5.0f, (activeHighlight == DragAxis::Y) ? IM_COL32(160, 255, 160, 255) : IM_COL32(0, 255, 0, 255));
+                if (sZ.x > -90000.0f) drawList->AddCircleFilled(sZ, 5.0f, (activeHighlight == DragAxis::Z) ? IM_COL32(160, 160, 255, 255) : IM_COL32(0, 0, 255, 255));
             }
         }
 
@@ -3049,24 +3189,24 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
         {
             if (sX.x > -90000.0f)
             {
-                float thickness = (activeDragAxis == DragAxis::X) ? 3.0f : 1.5f;
-                ImU32 color = (activeDragAxis == DragAxis::X) ? IM_COL32(255, 120, 120, 255) : IM_COL32(255, 0, 0, 255);
-                drawList->AddLine(sP, sX, color, thickness);
-                drawList->AddRectFilled(ImVec2(sX.x - 4, sX.y - 4), ImVec2(sX.x + 4, sX.y + 4), color);
+                float thick = (activeHighlight == DragAxis::X) ? 3.5f : 1.8f;
+                ImU32 col = (activeHighlight == DragAxis::X) ? IM_COL32(255, 130, 130, 255) : IM_COL32(255, 40, 40, 255);
+                drawList->AddLine(sP, sX, col, thick);
+                drawList->AddRectFilled(ImVec2(sX.x - 5, sX.y - 5), ImVec2(sX.x + 5, sX.y + 5), col);
             }
             if (sY.x > -90000.0f)
             {
-                float thickness = (activeDragAxis == DragAxis::Y) ? 3.0f : 1.5f;
-                ImU32 color = (activeDragAxis == DragAxis::Y) ? IM_COL32(120, 255, 120, 255) : IM_COL32(0, 255, 0, 255);
-                drawList->AddLine(sP, sY, color, thickness);
-                drawList->AddRectFilled(ImVec2(sY.x - 4, sY.y - 4), ImVec2(sY.x + 4, sY.y + 4), color);
+                float thick = (activeHighlight == DragAxis::Y) ? 3.5f : 1.8f;
+                ImU32 col = (activeHighlight == DragAxis::Y) ? IM_COL32(130, 255, 130, 255) : IM_COL32(40, 255, 40, 255);
+                drawList->AddLine(sP, sY, col, thick);
+                drawList->AddRectFilled(ImVec2(sY.x - 5, sY.y - 5), ImVec2(sY.x + 5, sY.y + 5), col);
             }
             if (sZ.x > -90000.0f)
             {
-                float thickness = (activeDragAxis == DragAxis::Z) ? 3.0f : 1.5f;
-                ImU32 color = (activeDragAxis == DragAxis::Z) ? IM_COL32(120, 120, 255, 255) : IM_COL32(0, 0, 255, 255);
-                drawList->AddLine(sP, sZ, color, thickness);
-                drawList->AddRectFilled(ImVec2(sZ.x - 4, sZ.y - 4), ImVec2(sZ.x + 4, sZ.y + 4), color);
+                float thick = (activeHighlight == DragAxis::Z) ? 3.5f : 1.8f;
+                ImU32 col = (activeHighlight == DragAxis::Z) ? IM_COL32(130, 130, 255, 255) : IM_COL32(40, 40, 255, 255);
+                drawList->AddLine(sP, sZ, col, thick);
+                drawList->AddRectFilled(ImVec2(sZ.x - 5, sZ.y - 5), ImVec2(sZ.x + 5, sZ.y + 5), col);
             }
         }
 
@@ -3074,7 +3214,7 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
         {
             glm::vec3 halfX(L * 0.8f, 0.0f, 0.0f);
             glm::vec3 halfZ(0.0f, 0.0f, L * 0.8f);
-            
+
             ImVec2 tl = projectPoint(pivotPos - halfX + halfZ, view, proj, windowPos, windowSize);
             ImVec2 tr = projectPoint(pivotPos + halfX + halfZ, view, proj, windowPos, windowSize);
             ImVec2 br = projectPoint(pivotPos + halfX - halfZ, view, proj, windowPos, windowSize);
@@ -3084,7 +3224,7 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
             {
                 ImU32 rectColor = IM_COL32(200, 200, 200, 150);
                 drawList->AddQuad(tl, tr, br, bl, rectColor, 1.5f);
-                
+
                 if (sX.x > -90000.0f) drawList->AddCircleFilled(sX, 4.0f, IM_COL32(255, 0, 0, 255));
                 if (sZ.x > -90000.0f) drawList->AddCircleFilled(sZ, 4.0f, IM_COL32(0, 0, 255, 255));
             }

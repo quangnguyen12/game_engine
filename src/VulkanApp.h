@@ -70,7 +70,34 @@ enum class DragAxis
     X,
     Y,
     Z,
+    XY,
+    YZ,
+    XZ,
     FREE
+};
+
+struct GizmoDragState
+{
+    bool isDragging = false;
+    DragAxis axis = DragAxis::NONE;
+    GizmoType gizmoType = GizmoType::TRANSLATE;
+
+    glm::vec3 startObjPos = glm::vec3(0.0f);
+    glm::vec3 startObjRot = glm::vec3(0.0f);
+    glm::vec3 startObjScale = glm::vec3(1.0f);
+    glm::vec3 pivotPos = glm::vec3(0.0f);
+
+    glm::vec3 planeNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 planePoint = glm::vec3(0.0f);
+    glm::vec3 axisDir = glm::vec3(1.0f, 0.0f, 0.0f);
+
+    glm::vec3 startHitPoint = glm::vec3(0.0f);
+    float startAxisVal = 0.0f;
+    float startDist = 1.0f;
+    float startAngle = 0.0f;
+
+    glm::vec3 rotBasisU = glm::vec3(0.0f);
+    glm::vec3 rotBasisV = glm::vec3(0.0f);
 };
 
 struct SceneObject
@@ -263,6 +290,9 @@ private:
     void setupUnityStyle();
     void renderImGuiUI();
     ImVec2 projectPoint(const glm::vec3& p, const glm::mat4& view, const glm::mat4& proj, const ImVec2& offset, const ImVec2& size);
+    bool getRayFromScreenPos(const ImVec2& mousePos, const ImVec2& windowPos, const ImVec2& windowSize, const glm::mat4& view, const glm::mat4& proj, glm::vec3& rayOrigin, glm::vec3& rayDir);
+    bool intersectRayPlane(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& planePoint, const glm::vec3& planeNormal, glm::vec3& hitPoint);
+    float getClosestPointOnAxis(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& pivotPos, const glm::vec3& axisDir);
     void drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize);
     void drawGameView(const ImVec2& windowPos, const ImVec2& windowSize);
     void initializeDefaultScene();
@@ -446,6 +476,8 @@ private:
     bool wasDraggingObjectLastFrame = false;
     GizmoType activeGizmo = GizmoType::TRANSLATE;
     DragAxis activeDragAxis = DragAxis::NONE;
+    DragAxis hoveredDragAxis = DragAxis::NONE;
+    GizmoDragState gizmoDragState;
     
     // Play mode game state
     int gameScore = 0;

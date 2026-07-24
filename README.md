@@ -19,7 +19,7 @@ Dự án mang lại trải nghiệm phát triển mô phỏng lại giao diện 
 ### 2. Hệ Thống Đồ Họa Vulkan & Ánh Sáng
 - **Shadow Mapping (Bóng đổ):** Ánh sáng định hướng (Directional Light) hỗ trợ đổ bóng thời gian thực lên các vật thể khác.
 - **Directional Light Gizmo:** Hệ thống Gizmo trực quan hóa góc chiếu và độ phủ bóng đổ của nguồn sáng dưới dạng khối chóp (Frustum), giúp bạn định vị ánh sáng chuẩn xác như đang thao tác với Camera.
-- **Transform Gizmo:** Hỗ trợ kéo thả trục tọa độ (X, Y, Z) để di chuyển, xoay hoặc phóng to/thu nhỏ vật thể ngay trên màn hình Scene.
+- **Ultra-Smooth 3D Raycasted Gizmo:** Công cụ điều khiển 3D trực quan mượt mà không khựng hay giật với thuật toán 3D Raycasting (Ray-Plane / Ray-Line Closest Point). Hỗ trợ đầy đủ Translate (Di chuyển), Rotate (Xoay), Scale (Co giãn), Rect Tool và Combined Transform.
 
 ### 3. Tương Thích Mô Hình 3D Đa Dạng
 Engine sở hữu bộ giải mã mạnh mẽ cho phép bạn mang bất kỳ mô hình nào vào không gian 3D:
@@ -31,21 +31,19 @@ Engine sở hữu bộ giải mã mạnh mẽ cho phép bạn mang bất kỳ m�
 
 ## 🛠 Hướng Dẫn Sử Dụng (Dành cho Người Dùng)
 
-### 🕹️ Điều Khiển (Controls)
-- **Chuột trái:** Click vào vật thể trong `Scene View` hoặc click vào tên trong `Hierarchy` để chọn vật thể.
-- **Chuột phải (Giữ + Di chuyển) trong Scene View:** Xoay góc nhìn Camera.
-- **Con lăn chuột:** Phóng to / Thu nhỏ góc nhìn.
-- **Gizmo (X/Y/Z):** Khi chọn 1 vật thể, dùng chuột kéo các mũi tên màu (Đỏ, Xanh lá, Xanh dương) để di chuyển vật thể theo trục tương ứng. Dùng vòng tròn để xoay.
-
-### 💡 Thao Tác Với Ánh Sáng
-- Trong cửa sổ `Hierarchy`, chọn **Directional Light**.
-- Nhìn vào cửa sổ `Scene View`, bạn sẽ thấy một khối chóp (Frustum) và một tia sáng chỉ xuống mặt đất (`y = 0`) đi kèm với tọa độ chữ thập.
-- Dùng công cụ **Rotation (Xoay)** trên bảng Inspector hoặc kéo vòng Gizmo để xoay ánh sáng. Tia sáng và bóng đổ của toàn bộ các vật thể khác sẽ thay đổi theo hướng bạn xoay!
-
-### 📦 Import Mô Hình 3D Bên Ngoài
-1. Ở cửa sổ `Inspector`, kéo xuống mục **Asset Loading**.
-2. Bấm vào nút **"Load 3D Mesh (.obj, .glb, .gltf)"**.
-3. Chọn mô hình bạn tải từ Internet (Blend, Sketchfab,...). Mô hình sẽ ngay lập tức được giải mã và xuất hiện giữa màn hình.
+### 🕹️ Điều Khiển (Controls) & Phím Tắt (Hotkeys)
+- **Chuyển đổi Gizmo Tool:**
+  - `Q`: **Hand Tool** (Chế độ điều hướng & xoay quan sát Scene View)
+  - `W`: **Translate** (Di chuyển vật thể theo 3 trục X, Y, Z)
+  - `E`: **Rotate** (Xoay vật thể theo các vòng tròn 3D 1:1 theo chuột)
+  - `R`: **Scale** (Co giãn kích thước vật thể theo trục hoặc đồng dạng)
+  - `T`: **Rect Tool** (Điều chỉnh kích thước mặt phẳng XZ)
+  - `Y`: **Combined Tool** (Kết hợp di chuyển & xoay đồng thời)
+- **Thao tác Chuột trong Scene View:**
+  - **Chuột trái:** Click vào vật thể trong `Scene View` hoặc `Hierarchy` để chọn. Rê chuột qua các trục Gizmo sẽ có hiệu ứng sáng nổi bật (Highlight) và thay đổi con trỏ chuột. Bấm giữ chuột trái để kéo điều chỉnh mượt mà theo tia 3D Ray.
+  - **Giữ Phím Ctrl khi kéo:** Kích hoạt chế độ Snap tự động (Snap vị trí `0.5m`, Snap góc xoay `15°`, Snap Scale `0.1`).
+  - **Chuột phải (Giữ + Di chuyển):** Xoay góc nhìn Camera trong Scene View.
+  - **Con lăn chuột:** Phóng to / Thu nhỏ (Zoom) Scene View.
 
 ---
 
@@ -64,15 +62,6 @@ Dự án sử dụng CMake để quản lý cấu hình.
 1. Khởi tạo thư mục build: `cmake -B build`
 2. Biên dịch dự án (Chế độ Release): `cmake --build build --config Release`
 3. File chạy thực thi sẽ được tạo ra tại: `build/Release/ShapeRenderer.exe`
-
-### 3. Cấu Trúc Mã Nguồn Chính
-- `VulkanApp.cpp / .h`: Chứa toàn bộ logic khởi tạo Vulkan Context, Pipeline, Render Pass, và Shadow Pass. Nơi xử lý trực tiếp các vòng lặp Render đồ họa.
-- `EditorUI`: Chứa logic render layout của ImGui (Hierarchy, Inspector, Game/Scene Windows).
-- Khối `loadModel`: Xử lý nạp Model từ file ngoài (hỗ trợ đọc Buffer View ByteOffset, Stride theo dạng `unsigned char*` để tránh mọi lỗi lệch dữ liệu từ file glTF gộp).
-
----
-*Tài liệu được cập nhật cho phiên bản tích hợp glTF & Light Gizmo mới nhất.*
-
 
 ---
 
@@ -116,9 +105,11 @@ Khi mở phần mềm lên, màn hình của bạn sẽ được chia thành 5 k
 Khi một vật thể được chọn, bạn có 2 cách để điều chỉnh chúng:
 
 ### Cách 1: Sử dụng công cụ kéo thả trực quan (Gizmo) trong Scene View
-Khi chọn vật thể, ở tâm vật thể sẽ hiện ra hệ thống 3 trục (X: Đỏ, Y: Xanh lá, Z: Xanh dương).
-- **Di chuyển (Translate):** Bấm giữ **chuột trái** vào các mũi tên và kéo để tịnh tiến vật thể theo hướng tương ứng.
-- **Xoay (Rotate):** Bấm giữ **chuột trái** vào các vòng tròn bao quanh vật thể và vuốt chuột để xoay.
+Nhấn các phím tắt `W`, `E`, `R`, `T`, `Y` để chuyển đổi chế độ Gizmo mong muốn:
+- **Di chuyển (Translate - Phím W):** Rê chuột lên các mũi tên (X: Đỏ, Y: Xanh lá, Z: Xanh dương), trục sẽ sáng rực lên. Bấm giữ **chuột trái** và kéo để di chuyển vật thể bám sát 1:1 theo con trỏ chuột mượt mà không hề bị giật hay lệch hướng.
+- **Xoay (Rotate - Phím E):** Bấm giữ **chuột trái** vào các vòng tròn 3D (X: Đỏ, Y: Xanh lá, Z: Xanh dương). Di chuyển con trỏ chuột xoay quanh vòng tròn để xoay vật thể mượt mà theo đúng góc chuột.
+- **Co giãn (Scale - Phím R):** Bấm giữ **chuột trái** vào khối vuông ở đầu các trục để co giãn chiều dài tương ứng, hoặc kéo khối tròn ở tâm để co giãn đồng dạng (Uniform Scale).
+- **Kích hoạt Snap Grid (`Ctrl` + Kéo chuột):** Giữ phím `Ctrl` khi kéo Gizmo để di chuyển/xoay/co giãn theo các bước nhảy cố định chuẩn xác (`0.5m` cho Translate, `15°` cho Rotate, `0.1` cho Scale).
 
 ### Cách 2: Nhập số chính xác trong bảng Inspector
 Nhìn sang bảng `Inspector` bên phải:
