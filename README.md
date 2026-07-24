@@ -16,6 +16,7 @@ Dự án mang lại trải nghiệm phát triển mô phỏng lại giao diện 
 - **Inspector Panel:** Quản lý và điều chỉnh các thông số của vật thể được chọn như: Transform (Position, Rotation, Scale), màu sắc Mesh, hoặc các thuộc tính vật lý.
 - **Console / Project Logs:** Hiển thị trạng thái của hệ thống và cảnh báo.
 - **Visual Profiler Panel:** Bảng giám sát hiệu năng trực quan thời gian thực bao gồm **FrameTime (ms)**, **FPS**, **CPU Usage (%)**, **RAM (Working Set MB)** và **VRAM (Vulkan Memory MB)** đi kèm với biểu đồ lịch sử sinh động (Realtime History Graphs).
+- **Asset Browser & Drag-and-Drop System:** Cửa sổ quản lý tài nguyên dự án chuẩn phong cách Unity Editor/Unity Hub. Cho phép duyệt thư mục `assets/` (Model 3D `.obj`, `.glb`, `.gltf`, Texture `.png`, `.jpg`, Lua Script `.lua`), danh sách hình khối cơ bản (Primitives) và **bấm giữ kéo thả (Drag & Drop)** trực tiếp tài nguyên thả vào Scene View 3D! Khối 3D sẽ được định vị tự động theo tia 3D Raycasting tại vị trí thả chuột!
 
 ### 2. Hệ Thống Đồ Họa Vulkan & Ánh Sáng
 - **Shadow Mapping (Bóng đổ):** Ánh sáng định hướng (Directional Light) hỗ trợ đổ bóng thời gian thực lên các vật thể khác.

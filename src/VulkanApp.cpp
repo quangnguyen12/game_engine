@@ -24,6 +24,7 @@
 #include <set>
 #include <cstring>
 #include <sstream>
+#include <filesystem>
 
 extern "C" {
     __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
@@ -2301,6 +2302,166 @@ void VulkanApp::drawProfilerPanel()
     ImGui::End();
 }
 
+int VulkanApp::load3DModelAsset(const std::string& filePath)
+{
+    try {
+        Mesh newMesh;
+        loadModel(filePath, newMesh);
+        createMeshBuffers(newMesh);
+        meshes.push_back(newMesh);
+        return static_cast<int>(meshes.size()) - 1;
+    }
+    catch (const std::exception& e) {
+        printf("Error loading 3D Model Asset (%s): %s\n", filePath.c_str(), e.what());
+        return -1;
+    }
+}
+
+int VulkanApp::loadTextureAsset(const std::string& filePath)
+{
+    try {
+        Texture newTexture;
+        loadTexture(filePath, newTexture);
+        textures.push_back(newTexture);
+        return static_cast<int>(textures.size()) - 1;
+    }
+    catch (const std::exception& e) {
+        printf("Error loading Texture Asset (%s): %s\n", filePath.c_str(), e.what());
+        return -1;
+    }
+}
+
+void VulkanApp::drawAssetBrowserPanel(float windowWidth, float bottomBarHeight)
+{
+    if (!showAssetBrowserPanel) return;
+
+    ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetIO().DisplaySize.y - bottomBarHeight));
+    ImGui::SetNextWindowSize(ImVec2(windowWidth, bottomBarHeight));
+
+    if (ImGui::Begin("📁 Project Assets & Drag-and-Drop Browser", &showAssetBrowserPanel, ImGuiWindowFlags_NoCollapse))
+    {
+        if (ImGui::BeginTabBar("AssetBrowserTabs"))
+        {
+            if (ImGui::BeginTabItem("📦 Workspace Assets (assets/)"))
+            {
+                std::string assetsDir = "assets";
+                if (!std::filesystem::exists(assetsDir))
+                {
+                    std::filesystem::create_directory(assetsDir);
+                }
+
+                int gridCols = 6;
+                if (ImGui::BeginTable("AssetsGrid", gridCols, ImGuiTableFlags_SizingFixedFit))
+                {
+                    int col = 0;
+                    for (const auto& entry : std::filesystem::directory_iterator(assetsDir))
+                    {
+                        if (entry.is_regular_file())
+                        {
+                            std::string pathStr = entry.path().string();
+                            std::string filenameStr = entry.path().filename().string();
+                            std::string ext = entry.path().extension().string();
+                            for (auto& c : ext) c = tolower(c);
+
+                            if (col == 0) ImGui::TableNextRow();
+                            ImGui::TableSetColumnIndex(col);
+
+                            std::string icon = "📄 ";
+                            if (ext == ".obj" || ext == ".glb" || ext == ".gltf") icon = "📦 ";
+                            else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp") icon = "🖼️ ";
+                            else if (ext == ".lua") icon = "📜 ";
+
+                            std::string buttonLabel = icon + filenameStr;
+                            ImGui::PushID(pathStr.c_str());
+
+                            ImGui::Selectable(buttonLabel.c_str(), false, 0, ImVec2(160, 26));
+
+                            // Drag & Drop Source
+                            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+                            {
+                                ImGui::SetDragDropPayload("DND_ASSET_PATH", pathStr.c_str(), pathStr.size() + 1);
+                                ImGui::Text("📦 Dragging '%s'\nDrop into Scene View to place!", filenameStr.c_str());
+                                ImGui::EndDragDropSource();
+                            }
+
+                            // Double click to spawn/load
+                            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                            {
+                                if (ext == ".obj" || ext == ".glb" || ext == ".gltf")
+                                {
+                                    saveHistory();
+                                    int meshId = load3DModelAsset(pathStr);
+                                    if (meshId >= 0)
+                                    {
+                                        SceneObject newObj;
+                                        newObj.id = sceneObjects.size();
+                                        newObj.name = entry.path().stem().string();
+                                        newObj.position = glm::vec3(0.0f);
+                                        newObj.scale = glm::vec3(1.0f);
+                                        newObj.color = glm::vec4(1.0f);
+                                        newObj.meshId = meshId;
+                                        sceneObjects.push_back(newObj);
+                                        selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+                                    }
+                                }
+                                else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
+                                {
+                                    saveHistory();
+                                    int texId = loadTextureAsset(pathStr);
+                                    if (texId >= 0 && selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+                                    {
+                                        sceneObjects[selectedObjectIndex].textureId = texId;
+                                    }
+                                }
+                            }
+
+                            ImGui::PopID();
+                            col = (col + 1) % gridCols;
+                        }
+                    }
+                    ImGui::EndTable();
+                }
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("🎲 Built-in Primitives"))
+            {
+                struct PrimitiveItem {
+                    const char* name;
+                    const char* payloadKey;
+                    const char* icon;
+                };
+
+                PrimitiveItem primitives[] = {
+                    { "Cube Primitive", "PRIMITIVE_CUBE", "🎲" },
+                    { "Sphere Primitive", "PRIMITIVE_SPHERE", "🔮" },
+                    { "Plane Primitive", "PRIMITIVE_PLANE", "📜" }
+                };
+
+                for (const auto& item : primitives)
+                {
+                    std::string label = std::string(item.icon) + " " + item.name;
+                    ImGui::Selectable(label.c_str(), false, 0, ImVec2(180, 26));
+
+                    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+                    {
+                        ImGui::SetDragDropPayload("DND_ASSET_PATH", item.payloadKey, strlen(item.payloadKey) + 1);
+                        ImGui::Text("🎲 Dragging '%s'\nDrop into Scene View to place!", item.name);
+                        ImGui::EndDragDropSource();
+                    }
+
+                    ImGui::SameLine();
+                }
+                ImGui::NewLine();
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }
+    }
+    ImGui::End();
+}
+
 void VulkanApp::renderImGuiUI()
 {
     ImGui_ImplVulkan_NewFrame();
@@ -2470,6 +2631,12 @@ void VulkanApp::renderImGuiUI()
         if (ImGui::Button(showProfilerPanel ? " [ [x] 📊 Visual Profiler ] " : " [ [ ] 📊 Visual Profiler ] "))
         {
             showProfilerPanel = !showProfilerPanel;
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button(showAssetBrowserPanel ? " [ [x] 📁 Asset Browser ] " : " [ [ ] 📁 Asset Browser ] "))
+        {
+            showAssetBrowserPanel = !showAssetBrowserPanel;
         }
 
         ImGui::Separator();
@@ -2801,6 +2968,9 @@ void VulkanApp::renderImGuiUI()
 
     // 7. Visual Profiler Panel (FrameTime, CPU, GPU/VRAM, RAM)
     drawProfilerPanel();
+
+    // 8. Asset Browser Panel & Drag-and-Drop System
+    drawAssetBrowserPanel(windowWidth, bottomBarHeight);
 
     ImGui::Render();
 }
@@ -3608,6 +3778,100 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
         {
             drawList->AddLine(scamPos, sorPoint, IM_COL32(0, 240, 255, 100), 1.0f);
         }
+    }
+
+    // 6. Drag & Drop Target over Scene View (Raycast to 3D Drop Position)
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ASSET_PATH"))
+        {
+            const char* assetPath = static_cast<const char*>(payload->Data);
+            std::string pathStr(assetPath);
+
+            ImVec2 mousePos = ImGui::GetMousePos();
+            glm::vec3 rayOrig, rayDir;
+            glm::vec3 dropPos(0.0f, 0.0f, 0.0f);
+            if (getRayFromScreenPos(mousePos, windowPos, windowSize, view, proj, rayOrig, rayDir))
+            {
+                glm::vec3 hitPoint;
+                if (intersectRayPlane(rayOrig, rayDir, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), hitPoint))
+                {
+                    dropPos = hitPoint;
+                }
+            }
+
+            std::filesystem::path p(pathStr);
+            std::string ext = p.extension().string();
+            for (auto& c : ext) c = tolower(c);
+
+            saveHistory();
+
+            if (pathStr == "PRIMITIVE_CUBE")
+            {
+                SceneObject newObj;
+                newObj.id = sceneObjects.size();
+                newObj.name = "Cube " + std::to_string(sceneObjects.size());
+                newObj.type = ObjectType::CUBE;
+                newObj.position = dropPos;
+                newObj.scale = glm::vec3(0.5f);
+                newObj.color = glm::vec4(1.0f);
+                newObj.meshId = primitiveCubeMeshId;
+                sceneObjects.push_back(newObj);
+                selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+            }
+            else if (pathStr == "PRIMITIVE_SPHERE")
+            {
+                SceneObject newObj;
+                newObj.id = sceneObjects.size();
+                newObj.name = "Sphere " + std::to_string(sceneObjects.size());
+                newObj.type = ObjectType::SPHERE;
+                newObj.position = dropPos;
+                newObj.scale = glm::vec3(0.5f);
+                newObj.color = glm::vec4(1.0f, 0.5f, 0.5f, 1.0f);
+                newObj.meshId = primitiveSphereMeshId;
+                sceneObjects.push_back(newObj);
+                selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+            }
+            else if (pathStr == "PRIMITIVE_PLANE")
+            {
+                SceneObject newObj;
+                newObj.id = sceneObjects.size();
+                newObj.name = "Plane " + std::to_string(sceneObjects.size());
+                newObj.type = ObjectType::PLANE;
+                newObj.position = dropPos;
+                newObj.scale = glm::vec3(2.0f, 1.0f, 2.0f);
+                newObj.color = glm::vec4(0.7f, 0.7f, 0.7f, 1.0f);
+                newObj.meshId = primitivePlaneMeshId;
+                sceneObjects.push_back(newObj);
+                selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+            }
+            else if (ext == ".obj" || ext == ".glb" || ext == ".gltf")
+            {
+                int meshId = load3DModelAsset(pathStr);
+                if (meshId >= 0)
+                {
+                    SceneObject newObj;
+                    newObj.id = sceneObjects.size();
+                    newObj.name = p.stem().string();
+                    newObj.type = ObjectType::CUBE;
+                    newObj.position = dropPos;
+                    newObj.scale = glm::vec3(1.0f);
+                    newObj.color = glm::vec4(1.0f);
+                    newObj.meshId = meshId;
+                    sceneObjects.push_back(newObj);
+                    selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+                }
+            }
+            else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
+            {
+                int texId = loadTextureAsset(pathStr);
+                if (texId >= 0 && selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+                {
+                    sceneObjects[selectedObjectIndex].textureId = texId;
+                }
+            }
+        }
+        ImGui::EndDragDropTarget();
     }
 }
 void VulkanApp::drawGameView(const ImVec2& windowPos, const ImVec2& windowSize)

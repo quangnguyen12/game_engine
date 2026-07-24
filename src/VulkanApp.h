@@ -335,6 +335,9 @@ private:
     void drawGameView(const ImVec2& windowPos, const ImVec2& windowSize);
     void updateProfilerMetrics(float deltaTime);
     void drawProfilerPanel();
+    int load3DModelAsset(const std::string& filePath);
+    int loadTextureAsset(const std::string& filePath);
+    void drawAssetBrowserPanel(float windowWidth, float bottomBarHeight);
     void initializeDefaultScene();
     void updatePhysics(float deltaTime);
     void draw3DObject(int objIndex, const glm::mat4& view, const glm::mat4& proj, const ImVec2& offset, const ImVec2& size);
@@ -520,6 +523,7 @@ private:
     GizmoDragState gizmoDragState;
     ProfilerMetrics profilerMetrics;
     bool showProfilerPanel = true;
+    bool showAssetBrowserPanel = true;
     
     // Play mode game state
     int gameScore = 0;
