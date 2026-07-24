@@ -1,17 +1,17 @@
 -- =============================================
---  PlayerMovement.lua
+--  PlayerWASD.lua
 --  Điều khiển di chuyển nhân vật bằng phím W A S D
 --  Hỗ trợ nhảy phím Space & di chuyển chéo
 -- =============================================
 
-local PlayerMovement = {}
+local PlayerWASD = {}
 
-function PlayerMovement:onStart(obj)
+function PlayerWASD:onStart(obj)
     self.speed = 4.0
-    print("[Lua] PlayerMovement started on: " .. obj.name)
+    print("[Lua] PlayerWASD started on: " .. obj.name)
 end
 
-function PlayerMovement:onUpdate(obj, dt)
+function PlayerWASD:onUpdate(obj, dt)
     local moveX = 0.0
     local moveZ = 0.0
 
@@ -51,4 +51,4 @@ function PlayerMovement:onUpdate(obj, dt)
     end
 end
 
-return PlayerMovement
+return PlayerWASD

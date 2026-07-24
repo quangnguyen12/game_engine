@@ -170,6 +170,34 @@ void VulkanApp::run()
         "y", &glm::vec3::y,
         "z", &glm::vec3::z
     );
+
+    // Bind Input API to Lua
+    auto inputTable = luaState.create_named_table("Input");
+    inputTable.set_function("isKeyPressed", [this](const std::string& key) -> bool {
+        if (!window) return false;
+        std::string k = key;
+        for (auto& c : k) c = static_cast<char>(toupper(c));
+
+        int glfwKey = -1;
+        if (k == "W") glfwKey = GLFW_KEY_W;
+        else if (k == "A") glfwKey = GLFW_KEY_A;
+        else if (k == "S") glfwKey = GLFW_KEY_S;
+        else if (k == "D") glfwKey = GLFW_KEY_D;
+        else if (k == "UP") glfwKey = GLFW_KEY_UP;
+        else if (k == "DOWN") glfwKey = GLFW_KEY_DOWN;
+        else if (k == "LEFT") glfwKey = GLFW_KEY_LEFT;
+        else if (k == "RIGHT") glfwKey = GLFW_KEY_RIGHT;
+        else if (k == "SPACE") glfwKey = GLFW_KEY_SPACE;
+        else if (k == "SHIFT") glfwKey = GLFW_KEY_LEFT_SHIFT;
+        else if (k == "CTRL") glfwKey = GLFW_KEY_LEFT_CONTROL;
+        else if (k.length() == 1 && k[0] >= 'A' && k[0] <= 'Z') glfwKey = GLFW_KEY_A + (k[0] - 'A');
+        else if (k.length() == 1 && k[0] >= '0' && k[0] <= '9') glfwKey = GLFW_KEY_0 + (k[0] - '0');
+
+        if (glfwKey != -1) {
+            return glfwGetKey(window, glfwKey) == GLFW_PRESS;
+        }
+        return false;
+    });
     // Create shared primitive meshes once (requires Vulkan device to be ready)
     primitiveCubeMeshId   = createCubeMesh();
     primitiveSphereMeshId = createSphereMesh();
