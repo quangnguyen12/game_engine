@@ -628,7 +628,7 @@ private:
     bool framebufferResized = false;
 
     // Interactive Edit vs Play mode & Unity Engine UI variables
-    AppMode mode = AppMode::PLAY;
+    AppMode mode = AppMode::EDIT;
     bool isDragging = false;
     double lastMouseX = 0.0;
     double lastMouseY = 0.0;
