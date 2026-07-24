@@ -2104,6 +2104,203 @@ void VulkanApp::initImGui()
     );
 }
 
+void VulkanApp::updateProfilerMetrics(float deltaTime)
+{
+    static double lastCpuCheckTime = 0.0;
+    double curTime = glfwGetTime();
+
+    // 1. FrameTime & FPS
+    float frameTimeMs = deltaTime * 1000.0f;
+    float fps = ImGui::GetIO().Framerate;
+
+    profilerMetrics.frameTimeMs = frameTimeMs;
+    profilerMetrics.fps = fps;
+
+    std::rotate(profilerMetrics.frameTimeHistory.begin(), profilerMetrics.frameTimeHistory.begin() + 1, profilerMetrics.frameTimeHistory.end());
+    profilerMetrics.frameTimeHistory.back() = frameTimeMs;
+
+    float sum = 0.0f;
+    profilerMetrics.minFrameTime = 999.0f;
+    profilerMetrics.maxFrameTime = 0.0f;
+    for (float f : profilerMetrics.frameTimeHistory)
+    {
+        if (f > 0.001f)
+        {
+            if (f < profilerMetrics.minFrameTime) profilerMetrics.minFrameTime = f;
+            if (f > profilerMetrics.maxFrameTime) profilerMetrics.maxFrameTime = f;
+            sum += f;
+        }
+    }
+    profilerMetrics.avgFrameTime = sum / static_cast<float>(profilerMetrics.frameTimeHistory.size());
+
+    // 2. RAM Usage (Win32 Working Set Size)
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+    {
+        profilerMetrics.ramUsageMB = static_cast<float>(pmc.WorkingSetSize) / (1024.0f * 1024.0f);
+    }
+#endif
+    std::rotate(profilerMetrics.ramHistory.begin(), profilerMetrics.ramHistory.begin() + 1, profilerMetrics.ramHistory.end());
+    profilerMetrics.ramHistory.back() = profilerMetrics.ramUsageMB;
+
+    // 3. CPU Usage (%)
+#ifdef _WIN32
+    if (curTime - lastCpuCheckTime >= 0.2)
+    {
+        lastCpuCheckTime = curTime;
+        static FILETIME prevSysKernel, prevSysUser, prevProcKernel, prevProcUser;
+        static bool firstCall = true;
+
+        FILETIME sysIdle, sysKernel, sysUser;
+        FILETIME procCreation, procExit, procKernel, procUser;
+
+        if (GetSystemTimes(&sysIdle, &sysKernel, &sysUser) &&
+            GetProcessTimes(GetCurrentProcess(), &procCreation, &procExit, &procKernel, &procUser))
+        {
+            if (!firstCall)
+            {
+                uint64_t sysKernelDiff = ((uint64_t)sysKernel.dwHighDateTime << 32 | sysKernel.dwLowDateTime) -
+                                         ((uint64_t)prevSysKernel.dwHighDateTime << 32 | prevSysKernel.dwLowDateTime);
+                uint64_t sysUserDiff = ((uint64_t)sysUser.dwHighDateTime << 32 | sysUser.dwLowDateTime) -
+                                       ((uint64_t)prevSysUser.dwHighDateTime << 32 | prevSysUser.dwLowDateTime);
+
+                uint64_t procKernelDiff = ((uint64_t)procKernel.dwHighDateTime << 32 | procKernel.dwLowDateTime) -
+                                           ((uint64_t)prevProcKernel.dwHighDateTime << 32 | prevProcKernel.dwLowDateTime);
+                uint64_t procUserDiff = ((uint64_t)procUser.dwHighDateTime << 32 | procUser.dwLowDateTime) -
+                                         ((uint64_t)prevProcUser.dwHighDateTime << 32 | prevProcUser.dwLowDateTime);
+
+                uint64_t totalSys = sysKernelDiff + sysUserDiff;
+                uint64_t totalProc = procKernelDiff + procUserDiff;
+
+                if (totalSys > 0)
+                {
+                    SYSTEM_INFO sysInfo;
+                    GetSystemInfo(&sysInfo);
+                    int numCores = sysInfo.dwNumberOfProcessors > 0 ? sysInfo.dwNumberOfProcessors : 1;
+                    float cpuPct = (float)((double)totalProc / (double)totalSys) * 100.0f * numCores;
+                    profilerMetrics.cpuUsagePercent = std::clamp(cpuPct, 0.0f, 100.0f);
+                }
+            }
+
+            prevSysKernel = sysKernel;
+            prevSysUser = sysUser;
+            prevProcKernel = procKernel;
+            prevProcUser = procUser;
+            firstCall = false;
+        }
+    }
+#endif
+    std::rotate(profilerMetrics.cpuHistory.begin(), profilerMetrics.cpuHistory.begin() + 1, profilerMetrics.cpuHistory.end());
+    profilerMetrics.cpuHistory.back() = profilerMetrics.cpuUsagePercent;
+
+    // 4. VRAM Usage (Calculated Vulkan Buffer & Texture Memory)
+    size_t vramBytes = 0;
+    for (const auto& mesh : meshes)
+    {
+        vramBytes += mesh.vertices.size() * sizeof(Vertex);
+        vramBytes += mesh.indices.size() * sizeof(uint32_t);
+    }
+    int fbW = WIDTH, fbH = HEIGHT;
+    if (window) glfwGetFramebufferSize(window, &fbW, &fbH);
+    vramBytes += fbW * fbH * 4 * 2; // Offscreen Color & Game Color
+    vramBytes += fbW * fbH * 4 * 2; // Offscreen Depth & Game Depth
+    vramBytes += 2048 * 2048 * 4;   // Shadow Map
+    vramBytes += swapChainImages.size() * fbW * fbH * 4;
+    for (const auto& tex : textures)
+    {
+        vramBytes += tex.width * tex.height * 4;
+    }
+    profilerMetrics.vramUsageMB = static_cast<float>(vramBytes) / (1024.0f * 1024.0f);
+
+    std::rotate(profilerMetrics.vramHistory.begin(), profilerMetrics.vramHistory.begin() + 1, profilerMetrics.vramHistory.end());
+    profilerMetrics.vramHistory.back() = profilerMetrics.vramUsageMB;
+}
+
+void VulkanApp::drawProfilerPanel()
+{
+    if (!showProfilerPanel) return;
+
+    ImGui::SetNextWindowSize(ImVec2(340, 480), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("📊 Visual Profiler Panel", &showProfilerPanel, ImGuiWindowFlags_NoCollapse))
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
+
+        // 1. Performance Summary
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "⚙️ Performance Metrics");
+        ImGui::Separator();
+
+        ImVec4 fpsCol = (profilerMetrics.fps >= 55.0f) ? ImVec4(0.2f, 0.9f, 0.3f, 1.0f) :
+                        (profilerMetrics.fps >= 30.0f) ? ImVec4(0.9f, 0.8f, 0.2f, 1.0f) :
+                                                         ImVec4(0.9f, 0.2f, 0.2f, 1.0f);
+
+        ImGui::Text("Frames / Sec :"); ImGui::SameLine();
+        ImGui::TextColored(fpsCol, "%.1f FPS", profilerMetrics.fps);
+
+        ImGui::Text("Frame Time  :"); ImGui::SameLine();
+        ImGui::TextColored(fpsCol, "%.2f ms", profilerMetrics.frameTimeMs);
+        ImGui::TextDisabled("  (Min: %.2f ms | Max: %.2f ms | Avg: %.2f ms)",
+                            profilerMetrics.minFrameTime, profilerMetrics.maxFrameTime, profilerMetrics.avgFrameTime);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // 2. Hardware Resources
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "💻 Hardware Resources");
+
+        ImVec4 cpuCol = (profilerMetrics.cpuUsagePercent < 50.0f) ? ImVec4(0.2f, 0.9f, 0.3f, 1.0f) :
+                        (profilerMetrics.cpuUsagePercent < 80.0f) ? ImVec4(0.9f, 0.8f, 0.2f, 1.0f) :
+                                                                    ImVec4(0.9f, 0.2f, 0.2f, 1.0f);
+        ImGui::Text("CPU Usage   :"); ImGui::SameLine();
+        ImGui::TextColored(cpuCol, "%.1f %%", profilerMetrics.cpuUsagePercent);
+
+        ImGui::Text("RAM (System):"); ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "%.1f MB", profilerMetrics.ramUsageMB);
+
+        ImGui::Text("VRAM (Vulkan):"); ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.8f, 0.4f, 1.0f, 1.0f), "%.1f MB", profilerMetrics.vramUsageMB);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // 3. Realtime History Graphs
+        if (ImGui::CollapsingHeader("📈 Realtime History Graphs", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            char ftLabel[64];
+            snprintf(ftLabel, sizeof(ftLabel), "Frame Time (%.1f ms)", profilerMetrics.frameTimeMs);
+            ImGui::PlotLines("##FrameTimePlot", profilerMetrics.frameTimeHistory.data(),
+                             static_cast<int>(profilerMetrics.frameTimeHistory.size()),
+                             0, ftLabel, 0.0f, 40.0f, ImVec2(-1, 55));
+
+            char cpuLabel[64];
+            snprintf(cpuLabel, sizeof(cpuLabel), "CPU Usage (%.1f %%)", profilerMetrics.cpuUsagePercent);
+            ImGui::PlotLines("##CPUPlot", profilerMetrics.cpuHistory.data(),
+                             static_cast<int>(profilerMetrics.cpuHistory.size()),
+                             0, cpuLabel, 0.0f, 100.0f, ImVec2(-1, 55));
+
+            char memLabel[64];
+            snprintf(memLabel, sizeof(memLabel), "RAM: %.1f MB | VRAM: %.1f MB", profilerMetrics.ramUsageMB, profilerMetrics.vramUsageMB);
+            ImGui::PlotLines("##RAMPlot", profilerMetrics.ramHistory.data(),
+                             static_cast<int>(profilerMetrics.ramHistory.size()),
+                             0, memLabel, 0.0f, 500.0f, ImVec2(-1, 55));
+        }
+
+        ImGui::Spacing();
+        if (ImGui::CollapsingHeader("🎮 Vulkan Engine Info", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Text("Render Device : %s", selectedGpuName.c_str());
+            ImGui::Text("Scene Objects : %d", static_cast<int>(sceneObjects.size()));
+            ImGui::Text("Loaded Meshes : %d", static_cast<int>(meshes.size()));
+            ImGui::Text("Shadow Mapping: %s (2048x2048)", enableShadowMapping ? "Enabled" : "Disabled");
+        }
+
+        ImGui::PopStyleVar();
+    }
+    ImGui::End();
+}
+
 void VulkanApp::renderImGuiUI()
 {
     ImGui_ImplVulkan_NewFrame();
@@ -2267,6 +2464,12 @@ void VulkanApp::renderImGuiUI()
         if (ImGui::Button(showGameViewWindow ? " [ [x] Game View Window ] " : " [ [ ] Game View Window ] "))
         {
             showGameViewWindow = !showGameViewWindow;
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button(showProfilerPanel ? " [ [x] 📊 Visual Profiler ] " : " [ [ ] 📊 Visual Profiler ] "))
+        {
+            showProfilerPanel = !showProfilerPanel;
         }
 
         ImGui::Separator();
@@ -2595,6 +2798,9 @@ void VulkanApp::renderImGuiUI()
         ImGui::TextColored(ImVec4(0.9f, 0.8f, 0.2f, 1.0f), "[SYSTEM] App mode: %s. Objects count: %d", mode == AppMode::PLAY ? "PLAY" : "EDIT", (int)sceneObjects.size());
     }
     ImGui::End();
+
+    // 7. Visual Profiler Panel (FrameTime, CPU, GPU/VRAM, RAM)
+    drawProfilerPanel();
 
     ImGui::Render();
 }
@@ -4107,6 +4313,7 @@ void VulkanApp::drawFrame()
 
     updateUniformBuffer(currentFrame);
 
+    updateProfilerMetrics(ImGui::GetIO().DeltaTime);
     renderImGuiUI();
 
     vkResetFences(device, 1, &inFlightFences[currentFrame]);

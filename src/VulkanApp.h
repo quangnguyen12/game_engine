@@ -15,7 +15,16 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <algorithm>
 #include "imgui.h"
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <psapi.h>
+#endif
 
 enum class AppMode
 {
@@ -98,6 +107,32 @@ struct GizmoDragState
 
     glm::vec3 rotBasisU = glm::vec3(0.0f);
     glm::vec3 rotBasisV = glm::vec3(0.0f);
+};
+
+struct ProfilerMetrics
+{
+    float frameTimeMs = 0.0f;
+    float fps = 0.0f;
+    float cpuUsagePercent = 0.0f;
+    float ramUsageMB = 0.0f;
+    float vramUsageMB = 0.0f;
+
+    std::vector<float> frameTimeHistory;
+    std::vector<float> cpuHistory;
+    std::vector<float> ramHistory;
+    std::vector<float> vramHistory;
+
+    float minFrameTime = 999.0f;
+    float maxFrameTime = 0.0f;
+    float avgFrameTime = 0.0f;
+
+    ProfilerMetrics()
+    {
+        frameTimeHistory.resize(60, 0.0f);
+        cpuHistory.resize(60, 0.0f);
+        ramHistory.resize(60, 0.0f);
+        vramHistory.resize(60, 0.0f);
+    }
 };
 
 struct SceneObject
@@ -295,6 +330,8 @@ private:
     float getClosestPointOnAxis(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& pivotPos, const glm::vec3& axisDir);
     void drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize);
     void drawGameView(const ImVec2& windowPos, const ImVec2& windowSize);
+    void updateProfilerMetrics(float deltaTime);
+    void drawProfilerPanel();
     void initializeDefaultScene();
     void updatePhysics(float deltaTime);
     void draw3DObject(int objIndex, const glm::mat4& view, const glm::mat4& proj, const ImVec2& offset, const ImVec2& size);
@@ -478,6 +515,8 @@ private:
     DragAxis activeDragAxis = DragAxis::NONE;
     DragAxis hoveredDragAxis = DragAxis::NONE;
     GizmoDragState gizmoDragState;
+    ProfilerMetrics profilerMetrics;
+    bool showProfilerPanel = true;
     
     // Play mode game state
     int gameScore = 0;

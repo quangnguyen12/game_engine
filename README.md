@@ -15,6 +15,7 @@ Dự án mang lại trải nghiệm phát triển mô phỏng lại giao diện 
   - **Game View:** Góc nhìn thực tế từ Main Camera của trò chơi.
 - **Inspector Panel:** Quản lý và điều chỉnh các thông số của vật thể được chọn như: Transform (Position, Rotation, Scale), màu sắc Mesh, hoặc các thuộc tính vật lý.
 - **Console / Project Logs:** Hiển thị trạng thái của hệ thống và cảnh báo.
+- **Visual Profiler Panel:** Bảng giám sát hiệu năng trực quan thời gian thực bao gồm **FrameTime (ms)**, **FPS**, **CPU Usage (%)**, **RAM (Working Set MB)** và **VRAM (Vulkan Memory MB)** đi kèm với biểu đồ lịch sử sinh động (Realtime History Graphs).
 
 ### 2. Hệ Thống Đồ Họa Vulkan & Ánh Sáng
 - **Shadow Mapping (Bóng đổ):** Ánh sáng định hướng (Directional Light) hỗ trợ đổ bóng thời gian thực lên các vật thể khác.
