@@ -3218,6 +3218,16 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                     if (sceneObjects[selectedObjectIndex].name == "Gold Collectible")
                         sceneObjects[selectedObjectIndex].position.y = -1.2f;
                 }
+
+                // Re-update pivotPos and project handle positions so Gizmo stays 100% attached to object while dragging
+                if (hasSelection)
+                {
+                    pivotPos = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
+                    sP = projectPoint(pivotPos, view, proj, windowPos, windowSize);
+                    sX = projectPoint(pivotPos + glm::vec3(L, 0.0f, 0.0f), view, proj, windowPos, windowSize);
+                    sY = projectPoint(pivotPos + glm::vec3(0.0f, L, 0.0f), view, proj, windowPos, windowSize);
+                    sZ = projectPoint(pivotPos + glm::vec3(0.0f, 0.0f, L), view, proj, windowPos, windowSize);
+                }
             }
         }
         else
