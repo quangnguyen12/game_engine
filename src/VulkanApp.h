@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <string>
 #include <algorithm>
+#include <unordered_map>
 #include "imgui.h"
 
 #ifdef _WIN32
@@ -524,6 +525,7 @@ private:
     ProfilerMetrics profilerMetrics;
     bool showProfilerPanel = true;
     bool showAssetBrowserPanel = true;
+    std::unordered_map<std::string, Texture> assetThumbnails;
     
     // Play mode game state
     int gameScore = 0;
