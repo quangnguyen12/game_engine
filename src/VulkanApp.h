@@ -27,6 +27,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include <shellapi.h>
 #include <psapi.h>
 #endif
 
@@ -497,6 +498,7 @@ private:
     int load3DModelAsset(const std::string& filePath);
     int loadTextureAsset(const std::string& filePath);
     void drawAssetBrowserPanel(float windowWidth, float bottomBarHeight);
+    void openFileInExternalEditor(const std::string& filePath);
     void initializeDefaultScene();
     void updatePhysics(float deltaTime);
     void initPhysicsBodies();

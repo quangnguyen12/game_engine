@@ -2418,6 +2418,27 @@ void VulkanApp::drawAssetBrowserPanel(float windowWidth, float bottomBarHeight)
                             ImGui::SetCursorScreenPos(p);
                             ImGui::Selectable("##CardSelect", false, 0, ImVec2(cardWidth, cardHeight));
 
+                            if (ImGui::BeginPopupContextItem())
+                            {
+                                if (ImGui::MenuItem("ð Edit in External IDE (VS Code / Studio)"))
+                                {
+                                    openFileInExternalEditor(pathStr);
+                                }
+                                if (ext == ".lua" && ImGui::MenuItem("â Attach Script to Selected Object"))
+                                {
+                                    if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+                                    {
+                                        std::ifstream t(pathStr);
+                                        if (t.is_open())
+                                        {
+                                            std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+                                            sceneObjects[selectedObjectIndex].luaScripts.push_back(scriptContent);
+                                        }
+                                    }
+                                }
+                                ImGui::EndPopup();
+                            }
+
                             // Drag & Drop Source attached directly to the full card Selectable item
                             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
                             {
@@ -2475,15 +2496,7 @@ void VulkanApp::drawAssetBrowserPanel(float windowWidth, float bottomBarHeight)
                                 }
                                 else if (ext == ".lua")
                                 {
-                                    if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
-                                    {
-                                        std::ifstream t(pathStr);
-                                        if (t.is_open())
-                                        {
-                                            std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
-                                            sceneObjects[selectedObjectIndex].luaScripts.push_back(scriptContent);
-                                        }
-                                    }
+                                    openFileInExternalEditor(pathStr);
                                 }
                             }
 
@@ -4789,6 +4802,19 @@ void VulkanApp::syncPhysicsToTransform()
             physEngine.setAngularVelocity(obj.bodyData, avel);
         }
     }
+}
+
+void VulkanApp::openFileInExternalEditor(const std::string& filePath)
+{
+    std::filesystem::path p(filePath);
+    std::string absPath = std::filesystem::absolute(p).string();
+    printf("Opening external editor for: %s\n", absPath.c_str());
+#ifdef _WIN32
+    ShellExecuteA(NULL, "open", absPath.c_str(), NULL, NULL, SW_SHOWNORMAL);
+#else
+    std::string cmd = "xdg-open \"" + absPath + "\" &";
+    system(cmd.c_str());
+#endif
 }
 
 void VulkanApp::savePlayModeState()
