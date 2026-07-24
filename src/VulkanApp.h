@@ -689,6 +689,7 @@ private:
     ProfilerMetrics profilerMetrics;
     bool showProfilerPanel = true;
     bool showAssetBrowserPanel = true;
+    bool isGameFullscreen = false;
     std::unordered_map<std::string, Texture> assetThumbnails;
 
     // Resizable UI panel dimensions

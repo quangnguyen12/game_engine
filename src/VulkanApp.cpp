@@ -2665,6 +2665,10 @@ void VulkanApp::renderImGuiUI()
         {
             activeGizmo = GizmoType::RECT;
         }
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape) && isGameFullscreen)
+        {
+            isGameFullscreen = false;
+        }
         if (ImGui::IsKeyPressed(ImGuiKey_Y))
         {
             activeGizmo = GizmoType::TRANSFORM_COMBINED;
@@ -2991,8 +2995,46 @@ void VulkanApp::renderImGuiUI()
     }
     ImGui::End();
 
-    // 4. Game View (Center-Right Window)
-    if (showGameViewWindow)
+    // 4. Game View (Center-Right Window or Secondary Monitor Fullscreen)
+    if (isGameFullscreen)
+    {
+        int monitorCount = 0;
+        GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
+        float fsX = 0.0f, fsY = 0.0f, fsW = windowWidth, fsH = windowHeight;
+
+        if (monitors && monitorCount > 1)
+        {
+            // Position on Secondary Monitor (Monitor #2)
+            int mx = 0, my = 0;
+            glfwGetMonitorPos(monitors[1], &mx, &my);
+            const GLFWvidmode* mode = glfwGetVideoMode(monitors[1]);
+            if (mode)
+            {
+                fsX = static_cast<float>(mx);
+                fsY = static_cast<float>(my);
+                fsW = static_cast<float>(mode->width);
+                fsH = static_cast<float>(mode->height);
+            }
+        }
+        else if (monitors && monitorCount > 0)
+        {
+            const GLFWvidmode* mode = glfwGetVideoMode(monitors[0]);
+            if (mode)
+            {
+                fsW = static_cast<float>(mode->width);
+                fsH = static_cast<float>(mode->height);
+            }
+        }
+
+        ImGui::SetNextWindowPos(ImVec2(fsX, fsY), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(fsW, fsH), ImGuiCond_Always);
+        if (ImGui::Begin("Game View (Fullscreen)", &isGameFullscreen, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings))
+        {
+            drawGameView(ImGui::GetWindowPos(), ImGui::GetWindowSize());
+        }
+        ImGui::End();
+    }
+    else if (showGameViewWindow)
     {
         ImGui::SetNextWindowPos(ImVec2(leftPanelWidth + centerWidth * 0.5f, menuBarHeight));
         ImGui::SetNextWindowSize(ImVec2(centerWidth * 0.5f, centerHeight));
@@ -4463,6 +4505,16 @@ void VulkanApp::drawGameView(const ImVec2& windowPos, const ImVec2& windowSize)
     {
         drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 65), IM_COL32(255, 150, 0, 255), "EDIT MODE: Click PLAY above");
     }
+
+    // Fullscreen Toggle Button in Top-Right corner of Game View
+    ImGui::SetCursorScreenPos(ImVec2(windowPos.x + windowSize.x - 205.0f, windowPos.y + 10.0f));
+    ImGui::PushStyleColor(ImGuiCol_Button, isGameFullscreen ? ImVec4(0.7f, 0.2f, 0.2f, 0.9f) : ImVec4(0.12f, 0.45f, 0.75f, 0.9f));
+    std::string fsBtnLabel = isGameFullscreen ? "\xe2\x86\xa9\xef\xb8\x8f Exit Fullscreen (ESC)" : "\xf0\x9f\x97\xa5\xef\xb8\x8f Fullscreen (Monitor 2)";
+    if (ImGui::Button(fsBtnLabel.c_str(), ImVec2(195, 30)))
+    {
+        isGameFullscreen = !isGameFullscreen;
+    }
+    ImGui::PopStyleColor();
 }
 
 glm::mat4 VulkanApp::getWorldMatrix(const std::vector<SceneObject>& objects, int index) const
