@@ -171,6 +171,22 @@ void VulkanApp::run()
         "z", &glm::vec3::z
     );
 
+    // Bind Game API to Lua
+    auto gameTable = luaState.create_named_table("Game");
+    gameTable.set_function("addScore", [this](int points) {
+        gameScore += points;
+        if (gameScore > highScore) highScore = gameScore;
+    });
+    gameTable.set_function("getScore", [this]() -> int {
+        return gameScore;
+    });
+    gameTable.set_function("getPlayerPosition", [this]() -> glm::vec3 {
+        for (const auto& obj : sceneObjects) {
+            if (obj.name == "Player Cube") return obj.position;
+        }
+        return glm::vec3(0.0f);
+    });
+
     // Bind Input API to Lua
     auto inputTable = luaState.create_named_table("Input");
     inputTable.set_function("isKeyPressed", [this](const std::string& key) -> bool {
@@ -4599,6 +4615,37 @@ return RespawnOnFall
     targetRb->motionType = BodyMotionType::DYNAMIC;
     targetRb->mass = 0.5f;
     target.components.push_back(targetRb);
+
+    // Pre-attach GoldCollectible Lua Script
+    std::string goldLuaScript = R"(local GoldCollectible = {}
+
+function GoldCollectible:onStart(obj)
+    self.pickupRadius = 0.6
+    print("[Lua] GoldCollectible initialized for: " .. obj.name)
+end
+
+function GoldCollectible:onUpdate(obj, dt)
+    obj.rotation.y = obj.rotation.y + 90.0 * dt
+    local playerPos = Game.getPlayerPosition()
+
+    local dx = obj.position.x - playerPos.x
+    local dy = obj.position.y - playerPos.y
+    local dz = obj.position.z - playerPos.z
+    local dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+
+    if dist < self.pickupRadius then
+        print("[Lua] Gold Collected! +1 Score")
+        Game.addScore(1)
+        obj.position.x = math.random(-30, 30) / 10.0
+        obj.position.y = -1.2
+        obj.position.z = math.random(-30, 30) / 10.0
+    end
+end
+
+return GoldCollectible
+)";
+    target.luaScripts.push_back(goldLuaScript);
+
     sceneObjects.push_back(target);
 
     // 3. Ground Obstacle Plane
@@ -4715,32 +4762,7 @@ void VulkanApp::updatePhysics(float deltaTime)
         mainCameraTarget = player->position;
         mainCameraPos = player->position + glm::vec3(2.5f, 2.5f, 2.5f);
 
-        // Collision detection with Collectible target
-        SceneObject* target = nullptr;
-        for (auto& obj : sceneObjects)
-        {
-            if (obj.name == "Gold Collectible")
-            {
-                target = &obj;
-                break;
-            }
-        }
-
-        if (target)
-        {
-            float dist = glm::distance(player->position, target->position);
-            float limit = (player->scale.x + target->scale.x) * 0.5f;
-            if (dist < limit)
-            {
-                // Increment score and relocate target
-                gameScore++;
-                if (gameScore > highScore) highScore = gameScore;
-
-                float rx = -3.0f + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / 6.0f));
-                float rz = -3.0f + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / 6.0f));
-                target->position = glm::vec3(rx, -1.2f, rz);
-            }
-        }
+        // Gold Collectible logic is now fully driven by Lua (e.g. GoldCollectible.lua)
     }
 }
 
