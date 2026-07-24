@@ -2576,6 +2576,17 @@ void VulkanApp::renderImGuiUI()
         {
             redo();
         }
+
+        // Delete Entity hotkey (Delete / Backspace)
+        if (!ImGui::GetIO().WantTextInput && (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)))
+        {
+            if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+            {
+                saveHistory();
+                sceneObjects.erase(sceneObjects.begin() + selectedObjectIndex);
+                selectedObjectIndex = -1;
+            }
+        }
         
         if (ImGui::IsKeyPressed(ImGuiKey_Q))
         {
@@ -2863,6 +2874,36 @@ void VulkanApp::renderImGuiUI()
                         }
                     }
                     ImGui::EndDragDropTarget();
+                }
+
+                // Right-Click Context Menu for Hierarchy Items
+                std::string contextPopupId = "EntityContextMenu_" + std::to_string(i);
+                if (ImGui::BeginPopupContextItem(contextPopupId.c_str()))
+                {
+                    selectedObjectIndex = static_cast<int>(i);
+                    ImGui::TextDisabled("Entity: %s", sceneObjects[i].name.c_str());
+                    ImGui::Separator();
+                    
+                    if (ImGui::MenuItem("📋 Duplicate Entity"))
+                    {
+                        saveHistory();
+                        SceneObject dup = sceneObjects[i];
+                        dup.id = sceneObjects.size();
+                        dup.name = sceneObjects[i].name + " (Copy)";
+                        dup.position += glm::vec3(0.5f, 0.0f, 0.5f);
+                        sceneObjects.push_back(dup);
+                        selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+                    }
+
+                    if (ImGui::MenuItem("🗑️ Delete Entity"))
+                    {
+                        saveHistory();
+                        sceneObjects.erase(sceneObjects.begin() + i);
+                        selectedObjectIndex = -1;
+                        ImGui::EndPopup();
+                        break;
+                    }
+                    ImGui::EndPopup();
                 }
             }
 
