@@ -2999,7 +2999,7 @@ bool VulkanApp::getRayFromScreenPos(const ImVec2& mousePos, const ImVec2& window
 
     glm::mat4 invVP = glm::inverse(proj * view);
 
-    glm::vec4 nearNDC(ndcX, ndcY, -1.0f, 1.0f);
+    glm::vec4 nearNDC(ndcX, ndcY, 0.0f, 1.0f);
     glm::vec4 farNDC(ndcX, ndcY, 1.0f, 1.0f);
 
     glm::vec4 nearWorld = invVP * nearNDC;
@@ -3126,6 +3126,10 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                     {
                         float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir);
                         float delta = curAxisVal - gizmoDragState.startAxisVal;
+                        if (gizmoDragState.axis == DragAxis::X || gizmoDragState.axis == DragAxis::Z)
+                        {
+                            delta = -delta;
+                        }
                         posRef = gizmoDragState.startObjPos + gizmoDragState.axisDir * delta;
                     }
                     else if (gizmoDragState.axis == DragAxis::FREE)
@@ -3164,6 +3168,10 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                     {
                         float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir);
                         float delta = curAxisVal - gizmoDragState.startAxisVal;
+                        if (gizmoDragState.axis == DragAxis::X || gizmoDragState.axis == DragAxis::Z)
+                        {
+                            delta = -delta;
+                        }
                         int idx = (gizmoDragState.axis == DragAxis::X) ? 0 : (gizmoDragState.axis == DragAxis::Y) ? 1 : 2;
                         scaleRef = gizmoDragState.startObjScale;
                         scaleRef[idx] = glm::max(0.01f, gizmoDragState.startObjScale[idx] + delta / L);
@@ -3185,6 +3193,10 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                     {
                         float curAxisVal = getClosestPointOnAxis(curRayOrig, curRayDir, gizmoDragState.pivotPos, gizmoDragState.axisDir);
                         float delta = curAxisVal - gizmoDragState.startAxisVal;
+                        if (gizmoDragState.axis == DragAxis::X || gizmoDragState.axis == DragAxis::Z)
+                        {
+                            delta = -delta;
+                        }
                         int idx = (gizmoDragState.axis == DragAxis::X) ? 0 : 2;
                         scaleRef = gizmoDragState.startObjScale;
                         scaleRef[idx] = glm::max(0.01f, gizmoDragState.startObjScale[idx] + delta / L);
