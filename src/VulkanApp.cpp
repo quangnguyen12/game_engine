@@ -3029,19 +3029,29 @@ bool VulkanApp::intersectRayPlane(const glm::vec3& rayOrigin, const glm::vec3& r
 
 float VulkanApp::getClosestPointOnAxis(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& pivotPos, const glm::vec3& axisDir)
 {
-    glm::vec3 uAxis = glm::normalize(axisDir);
-    glm::vec3 uRay = glm::normalize(rayDir);
+    glm::vec3 a = glm::normalize(axisDir);
+    glm::vec3 camDir = mainCameraPos - pivotPos;
+    if (glm::length(camDir) < 0.001f) camDir = glm::vec3(0.0f, 0.0f, 1.0f);
+    else camDir = glm::normalize(camDir);
 
-    float b = glm::dot(uAxis, uRay);
-    float denom = 1.0f - b * b;
-    if (denom < 1e-5f) return 0.0f; // Ray is parallel to axis line
+    // Construct a plane normal containing axis 'a' that faces towards the camera
+    glm::vec3 side = glm::cross(a, camDir);
+    if (glm::length(side) < 0.001f)
+    {
+        side = glm::cross(a, glm::vec3(0.0f, 1.0f, 0.0f));
+        if (glm::length(side) < 0.001f)
+            side = glm::cross(a, glm::vec3(1.0f, 0.0f, 0.0f));
+    }
+    side = glm::normalize(side);
+    glm::vec3 planeNormal = glm::normalize(glm::cross(side, a));
 
-    glm::vec3 w0 = rayOrigin - pivotPos;
-    float d = glm::dot(uAxis, w0);
-    float e = glm::dot(uRay, w0);
-
-    float s = (d - b * e) / denom;
-    return s;
+    // Intersect mouse ray with plane passing through pivotPos
+    glm::vec3 hitPoint;
+    if (intersectRayPlane(rayOrigin, rayDir, pivotPos, planeNormal, hitPoint))
+    {
+        return glm::dot(hitPoint - pivotPos, a);
+    }
+    return 0.0f;
 }
 
 void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
