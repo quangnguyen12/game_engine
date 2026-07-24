@@ -2681,10 +2681,39 @@ void VulkanApp::renderImGuiUI()
     float windowWidth = static_cast<float>(width);
     float windowHeight = static_cast<float>(height);
 
+    int monitorCount = 0;
+    GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
+    float editorWidth = windowWidth;
+    float editorHeight = windowHeight;
+
+    if (isGameFullscreen && monitors && monitorCount > 1)
+    {
+        const GLFWvidmode* mode1 = glfwGetVideoMode(monitors[0]);
+        const GLFWvidmode* mode2 = glfwGetVideoMode(monitors[1]);
+        if (mode1 && mode2)
+        {
+            editorWidth = static_cast<float>(mode1->width);
+            editorHeight = static_cast<float>(mode1->height);
+
+            // Render Fullscreen Game View on Monitor 2
+            float m2Width = static_cast<float>(mode2->width);
+            float m2Height = static_cast<float>(mode2->height);
+
+            ImGui::SetNextWindowPos(ImVec2(editorWidth, 0.0f), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(m2Width, m2Height), ImGuiCond_Always);
+            if (ImGui::Begin("Game View Fullscreen (Monitor 2)", &isGameFullscreen, 
+                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings))
+            {
+                drawGameView(ImGui::GetWindowPos(), ImGui::GetWindowSize());
+            }
+            ImGui::End();
+        }
+    }
+
     float menuBarHeight = 25.0f;
     float effectiveBottomHeight = showAssetBrowserPanel ? bottomPanelHeight : 0.0f;
-    float centerHeight = windowHeight - menuBarHeight - effectiveBottomHeight;
-    float centerWidth = windowWidth - leftPanelWidth - rightPanelWidth;
+    float centerHeight = editorHeight - menuBarHeight - effectiveBottomHeight;
+    float centerWidth = editorWidth - leftPanelWidth - rightPanelWidth;
 
     if (centerWidth < 100.0f) centerWidth = 100.0f;
     if (centerHeight < 100.0f) centerHeight = 100.0f;
@@ -3008,7 +3037,7 @@ void VulkanApp::renderImGuiUI()
     }
 
     // 5. Inspector Panel (Right Window)
-    ImGui::SetNextWindowPos(ImVec2(windowWidth - rightPanelWidth, menuBarHeight), ImGuiCond_Always);
+    ImGui::SetNextWindowPos(ImVec2(editorWidth - rightPanelWidth, menuBarHeight), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, centerHeight), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove))
     {
@@ -3418,7 +3447,7 @@ void VulkanApp::renderImGuiUI()
     ImGui::End();
 
     // 6. Project Console / Status Bar (Bottom Window)
-    ImGui::SetNextWindowPos(ImVec2(0.0f, windowHeight - bottomPanelHeight), ImGuiCond_Always);
+    ImGui::SetNextWindowPos(ImVec2(0.0f, editorHeight - bottomPanelHeight), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(windowWidth, bottomPanelHeight), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Console / Project Logs", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove))
     {
@@ -3437,7 +3466,7 @@ void VulkanApp::renderImGuiUI()
     drawProfilerPanel();
 
     // 8. Asset Browser Panel & Drag-and-Drop System
-    drawAssetBrowserPanel(windowWidth, bottomPanelHeight);
+    drawAssetBrowserPanel(editorWidth, bottomPanelHeight);
 
     ImGui::Render();
 }
@@ -4866,59 +4895,45 @@ void VulkanApp::toggleGameFullscreen()
 {
     isGameFullscreen = !isGameFullscreen;
 
+    int monitorCount = 0;
+    GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
+
     if (isGameFullscreen)
     {
-        int monitorCount = 0;
-        GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
-
-        int targetX = 0, targetY = 0, targetW = 1280, targetH = 720;
-        bool isBorderless = false;
+        glfwGetWindowPos(window, &savedWindowX, &savedWindowY);
+        glfwGetWindowSize(window, &savedWindowW, &savedWindowH);
 
         if (monitors && monitorCount > 1)
         {
-            // Monitor 2 connected: Position borderless window on Monitor 2
-            int mx = 0, my = 0;
-            glfwGetMonitorPos(monitors[1], &mx, &my);
-            const GLFWvidmode* mode = glfwGetVideoMode(monitors[1]);
-            if (mode)
-            {
-                targetX = mx;
-                targetY = my;
-                targetW = mode->width;
-                targetH = mode->height;
-                isBorderless = true;
-            }
-        }
-        else if (monitors && monitorCount > 0)
-        {
-            // Single monitor fallback
-            const GLFWvidmode* mode = glfwGetVideoMode(monitors[0]);
-            if (mode)
-            {
-                targetX = mode->width / 6;
-                targetY = mode->height / 6;
-                targetW = mode->width * 2 / 3;
-                targetH = mode->height * 2 / 3;
-                isBorderless = false;
-            }
-        }
+            // Dual-Monitor Span: Expand borderless window to cover Monitor 1 & Monitor 2
+            int m1x = 0, m1y = 0, m2x = 0, m2y = 0;
+            glfwGetMonitorPos(monitors[0], &m1x, &m1y);
+            glfwGetMonitorPos(monitors[1], &m2x, &m2y);
+            const GLFWvidmode* mode1 = glfwGetVideoMode(monitors[0]);
+            const GLFWvidmode* mode2 = glfwGetVideoMode(monitors[1]);
 
-        glfwWindowHint(GLFW_DECORATED, isBorderless ? GLFW_FALSE : GLFW_TRUE);
-        secondaryWindow = glfwCreateWindow(targetW, targetH, "Antigravity Engine - Game View (Monitor 2 Fullscreen)", NULL, window);
-        if (secondaryWindow)
+            if (mode1 && mode2)
+            {
+                int totalW = mode1->width + mode2->width;
+                int totalH = std::max(mode1->height, mode2->height);
+
+                glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_FALSE);
+                glfwSetWindowPos(window, m1x, m1y);
+                glfwSetWindowSize(window, totalW, totalH);
+            }
+        }
+        else
         {
-            glfwSetWindowPos(secondaryWindow, targetX, targetY);
-            glfwShowWindow(secondaryWindow);
-            glfwSetWindowUserPointer(secondaryWindow, this);
+            // Single Monitor: Maximize window
+            glfwMaximizeWindow(window);
         }
     }
     else
     {
-        if (secondaryWindow)
-        {
-            glfwDestroyWindow(secondaryWindow);
-            secondaryWindow = nullptr;
-        }
+        glfwRestoreWindow(window);
+        glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_TRUE);
+        glfwSetWindowPos(window, savedWindowX, savedWindowY);
+        glfwSetWindowSize(window, savedWindowW, savedWindowH);
     }
 }
 
