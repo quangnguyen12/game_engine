@@ -2714,7 +2714,7 @@ void VulkanApp::renderImGuiUI()
                 updateWindowTitle();
                 savePlayModeState();
                 initPhysicsBodies();
-                // Init ALL Lua Scripts (multi-script per object)
+                // Init ALL Lua Scripts (multi-script per object, OOP & Procedural)
                 for (auto& obj : sceneObjects)
                 {
                     obj.luaInstances.clear();
@@ -2723,12 +2723,24 @@ void VulkanApp::renderImGuiUI()
                         if (script.empty()) continue;
                         try {
                             sol::protected_function_result result = luaState.script(script);
-                            if (result.valid() && result.get_type() == sol::type::table) {
-                                sol::table instance = result;
+                            if (result.valid()) {
+                                sol::table instance;
+                                bool isGlobals = false;
+                                if (result.get_type() == sol::type::table) {
+                                    instance = result;
+                                } else {
+                                    instance = luaState.globals();
+                                    isGlobals = true;
+                                }
                                 obj.luaInstances.push_back(instance);
                                 sol::protected_function onStart = instance["onStart"];
                                 if (onStart.valid()) {
-                                    auto res = onStart(instance, &obj);
+                                    sol::protected_function_result res;
+                                    if (isGlobals)
+                                        res = onStart(&obj);
+                                    else
+                                        res = onStart(instance, &obj);
+
                                     if (!res.valid()) {
                                         sol::error err = res;
                                         printf("Lua onStart error: %s\n", err.what());
@@ -4592,9 +4604,12 @@ void VulkanApp::updatePhysics(float deltaTime)
     // Make sure deltaTime is reasonable
     if (deltaTime > 0.1f) deltaTime = 0.1f;
 
-    // 0. Update ALL Lua OOP Scripts (multi-script per object)
+    // 0. Update ALL Lua OOP & Procedural Scripts (multi-script per object)
     for (auto& obj : sceneObjects)
     {
+        glm::vec3 prevPos = obj.position;
+        glm::vec3 prevVel = obj.velocity;
+
         for (auto& luaInst : obj.luaInstances)
         {
             if (luaInst.valid())
@@ -4602,13 +4617,33 @@ void VulkanApp::updatePhysics(float deltaTime)
                 sol::protected_function onUpdate = luaInst["onUpdate"];
                 if (onUpdate.valid())
                 {
-                    auto res = onUpdate(luaInst, &obj, deltaTime);
+                    sol::protected_function_result res;
+                    if (luaInst == luaState.globals())
+                        res = onUpdate(&obj, deltaTime);
+                    else
+                        res = onUpdate(luaInst, &obj, deltaTime);
+
                     if (!res.valid())
                     {
                         sol::error err = res;
                         printf("Lua onUpdate error: %s\n", err.what());
                     }
                 }
+            }
+        }
+
+        // Sync position & velocity changes made in Lua directly into Jolt Physics body
+        if (obj.bodyData)
+        {
+            if (obj.position != prevPos)
+            {
+                physEngine.setBodyPosition(obj.bodyData, obj.position);
+                physEngine.activateBody(obj.bodyData);
+            }
+            if (obj.velocity != prevVel)
+            {
+                physEngine.setLinearVelocity(obj.bodyData, obj.velocity);
+                physEngine.activateBody(obj.bodyData);
             }
         }
     }
