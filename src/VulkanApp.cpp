@@ -2686,17 +2686,28 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
     glm::vec3 cameraWorldPos = glm::vec3(invView[3]);
     glm::vec3 cameraForward = glm::normalize(glm::vec3(-invView[2]));
 
-    // Tool Overlay
-    drawList->AddRectFilled(ImVec2(windowPos.x + 10, windowPos.y + 10), ImVec2(windowPos.x + 360, windowPos.y + 35), IM_COL32(20, 20, 20, 200), 4.0f);
-    drawList->AddRect(ImVec2(windowPos.x + 10, windowPos.y + 10), ImVec2(windowPos.x + 360, windowPos.y + 35), IM_COL32(100, 100, 100, 255), 4.0f);
-    char toolStr[128];
+    // Tool Overlay & Active Drag Status Banner
+    bool hasSelection = (selectedObjectIndex >= -1 && selectedObjectIndex < static_cast<int>(sceneObjects.size()));
+    float toolWidth = (gizmoDragState.isDragging && hasSelection) ? 460.0f : 360.0f;
+    drawList->AddRectFilled(ImVec2(windowPos.x + 10, windowPos.y + 10), ImVec2(windowPos.x + toolWidth, windowPos.y + 35), IM_COL32(20, 20, 25, 230), 4.0f);
+    drawList->AddRect(ImVec2(windowPos.x + 10, windowPos.y + 10), ImVec2(windowPos.x + toolWidth, windowPos.y + 35), gizmoDragState.isDragging ? IM_COL32(255, 200, 50, 255) : IM_COL32(100, 100, 100, 255), 4.0f);
+
+    char toolStr[256];
     const char* toolNames[] = { "HAND", "TRANSLATE", "ROTATE", "SCALE", "RECT", "COMBINED" };
-    snprintf(toolStr, sizeof(toolStr), "Tool: %s  [Q/W/E/R/T/Y]", toolNames[static_cast<int>(activeGizmo)]);
+    if (gizmoDragState.isDragging && hasSelection)
+    {
+        std::string objName = (selectedObjectIndex == -1) ? "Main Camera" : sceneObjects[selectedObjectIndex].name;
+        const char* axisNames[] = { "NONE", "X Axis", "Y Axis", "Z Axis", "XY Plane", "YZ Plane", "XZ Plane", "Free Plane" };
+        snprintf(toolStr, sizeof(toolStr), "Tool: %s | 📦 Dragging: %s [%s]", toolNames[static_cast<int>(activeGizmo)], objName.c_str(), axisNames[static_cast<int>(gizmoDragState.axis)]);
+    }
+    else
+    {
+        snprintf(toolStr, sizeof(toolStr), "Tool: %s  [Q/W/E/R/T/Y]", toolNames[static_cast<int>(activeGizmo)]);
+    }
     drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 15), IM_COL32(255, 255, 255, 255), toolStr);
 
     // Get selected object's 3D position
     glm::vec3 pivotPos(0.0f);
-    bool hasSelection = (selectedObjectIndex >= -1 && selectedObjectIndex < static_cast<int>(sceneObjects.size()));
     if (hasSelection)
     {
         pivotPos = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
@@ -3228,6 +3239,89 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                 if (sX.x > -90000.0f) drawList->AddCircleFilled(sX, 4.0f, IM_COL32(255, 0, 0, 255));
                 if (sZ.x > -90000.0f) drawList->AddCircleFilled(sZ, 4.0f, IM_COL32(0, 0, 255, 255));
             }
+        }
+    }
+
+    // 5. Floating Active Drag Tooltip & Status Badge
+    if (gizmoDragState.isDragging && hasSelection)
+    {
+        std::string objName = (selectedObjectIndex == -1) ? "Main Camera" : sceneObjects[selectedObjectIndex].name;
+        const char* axisNames[] = { "NONE", "X Axis", "Y Axis", "Z Axis", "XY Plane", "YZ Plane", "XZ Plane", "Free" };
+        const char* axisStr = axisNames[static_cast<int>(gizmoDragState.axis)];
+
+        ImU32 axisBadgeCol = IM_COL32(255, 255, 100, 255);
+        if (gizmoDragState.axis == DragAxis::X) axisBadgeCol = IM_COL32(255, 80, 80, 255);
+        else if (gizmoDragState.axis == DragAxis::Y) axisBadgeCol = IM_COL32(80, 255, 80, 255);
+        else if (gizmoDragState.axis == DragAxis::Z) axisBadgeCol = IM_COL32(80, 150, 255, 255);
+
+        glm::vec3 curPos = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
+        glm::vec3 curRot = (selectedObjectIndex == -1) ? glm::vec3(0.0f) : sceneObjects[selectedObjectIndex].rotation;
+        glm::vec3 curScale = (selectedObjectIndex == -1) ? glm::vec3(1.0f) : sceneObjects[selectedObjectIndex].scale;
+
+        char badgeLine1[128];
+        char badgeLine2[128];
+        char badgeLine3[128] = "";
+
+        if (gizmoDragState.gizmoType == GizmoType::TRANSLATE || gizmoDragState.gizmoType == GizmoType::TRANSFORM_COMBINED)
+        {
+            snprintf(badgeLine1, sizeof(badgeLine1), "🎯 Moving: %s [%s]", objName.c_str(), axisStr);
+            if (gizmoDragState.axis == DragAxis::X)
+                snprintf(badgeLine2, sizeof(badgeLine2), "Pos X: %.2fm  (ΔX: %+.2fm)", curPos.x, curPos.x - gizmoDragState.startObjPos.x);
+            else if (gizmoDragState.axis == DragAxis::Y)
+                snprintf(badgeLine2, sizeof(badgeLine2), "Pos Y: %.2fm  (ΔY: %+.2fm)", curPos.y, curPos.y - gizmoDragState.startObjPos.y);
+            else if (gizmoDragState.axis == DragAxis::Z)
+                snprintf(badgeLine2, sizeof(badgeLine2), "Pos Z: %.2fm  (ΔZ: %+.2fm)", curPos.z, curPos.z - gizmoDragState.startObjPos.z);
+            else
+                snprintf(badgeLine2, sizeof(badgeLine2), "Pos: (%.2f, %.2f, %.2f)", curPos.x, curPos.y, curPos.z);
+        }
+        else if (gizmoDragState.gizmoType == GizmoType::ROTATE)
+        {
+            snprintf(badgeLine1, sizeof(badgeLine1), "🔄 Rotating: %s [%s]", objName.c_str(), axisStr);
+            if (gizmoDragState.axis == DragAxis::X)
+                snprintf(badgeLine2, sizeof(badgeLine2), "Rot X: %.1f°  (Δ: %+.1f°)", curRot.x, curRot.x - gizmoDragState.startObjRot.x);
+            else if (gizmoDragState.axis == DragAxis::Y)
+                snprintf(badgeLine2, sizeof(badgeLine2), "Rot Y: %.1f°  (Δ: %+.1f°)", curRot.y, curRot.y - gizmoDragState.startObjRot.y);
+            else if (gizmoDragState.axis == DragAxis::Z)
+                snprintf(badgeLine2, sizeof(badgeLine2), "Rot Z: %.1f°  (Δ: %+.1f°)", curRot.z, curRot.z - gizmoDragState.startObjRot.z);
+            else
+                snprintf(badgeLine2, sizeof(badgeLine2), "Rot: (%.1f°, %.1f°, %.1f°)", curRot.x, curRot.y, curRot.z);
+        }
+        else if (gizmoDragState.gizmoType == GizmoType::SCALE || gizmoDragState.gizmoType == GizmoType::RECT)
+        {
+            snprintf(badgeLine1, sizeof(badgeLine1), "📐 Scaling: %s [%s]", objName.c_str(), axisStr);
+            if (gizmoDragState.axis == DragAxis::X)
+                snprintf(badgeLine2, sizeof(badgeLine2), "Scale X: %.2f  (Ratio: %.2fx)", curScale.x, (gizmoDragState.startObjScale.x > 0.001f) ? curScale.x / gizmoDragState.startObjScale.x : 1.0f);
+            else if (gizmoDragState.axis == DragAxis::Y)
+                snprintf(badgeLine2, sizeof(badgeLine2), "Scale Y: %.2f  (Ratio: %.2fx)", curScale.y, (gizmoDragState.startObjScale.y > 0.001f) ? curScale.y / gizmoDragState.startObjScale.y : 1.0f);
+            else if (gizmoDragState.axis == DragAxis::Z)
+                snprintf(badgeLine2, sizeof(badgeLine2), "Scale Z: %.2f  (Ratio: %.2fx)", curScale.z, (gizmoDragState.startObjScale.z > 0.001f) ? curScale.z / gizmoDragState.startObjScale.z : 1.0f);
+            else
+                snprintf(badgeLine2, sizeof(badgeLine2), "Scale: (%.2f, %.2f, %.2f)", curScale.x, curScale.y, curScale.z);
+        }
+
+        if (ImGui::GetIO().KeyCtrl)
+        {
+            snprintf(badgeLine3, sizeof(badgeLine3), "🧲 SNAP GRID ACTIVE");
+        }
+
+        // Draw Floating Badge near mouse cursor
+        ImVec2 badgePos = ImVec2(mousePos.x + 20.0f, mousePos.y + 15.0f);
+        float badgeWidth = 250.0f;
+        float badgeHeight = (badgeLine3[0] != '\0') ? 66.0f : 48.0f;
+
+        if (badgePos.x + badgeWidth > windowPos.x + windowSize.x - 10.0f)
+            badgePos.x = mousePos.x - badgeWidth - 10.0f;
+        if (badgePos.y + badgeHeight > windowPos.y + windowSize.y - 10.0f)
+            badgePos.y = mousePos.y - badgeHeight - 10.0f;
+
+        drawList->AddRectFilled(badgePos, ImVec2(badgePos.x + badgeWidth, badgePos.y + badgeHeight), IM_COL32(15, 18, 24, 235), 6.0f);
+        drawList->AddRect(badgePos, ImVec2(badgePos.x + badgeWidth, badgePos.y + badgeHeight), axisBadgeCol, 6.0f, 0, 1.8f);
+
+        drawList->AddText(ImVec2(badgePos.x + 10.0f, badgePos.y + 6.0f), IM_COL32(255, 255, 255, 255), badgeLine1);
+        drawList->AddText(ImVec2(badgePos.x + 10.0f, badgePos.y + 24.0f), IM_COL32(200, 220, 255, 255), badgeLine2);
+        if (badgeLine3[0] != '\0')
+        {
+            drawList->AddText(ImVec2(badgePos.x + 10.0f, badgePos.y + 44.0f), IM_COL32(100, 255, 255, 255), badgeLine3);
         }
     }
 
