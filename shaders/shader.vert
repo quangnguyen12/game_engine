@@ -6,6 +6,9 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
     vec3 lightPos;
     vec3 lightColor;
     vec3 viewPos;
+    mat4 lightSpaceMatrix;
+    vec3 lightDir;
+    float enableShadows;
 } ubo;
 
 layout(push_constant) uniform PushConstants {

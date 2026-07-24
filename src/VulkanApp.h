@@ -186,7 +186,15 @@ class RigidBodyComponent : public Component
 public:
     bool useGravity = true;
     float mass = 1.0f;
+    float friction = 0.5f;
+    float restitution = 0.3f;
+    float linearDrag = 0.01f;
+    float angularDrag = 0.05f;
+    ColliderType colliderType = ColliderType::BOX;
+    BodyMotionType motionType = BodyMotionType::DYNAMIC;
+    bool isTrigger = false;
     glm::vec3 velocity = glm::vec3(0.0f);
+    glm::vec3 angularVelocity = glm::vec3(0.0f);
 
     RigidBodyComponent() { type = ComponentType::RIGIDBODY_PHYSICS; }
     const char* getName() const override { return "⚖️ RigidBody Physics"; }
@@ -233,9 +241,14 @@ struct SceneObject
     // Physics variables (for play mode)
     glm::vec3 velocity = glm::vec3(0.0f);
     bool isPhysicsEnabled = false;
-    std::string luaScript = "";
-    sol::table luaInstance = sol::lua_nil;
+    std::vector<std::string> luaScripts;
+    std::vector<sol::table> luaInstances;
     PhysicsBodyData* bodyData = nullptr;
+
+    // Physics state backup (for Edit→Play→Edit restore)
+    glm::vec3 savedPosition = glm::vec3(0.0f);
+    glm::vec3 savedRotation = glm::vec3(0.0f);
+    glm::vec3 savedScale = glm::vec3(1.0f);
 
     // Rendering variables
     int meshId = -1;
@@ -294,10 +307,10 @@ struct SceneObject
             rb->velocity = velocity;
             components.push_back(rb);
         }
-        if (!luaScript.empty() && !hasComponent(ComponentType::LUA_SCRIPT))
+        if (!luaScripts.empty() && !hasComponent(ComponentType::LUA_SCRIPT))
         {
             auto lua = std::make_shared<LuaScriptComponent>();
-            lua->scriptContent = luaScript;
+            if (!luaScripts.empty()) lua->scriptContent = luaScripts[0];
             components.push_back(lua);
         }
         if (type == ObjectType::LIGHT && !hasComponent(ComponentType::LIGHT))
@@ -402,7 +415,7 @@ struct UniformBufferObject
     alignas(16) glm::vec3 viewPos;
     alignas(16) glm::mat4 lightSpaceMatrix;
     alignas(16) glm::vec3 lightDir;
-    alignas(4) float enableShadows;
+    alignas(16) float enableShadows;
 };
 
 class VulkanApp
@@ -486,6 +499,10 @@ private:
     void drawAssetBrowserPanel(float windowWidth, float bottomBarHeight);
     void initializeDefaultScene();
     void updatePhysics(float deltaTime);
+    void initPhysicsBodies();
+    void syncPhysicsToTransform();
+    void savePlayModeState();
+    void restoreEditModeState();
     void draw3DObject(int objIndex, const glm::mat4& view, const glm::mat4& proj, const ImVec2& offset, const ImVec2& size);
     void saveScene(const std::string& filename);
     void loadScene(const std::string& filename);

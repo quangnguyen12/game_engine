@@ -2453,7 +2453,7 @@ void VulkanApp::drawAssetBrowserPanel(float windowWidth, float bottomBarHeight)
                                         if (t.is_open())
                                         {
                                             std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
-                                            sceneObjects[selectedObjectIndex].luaScript = scriptContent;
+                                            sceneObjects[selectedObjectIndex].luaScripts.push_back(scriptContent);
                                         }
                                     }
                                 }
@@ -2662,15 +2662,9 @@ void VulkanApp::renderImGuiUI()
             {
                 mode = AppMode::EDIT;
                 updateWindowTitle();
+                restoreEditModeState();
                 for (auto& obj : sceneObjects)
-                {
-                    obj.luaInstance = sol::lua_nil;
-                    if (obj.name == "Player Cube")
-                    {
-                        obj.position = playerStartPos;
-                        obj.velocity = glm::vec3(0.0f);
-                    }
-                }
+                    obj.luaInstances.clear();
             }
             ImGui::PopStyleColor();
 
@@ -2679,16 +2673,9 @@ void VulkanApp::renderImGuiUI()
             {
                 mode = AppMode::EDIT;
                 updateWindowTitle();
-                // Restore player pos
+                restoreEditModeState();
                 for (auto& obj : sceneObjects)
-                {
-                    obj.luaInstance = sol::lua_nil;
-                    if (obj.name == "Player Cube")
-                    {
-                        obj.position = playerStartPos;
-                        obj.velocity = glm::vec3(0.0f);
-                    }
-                }
+                    obj.luaInstances.clear();
             }
         }
         else
@@ -2697,22 +2684,23 @@ void VulkanApp::renderImGuiUI()
             {
                 mode = AppMode::PLAY;
                 updateWindowTitle();
-                // Save player start pos and Init Lua Scripts
+                savePlayModeState();
+                initPhysicsBodies();
+                // Init ALL Lua Scripts (multi-script per object)
                 for (auto& obj : sceneObjects)
                 {
-                    if (obj.name == "Player Cube")
+                    obj.luaInstances.clear();
+                    for (const auto& script : obj.luaScripts)
                     {
-                        playerStartPos = obj.position;
-                    }
-                    if (!obj.luaScript.empty())
-                    {
+                        if (script.empty()) continue;
                         try {
-                            sol::protected_function_result result = luaState.script(obj.luaScript);
+                            sol::protected_function_result result = luaState.script(script);
                             if (result.valid() && result.get_type() == sol::type::table) {
-                                obj.luaInstance = result;
-                                sol::protected_function onStart = obj.luaInstance["onStart"];
+                                sol::table instance = result;
+                                obj.luaInstances.push_back(instance);
+                                sol::protected_function onStart = instance["onStart"];
                                 if (onStart.valid()) {
-                                    auto res = onStart(obj.luaInstance, &obj);
+                                    auto res = onStart(instance, &obj);
                                     if (!res.valid()) {
                                         sol::error err = res;
                                         printf("Lua onStart error: %s\n", err.what());
@@ -2849,7 +2837,7 @@ void VulkanApp::renderImGuiUI()
                         if (t.is_open())
                         {
                             std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
-                            sceneObjects[i].luaScript = scriptContent;
+                            sceneObjects[i].luaScripts.push_back(scriptContent);
                             selectedObjectIndex = static_cast<int>(i);
                         }
                     }
@@ -3060,76 +3048,159 @@ void VulkanApp::renderImGuiUI()
             // 3. RigidBody Physics Component
             if (obj.hasComponent(ComponentType::RIGIDBODY_PHYSICS) || obj.isPhysicsEnabled)
             {
-                if (ImGui::CollapsingHeader("⚖️ RigidBody Physics Component", ImGuiTreeNodeFlags_DefaultOpen))
+                if (ImGui::CollapsingHeader("\xe2\x9a\x96\xef\xb8\x8f RigidBody Physics Component", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    if (obj.name == "Player Cube" || obj.name == "Gold Collectible")
-                    {
-                        ImGui::TextDisabled("Physics: (Locked for Game Objects)");
-                    }
-                    else
-                    {
-                        ImGui::Checkbox("Enable Gravity Physics", &obj.isPhysicsEnabled);
-                        ImGui::Text("Velocity: (%.2f, %.2f, %.2f)", obj.velocity.x, obj.velocity.y, obj.velocity.z);
+                    auto rb = obj.getComponent<RigidBodyComponent>();
+
+                    // Collider Type dropdown
+                        const char* colliderNames[] = { "Box", "Sphere", "Capsule", "Plane" };
+                        int colliderIdx = rb ? static_cast<int>(rb->colliderType) : 0;
+                        if (ImGui::Combo("Collider Type", &colliderIdx, colliderNames, IM_ARRAYSIZE(colliderNames)))
+                        {
+                            if (rb) rb->colliderType = static_cast<ColliderType>(colliderIdx);
+                        }
+
+                        // Motion Type dropdown
+                        const char* motionNames[] = { "Static", "Kinematic", "Dynamic" };
+                        int motionIdx = rb ? static_cast<int>(rb->motionType) : 2;
+                        if (ImGui::Combo("Motion Type", &motionIdx, motionNames, IM_ARRAYSIZE(motionNames)))
+                        {
+                            if (rb) rb->motionType = static_cast<BodyMotionType>(motionIdx);
+                        }
+
+                        ImGui::Separator();
+
+                        // Mass
+                        float mass = rb ? rb->mass : 1.0f;
+                        if (ImGui::DragFloat("Mass", &mass, 0.1f, 0.01f, 1000.0f, "%.2f kg"))
+                        {
+                            if (rb) rb->mass = mass;
+                        }
+
+                        // Friction
+                        float friction = rb ? rb->friction : 0.5f;
+                        if (ImGui::SliderFloat("Friction", &friction, 0.0f, 1.0f, "%.2f"))
+                        {
+                            if (rb) rb->friction = friction;
+                        }
+
+                        // Restitution (Bounciness)
+                        float restitution = rb ? rb->restitution : 0.3f;
+                        if (ImGui::SliderFloat("Restitution (Bounce)", &restitution, 0.0f, 1.0f, "%.2f"))
+                        {
+                            if (rb) rb->restitution = restitution;
+                        }
+
+                        ImGui::Separator();
+
+                        // Linear Drag
+                        float linearDrag = rb ? rb->linearDrag : 0.01f;
+                        if (ImGui::DragFloat("Linear Drag", &linearDrag, 0.001f, 0.0f, 10.0f, "%.3f"))
+                        {
+                            if (rb) rb->linearDrag = linearDrag;
+                        }
+
+                        // Angular Drag
+                        float angularDrag = rb ? rb->angularDrag : 0.05f;
+                        if (ImGui::DragFloat("Angular Drag", &angularDrag, 0.001f, 0.0f, 10.0f, "%.3f"))
+                        {
+                            if (rb) rb->angularDrag = angularDrag;
+                        }
+
+                        ImGui::Separator();
+
+                        // Gravity & Trigger checkboxes
+                        bool useGravity = rb ? rb->useGravity : true;
+                        if (ImGui::Checkbox("Use Gravity", &useGravity))
+                        {
+                            if (rb) rb->useGravity = useGravity;
+                        }
+                        ImGui::SameLine();
+                        ImGui::Checkbox("Enable Physics", &obj.isPhysicsEnabled);
+
+                        bool isTrigger = rb ? rb->isTrigger : false;
+                        if (ImGui::Checkbox("Is Trigger", &isTrigger))
+                        {
+                            if (rb) rb->isTrigger = isTrigger;
+                        }
+
+                        // Velocity display (read-only)
+                        ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f),
+                            "Velocity: (%.2f, %.2f, %.2f)", obj.velocity.x, obj.velocity.y, obj.velocity.z);
 
                         ImGui::Spacing();
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.2f, 0.2f, 1.0f));
-                        if (ImGui::Button("🗑️ Remove RigidBody Component", ImVec2(-1, 24)))
+                        if (ImGui::Button("\xf0\x9f\x97\x91\xef\xb8\x8f Remove RigidBody Component", ImVec2(-1, 24)))
                         {
                             obj.removeComponent(ComponentType::RIGIDBODY_PHYSICS);
                             obj.isPhysicsEnabled = false;
                         }
                         ImGui::PopStyleColor();
-                    }
                 }
                 ImGui::Spacing();
             }
 
-            // 4. Lua Script Component
-            if (obj.hasComponent(ComponentType::LUA_SCRIPT) || !obj.luaScript.empty())
+            // 4. Lua Script Components (Multi-Script Support)
+            if (!obj.luaScripts.empty())
             {
-                if (ImGui::CollapsingHeader("📖 Lua Script Component (Drag .lua here)", ImGuiTreeNodeFlags_DefaultOpen))
+                int scriptToRemove = -1;
+                for (int si = 0; si < static_cast<int>(obj.luaScripts.size()); si++)
                 {
-                    ImGui::TextDisabled("Write OOP script for this object or drag a .lua file here!");
-                    static char scriptBuf[8192];
-                    strncpy(scriptBuf, obj.luaScript.c_str(), sizeof(scriptBuf));
-                    if (ImGui::InputTextMultiline("##LuaScript", scriptBuf, sizeof(scriptBuf), ImVec2(-1.0f, 180.0f), ImGuiInputTextFlags_AllowTabInput))
+                    std::string headerLabel = "\xf0\x9f\x93\x96 Lua Script #" + std::to_string(si + 1) + "##lua_" + std::to_string(si);
+                    if (ImGui::CollapsingHeader(headerLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
                     {
-                        obj.luaScript = scriptBuf;
-                    }
-
-                    if (ImGui::BeginDragDropTarget())
-                    {
-                        if (const ImGuiPayload* payloadLua = ImGui::AcceptDragDropPayload("DND_ASSET_LUA"))
+                        ImGui::TextDisabled("Edit OOP script or drag a .lua file below.");
+                        std::string inputId = "##LuaScript_" + std::to_string(si);
+                        static char scriptBuf[8192];
+                        strncpy(scriptBuf, obj.luaScripts[si].c_str(), sizeof(scriptBuf));
+                        scriptBuf[sizeof(scriptBuf) - 1] = '\0';
+                        if (ImGui::InputTextMultiline(inputId.c_str(), scriptBuf, sizeof(scriptBuf), ImVec2(-1.0f, 150.0f), ImGuiInputTextFlags_AllowTabInput))
                         {
-                            const char* assetPath = static_cast<const char*>(payloadLua->Data);
-                            std::ifstream t(assetPath);
-                            if (t.is_open())
-                            {
-                                std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
-                                obj.luaScript = scriptContent;
-                            }
+                            obj.luaScripts[si] = scriptBuf;
                         }
-                        ImGui::EndDragDropTarget();
-                    }
 
-                    ImGui::Spacing();
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.2f, 0.2f, 1.0f));
-                    if (ImGui::Button("🗑️ Remove Lua Script Component", ImVec2(-1, 24)))
-                    {
-                        obj.removeComponent(ComponentType::LUA_SCRIPT);
-                        obj.luaScript = "";
+                        // Drag-drop .lua file onto this script slot
+                        if (ImGui::BeginDragDropTarget())
+                        {
+                            if (const ImGuiPayload* payloadLua = ImGui::AcceptDragDropPayload("DND_ASSET_LUA"))
+                            {
+                                const char* assetPath = static_cast<const char*>(payloadLua->Data);
+                                std::ifstream t(assetPath);
+                                if (t.is_open())
+                                {
+                                    std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+                                    obj.luaScripts[si] = scriptContent;
+                                }
+                            }
+                            ImGui::EndDragDropTarget();
+                        }
+
+                        ImGui::Spacing();
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.2f, 0.2f, 1.0f));
+                        std::string removeLabel = "\xf0\x9f\x97\x91\xef\xb8\x8f Remove Script #" + std::to_string(si + 1) + "##rm_lua_" + std::to_string(si);
+                        if (ImGui::Button(removeLabel.c_str(), ImVec2(-1, 24)))
+                        {
+                            scriptToRemove = si;
+                        }
+                        ImGui::PopStyleColor();
                     }
-                    ImGui::PopStyleColor();
+                    ImGui::Spacing();
                 }
-                ImGui::Spacing();
+                if (scriptToRemove >= 0)
+                {
+                    obj.luaScripts.erase(obj.luaScripts.begin() + scriptToRemove);
+                    if (obj.luaScripts.empty())
+                        obj.removeComponent(ComponentType::LUA_SCRIPT);
+                }
             }
 
-            // 5. Light Component
+                        // 5. Light Component
             if (obj.hasComponent(ComponentType::LIGHT) || obj.type == ObjectType::LIGHT)
             {
                 if (ImGui::CollapsingHeader("💡 Light Component", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     ImGui::ColorEdit4("Light Color", &obj.color.x);
+                    ImGui::Checkbox("Cast Surface Shadows", &enableShadowMapping);
                 }
                 ImGui::Spacing();
             }
@@ -3162,21 +3233,36 @@ void VulkanApp::renderImGuiUI()
                 }
                 if (!obj.hasComponent(ComponentType::RIGIDBODY_PHYSICS))
                 {
-                    if (ImGui::MenuItem("⚖️ RigidBody Physics Component"))
+                    if (ImGui::MenuItem("\xe2\x9a\x96\xef\xb8\x8f RigidBody Physics Component"))
                     {
                         auto rbComp = std::make_shared<RigidBodyComponent>();
+                        // Set collider type based on object type
+                        if (obj.type == ObjectType::SPHERE) rbComp->colliderType = ColliderType::SPHERE;
+                        else if (obj.type == ObjectType::PLANE) rbComp->colliderType = ColliderType::PLANE;
+                        else rbComp->colliderType = ColliderType::BOX;
+                        rbComp->motionType = BodyMotionType::DYNAMIC;
                         obj.isPhysicsEnabled = true;
                         obj.components.push_back(rbComp);
                     }
                 }
-                if (!obj.hasComponent(ComponentType::LUA_SCRIPT))
+                // Always allow adding more Lua scripts (multi-script)
                 {
-                    if (ImGui::MenuItem("📖 Lua Script Component"))
+                    if (ImGui::MenuItem("ð Add Lua Script"))
                     {
-                        auto luaComp = std::make_shared<LuaScriptComponent>();
-                        luaComp->scriptContent = "-- Entity Lua Script\nfunction onUpdate(dt)\nend\n";
-                        obj.luaScript = luaComp->scriptContent;
-                        obj.components.push_back(luaComp);
+                        std::string defaultScript = "-- Lua Script #" + std::to_string(obj.luaScripts.size() + 1) + "\n";
+                        defaultScript += "local Script = {}\n\n";
+                        defaultScript += "function Script:onStart(obj)\n";
+                        defaultScript += "    print(\"[Lua] Script started on: \" .. obj.name)\n";
+                        defaultScript += "end\n\n";
+                        defaultScript += "function Script:onUpdate(obj, dt)\n";
+                        defaultScript += "end\n\n";
+                        defaultScript += "return Script\n";
+                        obj.luaScripts.push_back(defaultScript);
+                        if (!obj.hasComponent(ComponentType::LUA_SCRIPT))
+                        {
+                            auto luaComp = std::make_shared<LuaScriptComponent>();
+                            obj.components.push_back(luaComp);
+                        }
                     }
                 }
                 if (!obj.hasComponent(ComponentType::LIGHT))
@@ -4209,7 +4295,7 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                     if (t.is_open())
                     {
                         std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
-                        sceneObjects[selectedObjectIndex].luaScript = scriptContent;
+                        sceneObjects[selectedObjectIndex].luaScripts.push_back(scriptContent);
                     }
                 }
             }
@@ -4362,7 +4448,7 @@ void VulkanApp::initializeDefaultScene()
     player.velocity = glm::vec3(0.0f);
     player.id = 0;
     player.meshId = primitiveCubeMeshId;     // <-- assign mesh!
-    player.bodyData = physEngine.createBody(ColliderType::BOX, player.position, player.scale, true);
+    player.bodyData = physEngine.createBody(ColliderType::BOX, player.position, player.scale, BodyMotionType::DYNAMIC, 1.0f, 0.5f, 0.3f);
     sceneObjects.push_back(player);
     
     playerStartPos = player.position;
@@ -4378,7 +4464,7 @@ void VulkanApp::initializeDefaultScene()
     target.color = glm::vec4(1.0f, 0.84f, 0.0f, 1.0f);
     target.isPhysicsEnabled = false;
     target.meshId = primitiveSphereMeshId;   // <-- assign mesh!
-    target.bodyData = physEngine.createBody(ColliderType::SPHERE, target.position, target.scale, true);
+    target.bodyData = physEngine.createBody(ColliderType::SPHERE, target.position, target.scale, BodyMotionType::DYNAMIC, 0.5f, 0.5f, 0.5f);
     sceneObjects.push_back(target);
 
     // 3. Ground Obstacle Plane
@@ -4392,7 +4478,7 @@ void VulkanApp::initializeDefaultScene()
     ground.color = glm::vec4(0.3f, 0.3f, 0.35f, 1.0f);
     ground.isPhysicsEnabled = false;
     ground.meshId = primitivePlaneMeshId;    // <-- assign mesh!
-    ground.bodyData = physEngine.createBody(ColliderType::PLANE, ground.position, ground.scale, false);
+    ground.bodyData = physEngine.createBody(ColliderType::PLANE, ground.position, ground.scale, BodyMotionType::STATIC, 0.0f, 0.8f, 0.1f);
     sceneObjects.push_back(ground);
 
     // 4. Directional Light (represented as a small cube gizmo)
@@ -4418,24 +4504,34 @@ void VulkanApp::updatePhysics(float deltaTime)
     // Make sure deltaTime is reasonable
     if (deltaTime > 0.1f) deltaTime = 0.1f;
 
-    // 0. Update Lua OOP Scripts
+    // 0. Update ALL Lua OOP Scripts (multi-script per object)
     for (auto& obj : sceneObjects)
     {
-        if (obj.luaInstance.valid())
+        for (auto& luaInst : obj.luaInstances)
         {
-            sol::protected_function onUpdate = obj.luaInstance["onUpdate"];
-            if (onUpdate.valid())
+            if (luaInst.valid())
             {
-                auto res = onUpdate(obj.luaInstance, &obj, deltaTime);
-                if (!res.valid())
+                sol::protected_function onUpdate = luaInst["onUpdate"];
+                if (onUpdate.valid())
                 {
-                    sol::error err = res;
-                    printf("Lua onUpdate error: %s\n", err.what());
+                    auto res = onUpdate(luaInst, &obj, deltaTime);
+                    if (!res.valid())
+                    {
+                        sol::error err = res;
+                        printf("Lua onUpdate error: %s\n", err.what());
+                    }
                 }
             }
         }
     }
 
+    // 1. Step the Jolt Physics World
+    physEngine.update(deltaTime);
+
+    // 2. Sync physics positions/rotations back to all scene objects
+    syncPhysicsToTransform();
+
+    // 3. Player-specific gameplay logic (WASD, jump, camera follow, score)
     SceneObject* player = nullptr;
     for (auto& obj : sceneObjects)
     {
@@ -4448,10 +4544,7 @@ void VulkanApp::updatePhysics(float deltaTime)
 
     if (player)
     {
-        // 1. Apply gravity
-        player->velocity.y -= 9.81f * deltaTime;
-
-        // 2. Keyboard control inputs (WASD & Arrow Keys)
+        // Keyboard control inputs (WASD & Arrow Keys)
         float speed = 3.0f;
         glm::vec3 moveDir(0.0f);
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
@@ -4466,8 +4559,18 @@ void VulkanApp::updatePhysics(float deltaTime)
         if (glm::length(moveDir) > 0.0f)
         {
             moveDir = glm::normalize(moveDir);
-            player->position.x += moveDir.x * speed * deltaTime;
-            player->position.z += moveDir.z * speed * deltaTime;
+            if (player->bodyData)
+            {
+                // Apply movement as force through Jolt
+                auto rb = player->getComponent<RigidBodyComponent>();
+                float forceMag = speed * (rb ? rb->mass : 1.0f) * 10.0f;
+                physEngine.addForce(player->bodyData, moveDir * forceMag);
+            }
+            else
+            {
+                player->position.x += moveDir.x * speed * deltaTime;
+                player->position.z += moveDir.z * speed * deltaTime;
+            }
         }
 
         // Jump (allow only when grounded)
@@ -4475,35 +4578,49 @@ void VulkanApp::updatePhysics(float deltaTime)
         {
             float groundY = -1.5f;
             float halfHeight = player->scale.y * 0.5f;
-            if (player->position.y - halfHeight <= groundY + 0.01f)
+            if (player->position.y - halfHeight <= groundY + 0.1f)
             {
-                player->velocity.y = 5.0f; // Jump force
+                if (player->bodyData)
+                {
+                    physEngine.addImpulse(player->bodyData, glm::vec3(0.0f, 5.0f, 0.0f));
+                }
+                else
+                {
+                    player->velocity.y = 5.0f;
+                }
             }
         }
 
-        // 3. Update player position
-        player->position.y += player->velocity.y * deltaTime;
-
-        // 4. Ground Collision
-        float groundY = -1.5f;
-        float halfHeight = player->scale.y * 0.5f;
-        if (player->position.y - halfHeight < groundY)
+        // Fallback manual physics if no Jolt body
+        if (!player->bodyData)
         {
-            player->position.y = groundY + halfHeight;
-            player->velocity.y = -player->velocity.y * 0.5f; // Bouncing physics
-            if (glm::abs(player->velocity.y) < 0.1f) player->velocity.y = 0.0f;
+            player->velocity.y -= 9.81f * deltaTime;
+            player->position.y += player->velocity.y * deltaTime;
+            float groundY = -1.5f;
+            float halfHeight = player->scale.y * 0.5f;
+            if (player->position.y - halfHeight < groundY)
+            {
+                player->position.y = groundY + halfHeight;
+                player->velocity.y = -player->velocity.y * 0.5f;
+                if (glm::abs(player->velocity.y) < 0.1f) player->velocity.y = 0.0f;
+            }
         }
 
         // Grid boundaries constraint
         player->position.x = std::clamp(player->position.x, -5.0f, 5.0f);
         player->position.z = std::clamp(player->position.z, -5.0f, 5.0f);
 
-        // 5. Update main camera target to follow player cube
+        // Write position back to Jolt body
+        if (player->bodyData)
+        {
+            physEngine.setBodyPosition(player->bodyData, player->position);
+        }
+
+        // Update main camera target to follow player cube
         mainCameraTarget = player->position;
-        // Keep camera at offset position
         mainCameraPos = player->position + glm::vec3(2.5f, 2.5f, 2.5f);
 
-        // 6. Collision detection with Collectible target
+        // Collision detection with Collectible target
         SceneObject* target = nullptr;
         for (auto& obj : sceneObjects)
         {
@@ -4528,6 +4645,124 @@ void VulkanApp::updatePhysics(float deltaTime)
                 float rz = -3.0f + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / 6.0f));
                 target->position = glm::vec3(rx, -1.2f, rz);
             }
+        }
+    }
+}
+
+// ---- Physics Engine Helper Methods ----
+
+void VulkanApp::initPhysicsBodies()
+{
+    for (auto& obj : sceneObjects)
+    {
+        // Remove old body if exists
+        if (obj.bodyData)
+        {
+            physEngine.removeBody(obj.bodyData);
+            obj.bodyData = nullptr;
+        }
+
+        if (obj.isPhysicsEnabled || obj.hasComponent(ComponentType::RIGIDBODY_PHYSICS))
+        {
+            auto rb = obj.getComponent<RigidBodyComponent>();
+            ColliderType ct = ColliderType::BOX;
+            BodyMotionType mt = BodyMotionType::DYNAMIC;
+            float mass = 1.0f;
+            float friction = 0.5f;
+            float restitution = 0.3f;
+
+            if (rb)
+            {
+                ct = rb->colliderType;
+                mt = rb->motionType;
+                mass = rb->mass;
+                friction = rb->friction;
+                restitution = rb->restitution;
+            }
+            else
+            {
+                // Determine collider from ObjectType
+                if (obj.type == ObjectType::SPHERE) ct = ColliderType::SPHERE;
+                else if (obj.type == ObjectType::PLANE) ct = ColliderType::PLANE;
+            }
+
+            obj.bodyData = physEngine.createBody(ct, obj.position, obj.scale, mt, mass, friction, restitution);
+        }
+    }
+}
+
+void VulkanApp::syncPhysicsToTransform()
+{
+    for (auto& obj : sceneObjects)
+    {
+        if (!obj.bodyData) continue;
+
+        auto rb = obj.getComponent<RigidBodyComponent>();
+        if (!rb) continue;
+        if (rb->motionType == BodyMotionType::STATIC) continue;
+
+        // Skip player cube - gameplay code handles its position
+        if (obj.name == "Player Cube") continue;
+
+        // Read position/rotation from Jolt Physics
+        obj.position = physEngine.getBodyPosition(obj.bodyData);
+        glm::quat q = physEngine.getBodyRotation(obj.bodyData);
+        obj.rotation = glm::degrees(glm::eulerAngles(q));
+
+        // Sync velocity for display
+        obj.velocity = physEngine.getLinearVelocity(obj.bodyData);
+
+        // Apply linear drag
+        if (rb->linearDrag > 0.0f)
+        {
+            glm::vec3 vel = obj.velocity;
+            vel *= (1.0f - rb->linearDrag);
+            physEngine.setLinearVelocity(obj.bodyData, vel);
+        }
+
+        // Apply angular drag
+        if (rb->angularDrag > 0.0f)
+        {
+            glm::vec3 avel = physEngine.getAngularVelocity(obj.bodyData);
+            avel *= (1.0f - rb->angularDrag);
+            physEngine.setAngularVelocity(obj.bodyData, avel);
+        }
+    }
+}
+
+void VulkanApp::savePlayModeState()
+{
+    for (auto& obj : sceneObjects)
+    {
+        obj.savedPosition = obj.position;
+        obj.savedRotation = obj.rotation;
+        obj.savedScale = obj.scale;
+    }
+    playerStartPos = glm::vec3(0.0f);
+    for (auto& obj : sceneObjects)
+    {
+        if (obj.name == "Player Cube")
+        {
+            playerStartPos = obj.position;
+            break;
+        }
+    }
+}
+
+void VulkanApp::restoreEditModeState()
+{
+    for (auto& obj : sceneObjects)
+    {
+        obj.position = obj.savedPosition;
+        obj.rotation = obj.savedRotation;
+        obj.scale = obj.savedScale;
+        obj.velocity = glm::vec3(0.0f);
+
+        // Destroy Jolt physics bodies
+        if (obj.bodyData)
+        {
+            physEngine.removeBody(obj.bodyData);
+            obj.bodyData = nullptr;
         }
     }
 }
@@ -4699,7 +4934,31 @@ void VulkanApp::saveScene(const std::string& filename)
         out << "rotation: " << obj.rotation.x << " " << obj.rotation.y << " " << obj.rotation.z << "\n";
         out << "scale: " << obj.scale.x << " " << obj.scale.y << " " << obj.scale.z << "\n";
         out << "color: " << obj.color.r << " " << obj.color.g << " " << obj.color.b << " " << obj.color.a << "\n";
-        out << "physics: " << (obj.isPhysicsEnabled ? 1 : 0) << "\n\n";
+        out << "physics: " << (obj.isPhysicsEnabled ? 1 : 0) << "\n";
+        // Save physics properties
+        auto rbSave = obj.getComponent<RigidBodyComponent>();
+        if (rbSave)
+        {
+            out << "mass: " << rbSave->mass << "\n";
+            out << "friction: " << rbSave->friction << "\n";
+            out << "restitution: " << rbSave->restitution << "\n";
+            out << "linearDrag: " << rbSave->linearDrag << "\n";
+            out << "angularDrag: " << rbSave->angularDrag << "\n";
+            out << "colliderType: " << static_cast<int>(rbSave->colliderType) << "\n";
+            out << "motionType: " << static_cast<int>(rbSave->motionType) << "\n";
+            out << "useGravity: " << (rbSave->useGravity ? 1 : 0) << "\n";
+        }
+        
+        // Save Lua scripts
+        out << "luaScriptsCount: " << obj.luaScripts.size() << "\n";
+        for (const auto& script : obj.luaScripts)
+        {
+            out << "luaScriptStart:\n";
+            out << script;
+            if (!script.empty() && script.back() != '\n') out << "\n";
+            out << "luaScriptEnd:\n";
+        }
+        out << "\n";
     }
     out.close();
 }
@@ -4762,6 +5021,75 @@ void VulkanApp::loadScene(const std::string& filename)
             int p;
             ss >> p;
             current.isPhysicsEnabled = (p == 1);
+            if (current.isPhysicsEnabled)
+            {
+                if (!current.hasComponent(ComponentType::RIGIDBODY_PHYSICS))
+                {
+                    auto rb = std::make_shared<RigidBodyComponent>();
+                    current.components.push_back(rb);
+                }
+            }
+        }
+        else if (key == "mass:")
+        {
+            float v; ss >> v;
+            auto rb = current.getComponent<RigidBodyComponent>();
+            if (rb) rb->mass = v;
+        }
+        else if (key == "friction:")
+        {
+            float v; ss >> v;
+            auto rb = current.getComponent<RigidBodyComponent>();
+            if (rb) rb->friction = v;
+        }
+        else if (key == "restitution:")
+        {
+            float v; ss >> v;
+            auto rb = current.getComponent<RigidBodyComponent>();
+            if (rb) rb->restitution = v;
+        }
+        else if (key == "linearDrag:")
+        {
+            float v; ss >> v;
+            auto rb = current.getComponent<RigidBodyComponent>();
+            if (rb) rb->linearDrag = v;
+        }
+        else if (key == "angularDrag:")
+        {
+            float v; ss >> v;
+            auto rb = current.getComponent<RigidBodyComponent>();
+            if (rb) rb->angularDrag = v;
+        }
+        else if (key == "colliderType:")
+        {
+            int v; ss >> v;
+            auto rb = current.getComponent<RigidBodyComponent>();
+            if (rb) rb->colliderType = static_cast<ColliderType>(v);
+        }
+        else if (key == "motionType:")
+        {
+            int v; ss >> v;
+            auto rb = current.getComponent<RigidBodyComponent>();
+            if (rb) rb->motionType = static_cast<BodyMotionType>(v);
+        }
+        else if (key == "useGravity:")
+        {
+            int v; ss >> v;
+            auto rb = current.getComponent<RigidBodyComponent>();
+            if (rb) rb->useGravity = (v == 1);
+        }
+        else if (key == "luaScriptStart:")
+        {
+            std::string scriptContent = "";
+            std::string scriptLine;
+            while (std::getline(in, scriptLine))
+            {
+                if (!scriptLine.empty() && scriptLine.back() == '\r') scriptLine.pop_back();
+                if (scriptLine == "luaScriptEnd:") break;
+                scriptContent += scriptLine + "\n";
+            }
+            if (!scriptContent.empty()) scriptContent.pop_back();
+            current.luaScripts.push_back(scriptContent);
         }
     }
     if (hasObj)
