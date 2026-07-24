@@ -2995,18 +2995,8 @@ void VulkanApp::renderImGuiUI()
     }
     ImGui::End();
 
-    // 4. Game View (Center-Right Window or Native Hardware Fullscreen on Monitor 2)
-    if (isGameFullscreen)
-    {
-        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_Always);
-        if (ImGui::Begin("Game View Fullscreen", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings))
-        {
-            drawGameView(ImGui::GetWindowPos(), ImGui::GetWindowSize());
-        }
-        ImGui::End();
-    }
-    else if (showGameViewWindow)
+    // 4. Game View (Center-Right Window or Dedicated Secondary Window Fullscreen)
+    if (showGameViewWindow || isGameFullscreen)
     {
         ImGui::SetNextWindowPos(ImVec2(leftPanelWidth + centerWidth * 0.5f, menuBarHeight));
         ImGui::SetNextWindowSize(ImVec2(centerWidth * 0.5f, centerHeight));
@@ -4876,26 +4866,59 @@ void VulkanApp::toggleGameFullscreen()
 {
     isGameFullscreen = !isGameFullscreen;
 
-    int monitorCount = 0;
-    GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
-    if (!monitors || monitorCount == 0) return;
-
     if (isGameFullscreen)
     {
-        glfwGetWindowPos(window, &savedWindowX, &savedWindowY);
-        glfwGetWindowSize(window, &savedWindowW, &savedWindowH);
+        int monitorCount = 0;
+        GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
 
-        // Target Monitor #2 if connected, otherwise Monitor #1
-        GLFWmonitor* targetMonitor = (monitorCount > 1) ? monitors[1] : monitors[0];
-        const GLFWvidmode* mode = glfwGetVideoMode(targetMonitor);
-        if (mode)
+        int targetX = 0, targetY = 0, targetW = 1280, targetH = 720;
+        bool isBorderless = false;
+
+        if (monitors && monitorCount > 1)
         {
-            glfwSetWindowMonitor(window, targetMonitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+            // Monitor 2 connected: Position borderless window on Monitor 2
+            int mx = 0, my = 0;
+            glfwGetMonitorPos(monitors[1], &mx, &my);
+            const GLFWvidmode* mode = glfwGetVideoMode(monitors[1]);
+            if (mode)
+            {
+                targetX = mx;
+                targetY = my;
+                targetW = mode->width;
+                targetH = mode->height;
+                isBorderless = true;
+            }
+        }
+        else if (monitors && monitorCount > 0)
+        {
+            // Single monitor fallback
+            const GLFWvidmode* mode = glfwGetVideoMode(monitors[0]);
+            if (mode)
+            {
+                targetX = mode->width / 6;
+                targetY = mode->height / 6;
+                targetW = mode->width * 2 / 3;
+                targetH = mode->height * 2 / 3;
+                isBorderless = false;
+            }
+        }
+
+        glfwWindowHint(GLFW_DECORATED, isBorderless ? GLFW_FALSE : GLFW_TRUE);
+        secondaryWindow = glfwCreateWindow(targetW, targetH, "Antigravity Engine - Game View (Monitor 2 Fullscreen)", NULL, window);
+        if (secondaryWindow)
+        {
+            glfwSetWindowPos(secondaryWindow, targetX, targetY);
+            glfwShowWindow(secondaryWindow);
+            glfwSetWindowUserPointer(secondaryWindow, this);
         }
     }
     else
     {
-        glfwSetWindowMonitor(window, NULL, savedWindowX, savedWindowY, savedWindowW, savedWindowH, 0);
+        if (secondaryWindow)
+        {
+            glfwDestroyWindow(secondaryWindow);
+            secondaryWindow = nullptr;
+        }
     }
 }
 
@@ -5728,6 +5751,13 @@ void VulkanApp::mainLoop()
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
+        if (secondaryWindow)
+        {
+            if (glfwWindowShouldClose(secondaryWindow) || glfwGetKey(secondaryWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+            {
+                toggleGameFullscreen();
+            }
+        }
         drawFrame();
     }
 
@@ -5748,6 +5778,11 @@ void VulkanApp::cleanupImGui()
 
 void VulkanApp::cleanup()
 {
+    if (secondaryWindow)
+    {
+        glfwDestroyWindow(secondaryWindow);
+        secondaryWindow = nullptr;
+    }
     cleanupImGui();
     cleanupSwapChain();
 

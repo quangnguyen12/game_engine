@@ -546,6 +546,7 @@ private:
 
 private:
     GLFWwindow* window = nullptr;
+    GLFWwindow* secondaryWindow = nullptr;
 
     VkInstance instance = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
