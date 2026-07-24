@@ -4551,6 +4551,33 @@ end
 return PlayerWASD
 )";
     player.luaScripts.push_back(playerLuaScript);
+
+    // Pre-attach RespawnOnFall Lua Script
+    std::string respawnLuaScript = R"(local RespawnOnFall = {}
+
+function RespawnOnFall:onStart(obj)
+    self.fallThreshold = -10.0
+    self.spawnPos = { x = obj.position.x, y = obj.position.y + 2.0, z = obj.position.z }
+    print("[Lua] RespawnOnFall initialized for: " .. obj.name)
+end
+
+function RespawnOnFall:onUpdate(obj, dt)
+    if obj.position.y < self.fallThreshold then
+        print("[Lua] " .. obj.name .. " fell out of bounds! Respawning...")
+        obj.position.x = self.spawnPos.x
+        obj.position.y = self.spawnPos.y
+        obj.position.z = self.spawnPos.z
+
+        obj.velocity.x = 0.0
+        obj.velocity.y = 0.0
+        obj.velocity.z = 0.0
+    end
+end
+
+return RespawnOnFall
+)";
+    player.luaScripts.push_back(respawnLuaScript);
+
     sceneObjects.push_back(player);
     
     playerStartPos = player.position;
@@ -4682,16 +4709,7 @@ void VulkanApp::updatePhysics(float deltaTime)
     {
         // Movement is now fully driven by Lua scripts (e.g. PlayerWASD.lua)
 
-        // Optional boundary clamping if fell below floor
-        if (player->position.y < -20.0f)
-        {
-            player->position = glm::vec3(0.0f, 2.0f, 0.0f);
-            if (player->bodyData)
-            {
-                physEngine.setBodyPosition(player->bodyData, player->position);
-                physEngine.setLinearVelocity(player->bodyData, glm::vec3(0.0f));
-            }
-        }
+        // Respawn logic is now fully driven by Lua (e.g. RespawnOnFall.lua)
 
         // Update main camera target to follow player cube
         mainCameraTarget = player->position;
