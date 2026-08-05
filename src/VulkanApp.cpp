@@ -145,6 +145,65 @@ static int rateDeviceSuitability(VkPhysicalDevice device, const VkPhysicalDevice
     return score;
 }
 
+VulkanApp::VulkanApp()
+    : mode(AppMode::EDIT),
+      isDragging(false),
+      lastMouseX(0.0),
+      lastMouseY(0.0),
+      editRotationX(25.0f),
+      editRotationY(45.0f),
+      editRotationZ(0.0f),
+      cameraDistance(3.464f),
+      autoRotateSpeed(1.0f),
+      mainCameraPos(2.0f, 2.0f, 2.0f),
+      mainCameraTarget(0.0f, 0.0f, 0.0f),
+      mainCameraFov(45.0f),
+      mainCameraNear(0.1f),
+      mainCameraFar(20.0f),
+      showGameViewWindow(true),
+      cubePosition(0.0f, 0.0f, 0.0f),
+      cubeScale(1.0f, 1.0f, 1.0f),
+      backgroundColor(0.08f, 0.09f, 0.12f, 1.0f),
+      selectedGpuName("Unknown GPU"),
+      selectedItem(SelectedItem::TEXT),
+      uiText("New Text"),
+      uiSlider(0.5f),
+      uiToggle(true),
+      uiOptionA(true),
+      uiOptionB(false),
+      uiOptionC(false),
+      uiDropdown(0),
+      uiInputField("Enter text..."),
+      uiInputArea("A Scroll Rect is usually used to scroll a large image or panel of another UI element..."),
+      uiButtonClickCount(0),
+      uiScrollViewText("A Scroll Rect is usually used..."),
+      sceneRotationX(25.0f),
+      sceneRotationY(45.0f),
+      sceneCameraDistance(5.0f),
+      selectedObjectIndex(0),
+      isDraggingObject(false),
+      wasDraggingObjectLastFrame(false),
+      activeGizmo(GizmoType::TRANSLATE),
+      activeDragAxis(DragAxis::NONE),
+      hoveredDragAxis(DragAxis::NONE),
+      showProfilerPanel(true),
+      showAssetBrowserPanel(true),
+      isGameFullscreen(false),
+      savedWindowX(100),
+      savedWindowY(100),
+      savedWindowW(1280),
+      savedWindowH(720),
+      leftPanelWidth(260.0f),
+      rightPanelWidth(330.0f),
+      bottomPanelHeight(220.0f),
+      gameScore(0),
+      highScore(0),
+      playerStartPos(0.0f, 0.0f, 0.0f),
+      primitiveCubeMeshId(-1),
+      primitiveSphereMeshId(-1),
+      primitivePlaneMeshId(-1)
+{}
+
 void VulkanApp::run()
 {
     initWindow();
@@ -2436,11 +2495,11 @@ void VulkanApp::drawAssetBrowserPanel(float windowWidth, float bottomBarHeight)
 
                             if (ImGui::BeginPopupContextItem())
                             {
-                                if (ImGui::MenuItem("ð Edit in External IDE (VS Code / Studio)"))
+                                if (ImGui::MenuItem("📖 Edit in External IDE (VS Code / Studio)"))
                                 {
                                     openFileInExternalEditor(pathStr);
                                 }
-                                if (ext == ".lua" && ImGui::MenuItem("â Attach Script to Selected Object"))
+                                if (ext == ".lua" && ImGui::MenuItem("➕ Attach Script to Selected Object"))
                                 {
                                     if (selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
                                     {
@@ -2449,6 +2508,7 @@ void VulkanApp::drawAssetBrowserPanel(float windowWidth, float bottomBarHeight)
                                         {
                                             std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
                                             sceneObjects[selectedObjectIndex].luaScripts.push_back(scriptContent);
+                                            if (mode == AppMode::PLAY) reloadLuaScripts();
                                         }
                                     }
                                 }
@@ -2624,14 +2684,17 @@ void VulkanApp::renderImGuiUI()
     // Handle editor hotkeys for gizmo switching (Q = Hand, W = Translate, E = Rotate, R = Scale, T = Rect, Y = Combined)
     if (mode == AppMode::EDIT)
     {
-        // Undo / Redo
-        if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
+        // Undo / Redo (only when not typing in text fields)
+        if (!ImGui::GetIO().WantTextInput)
         {
-            undo();
-        }
-        if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))
-        {
-            redo();
+            if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
+            {
+                undo();
+            }
+            if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))
+            {
+                redo();
+            }
         }
 
         // Delete Entity hotkey (Delete / Backspace)
@@ -2765,6 +2828,15 @@ void VulkanApp::renderImGuiUI()
                 for (auto& obj : sceneObjects)
                     obj.luaInstances.clear();
             }
+
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.5f, 0.1f, 1.0f));
+            if (ImGui::Button(" [ 🔄 RELOAD LUA ] "))
+            {
+                reloadLuaScripts();
+                printf("Lua scripts hot-reloaded successfully during PLAY mode!\n");
+            }
+            ImGui::PopStyleColor();
         }
         else
         {
@@ -2774,44 +2846,7 @@ void VulkanApp::renderImGuiUI()
                 updateWindowTitle();
                 savePlayModeState();
                 initPhysicsBodies();
-                // Init ALL Lua Scripts (multi-script per object, OOP & Procedural)
-                for (auto& obj : sceneObjects)
-                {
-                    obj.luaInstances.clear();
-                    for (const auto& script : obj.luaScripts)
-                    {
-                        if (script.empty()) continue;
-                        try {
-                            sol::protected_function_result result = luaState.script(script);
-                            if (result.valid()) {
-                                sol::table instance;
-                                bool isGlobals = false;
-                                if (result.get_type() == sol::type::table) {
-                                    instance = result;
-                                } else {
-                                    instance = luaState.globals();
-                                    isGlobals = true;
-                                }
-                                obj.luaInstances.push_back(instance);
-                                sol::protected_function onStart = instance["onStart"];
-                                if (onStart.valid()) {
-                                    sol::protected_function_result res;
-                                    if (isGlobals)
-                                        res = onStart(&obj);
-                                    else
-                                        res = onStart(instance, &obj);
-
-                                    if (!res.valid()) {
-                                        sol::error err = res;
-                                        printf("Lua onStart error: %s\n", err.what());
-                                    }
-                                }
-                            }
-                        } catch (const sol::error& e) {
-                            printf("Lua syntax error: %s\n", e.what());
-                        }
-                    }
-                }
+                reloadLuaScripts();
                 gameScore = 0;
             }
         }
@@ -2942,6 +2977,7 @@ void VulkanApp::renderImGuiUI()
                             std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
                             sceneObjects[i].luaScripts.push_back(scriptContent);
                             selectedObjectIndex = static_cast<int>(i);
+                            if (mode == AppMode::PLAY) reloadLuaScripts();
                         }
                     }
                     else if (const ImGuiPayload* payloadTex = ImGui::AcceptDragDropPayload("DND_ASSET_TEXTURE"))
@@ -3263,6 +3299,7 @@ void VulkanApp::renderImGuiUI()
                         if (ImGui::InputTextMultiline(inputId.c_str(), scriptBuf, sizeof(scriptBuf), ImVec2(-1.0f, 150.0f), ImGuiInputTextFlags_AllowTabInput))
                         {
                             obj.luaScripts[si] = scriptBuf;
+                            if (mode == AppMode::PLAY) reloadLuaScripts();
                         }
 
                         // Drag-drop .lua file onto this script slot
@@ -3276,6 +3313,7 @@ void VulkanApp::renderImGuiUI()
                                 {
                                     std::string scriptContent((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
                                     obj.luaScripts[si] = scriptContent;
+                                    if (mode == AppMode::PLAY) reloadLuaScripts();
                                 }
                             }
                             ImGui::EndDragDropTarget();
@@ -4539,6 +4577,15 @@ void VulkanApp::undo()
         redoStack.push_back(sceneObjects);
         sceneObjects = undoStack.back();
         undoStack.pop_back();
+        for (auto& obj : sceneObjects)
+        {
+            obj.bodyData = nullptr;
+            obj.luaInstances.clear();
+        }
+        if (selectedObjectIndex >= static_cast<int>(sceneObjects.size()))
+        {
+            selectedObjectIndex = sceneObjects.empty() ? -1 : static_cast<int>(sceneObjects.size()) - 1;
+        }
     }
 }
 
@@ -4549,6 +4596,15 @@ void VulkanApp::redo()
         undoStack.push_back(sceneObjects);
         sceneObjects = redoStack.back();
         redoStack.pop_back();
+        for (auto& obj : sceneObjects)
+        {
+            obj.bodyData = nullptr;
+            obj.luaInstances.clear();
+        }
+        if (selectedObjectIndex >= static_cast<int>(sceneObjects.size()))
+        {
+            selectedObjectIndex = sceneObjects.empty() ? -1 : static_cast<int>(sceneObjects.size()) - 1;
+        }
     }
 }
 
@@ -6157,4 +6213,45 @@ void VulkanApp::createShadowPipeline() {
     }
 
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
+}
+
+void VulkanApp::reloadLuaScripts()
+{
+    for (auto& obj : sceneObjects)
+    {
+        obj.luaInstances.clear();
+        for (const auto& script : obj.luaScripts)
+        {
+            if (script.empty()) continue;
+            try {
+                sol::protected_function_result result = luaState.script(script);
+                if (result.valid()) {
+                    sol::table instance;
+                    bool isGlobals = false;
+                    if (result.get_type() == sol::type::table) {
+                        instance = result;
+                    } else {
+                        instance = luaState.globals();
+                        isGlobals = true;
+                    }
+                    obj.luaInstances.push_back(instance);
+                    sol::protected_function onStart = instance["onStart"];
+                    if (onStart.valid()) {
+                        sol::protected_function_result res;
+                        if (isGlobals)
+                            res = onStart(&obj);
+                        else
+                            res = onStart(instance, &obj);
+
+                        if (!res.valid()) {
+                            sol::error err = res;
+                            printf("Lua onStart error: %s\n", err.what());
+                        }
+                    }
+                }
+            } catch (const sol::error& e) {
+                printf("Lua syntax error: %s\n", e.what());
+            }
+        }
+    }
 }

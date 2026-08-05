@@ -682,6 +682,7 @@ private:
     int selectedObjectIndex = 0;
     PhysEngine physEngine;
     sol::state luaState;
+    void reloadLuaScripts();
     bool isDraggingObject = false;
     bool wasDraggingObjectLastFrame = false;
     GizmoType activeGizmo = GizmoType::TRANSLATE;
@@ -711,11 +712,14 @@ private:
     glm::vec3 playerStartPos = glm::vec3(0.0f, 0.0f, 0.0f);
 
     // Cached primitive mesh IDs (created once at startup)
-    int primitiveCubeMeshId   = -1;
+    int primitiveCubeMeshId = -1;
     int primitiveSphereMeshId = -1;
-    int primitivePlaneMeshId  = -1;
+    int primitivePlaneMeshId = -1;
 
     static constexpr uint32_t WIDTH = 1280;
     static constexpr uint32_t HEIGHT = 720;
     static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+
+public:
+    VulkanApp();
 };

@@ -38,7 +38,6 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(Lua REQUIRED)
 find_package(sol2 CONFIG REQUIRED)
 find_package(Jolt CONFIG REQUIRED)
-find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
 
 find_program(GLSL_COMPILER glslc HINTS $ENV{VULKAN_SDK}/Bin REQUIRED)
 
@@ -80,13 +79,20 @@ add_custom_command(
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(TINYGLTF_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    tinygltf
+    URL https://github.com/syoyo/tinygltf/archive/refs/tags/v2.9.0.zip
+)
+FetchContent_MakeAvailable(tinygltf)
+
 target_include_directories(ShapeRenderer
     PRIVATE
     ${LUA_INCLUDE_DIR}
     ${glm_SOURCE_DIR}
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
-    ${TINYGLTF_INCLUDE_DIRS}
+    ${tinygltf_SOURCE_DIR}
 )
 
 target_link_libraries(ShapeRenderer
