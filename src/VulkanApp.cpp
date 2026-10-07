@@ -25,6 +25,8 @@
 #include <cstring>
 #include <sstream>
 #include <filesystem>
+#include <random>
+#include <functional>
 
 extern "C" {
     __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
@@ -274,9 +276,11 @@ void VulkanApp::run()
         return false;
     });
     // Create shared primitive meshes once (requires Vulkan device to be ready)
-    primitiveCubeMeshId   = createCubeMesh();
-    primitiveSphereMeshId = createSphereMesh();
-    primitivePlaneMeshId  = createPlaneMesh();
+    primitiveCubeMeshId     = createCubeMesh();
+    primitiveSphereMeshId   = createSphereMesh();
+    primitivePlaneMeshId    = createPlaneMesh();
+    primitiveCylinderMeshId = createCylinderMesh(0.5f, 0.5f, 1.0f, 16);
+    primitiveConeMeshId     = createConeMesh(0.5f, 1.0f, 16);
     initializeDefaultScene();
     initImGui();
     mainLoop();
@@ -641,14 +645,12 @@ void VulkanApp::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width
     endSingleTimeCommands(commandBuffer);
 }
 
-void VulkanApp::loadTexture(const std::string& path, Texture& texture) {
-    int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    VkDeviceSize imageSize = texWidth * texHeight * 4;
-    
-    if (!pixels) {
-        throw std::runtime_error("failed to load texture image!");
+void VulkanApp::createTextureFromRawPixels(const unsigned char* pixels, int texWidth, int texHeight, Texture& texture) {
+    if (!pixels || texWidth <= 0 || texHeight <= 0) {
+        throw std::runtime_error("invalid pixel data for texture creation!");
     }
+
+    VkDeviceSize imageSize = static_cast<VkDeviceSize>(texWidth) * texHeight * 4;
     
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -658,7 +660,6 @@ void VulkanApp::loadTexture(const std::string& path, Texture& texture) {
     vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
     memcpy(data, pixels, static_cast<size_t>(imageSize));
     vkUnmapMemory(device, stagingBufferMemory);
-    stbi_image_free(pixels);
     
     createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture.image, texture.memory);
     
@@ -685,7 +686,7 @@ void VulkanApp::loadTexture(const std::string& path, Texture& texture) {
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     imageInfo.imageView = texture.view;
-    imageInfo.sampler = offscreenSampler; // Reuse the sampler we created earlier
+    imageInfo.sampler = (textureSampler != VK_NULL_HANDLE) ? textureSampler : offscreenSampler;
 
     VkWriteDescriptorSet descriptorWrite{};
     descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -697,6 +698,58 @@ void VulkanApp::loadTexture(const std::string& path, Texture& texture) {
     descriptorWrite.pImageInfo = &imageInfo;
 
     vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+}
+
+void VulkanApp::loadTexture(const std::string& path, Texture& texture) {
+    int texWidth, texHeight, texChannels;
+    stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    if (!pixels) {
+        throw std::runtime_error("failed to load texture image from path: " + path);
+    }
+    try {
+        createTextureFromRawPixels(pixels, texWidth, texHeight, texture);
+    } catch (...) {
+        stbi_image_free(pixels);
+        throw;
+    }
+    stbi_image_free(pixels);
+}
+
+void VulkanApp::createTextureSampler() {
+    VkPhysicalDeviceFeatures supportedFeatures{};
+    vkGetPhysicalDeviceFeatures(physicalDevice, &supportedFeatures);
+
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+    if (supportedFeatures.samplerAnisotropy) {
+        samplerInfo.anisotropyEnable = VK_TRUE;
+        samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+    } else {
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        samplerInfo.maxAnisotropy = 1.0f;
+    }
+
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 16.0f;
+
+    if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create texture sampler!");
+    }
 }
 
 void VulkanApp::createDefaultTexture() {
@@ -736,7 +789,7 @@ void VulkanApp::createDefaultTexture() {
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     imageInfo.imageView = defaultTexture.view;
-    imageInfo.sampler = offscreenSampler;
+    imageInfo.sampler = (textureSampler != VK_NULL_HANDLE) ? textureSampler : offscreenSampler;
 
     VkWriteDescriptorSet descriptorWrite{};
     descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -791,6 +844,11 @@ void VulkanApp::loadModel(const std::string& path, Mesh& mesh)
 {
     mesh.vertices.clear();
     mesh.indices.clear();
+    mesh.submeshes.clear();
+    mesh.isFoliage = false;
+    mesh.defaultTextureId = -1;
+    mesh.defaultRoughness = 0.5f;
+    mesh.defaultMetallic = 0.0f;
 
     std::string ext = path.substr(path.find_last_of('.') + 1);
     for(auto& c : ext) c = tolower(c);
@@ -801,9 +859,18 @@ void VulkanApp::loadModel(const std::string& path, Mesh& mesh)
         std::string err, warn;
         bool ret = false;
         
-        // Dummy image loader to prevent "No LoadImageData callback specified" error 
-        // since we defined TINYGLTF_NO_STB_IMAGE and don't need textures from GLTF yet.
-        loader.SetImageLoader([](tinygltf::Image*, const int, std::string*, std::string*, int, int, const unsigned char*, int, void*) -> bool {
+        loader.SetImageLoader([](tinygltf::Image* image, const int, std::string* err, std::string*, int, int, const unsigned char* bytes, int size, void*) -> bool {
+            int w = 0, h = 0, comp = 0;
+            unsigned char* data = stbi_load_from_memory(bytes, size, &w, &h, &comp, 4);
+            if (!data) {
+                if (err) *err = "Failed to decode glTF image with stb_image";
+                return false;
+            }
+            image->width = w;
+            image->height = h;
+            image->component = 4;
+            image->image.assign(data, data + (w * h * 4));
+            stbi_image_free(data);
             return true;
         }, nullptr);
         
@@ -850,38 +917,45 @@ void VulkanApp::loadModel(const std::string& path, Mesh& mesh)
                     // Positions
                     const unsigned char* positionDataBytes = nullptr;
                     size_t vertexCount = 0;
-                    size_t posStride = 0;
+                    size_t posStride = sizeof(float) * 3;
                     if (primitive.attributes.find("POSITION") != primitive.attributes.end()) {
                         const tinygltf::Accessor& accessor = gltfModel.accessors[primitive.attributes.find("POSITION")->second];
                         const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
                         const tinygltf::Buffer& buffer = gltfModel.buffers[bufferView.buffer];
                         positionDataBytes = &buffer.data[bufferView.byteOffset + accessor.byteOffset];
                         vertexCount = accessor.count;
-                        posStride = accessor.ByteStride(bufferView);
+                        int stride = accessor.ByteStride(bufferView);
+                        posStride = (stride > 0) ? static_cast<size_t>(stride) : sizeof(float) * 3;
                     }
                     
                     // Normals
                     const unsigned char* normalDataBytes = nullptr;
-                    size_t normStride = 0;
+                    size_t normStride = sizeof(float) * 3;
                     if (primitive.attributes.find("NORMAL") != primitive.attributes.end()) {
                         const tinygltf::Accessor& accessor = gltfModel.accessors[primitive.attributes.find("NORMAL")->second];
                         const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
                         const tinygltf::Buffer& buffer = gltfModel.buffers[bufferView.buffer];
                         normalDataBytes = &buffer.data[bufferView.byteOffset + accessor.byteOffset];
-                        normStride = accessor.ByteStride(bufferView);
+                        int stride = accessor.ByteStride(bufferView);
+                        normStride = (stride > 0) ? static_cast<size_t>(stride) : sizeof(float) * 3;
                     }
                     
                     // TexCoords
                     const unsigned char* texcoordDataBytes = nullptr;
-                    size_t texStride = 0;
+                    size_t texStride = sizeof(float) * 2;
                     if (primitive.attributes.find("TEXCOORD_0") != primitive.attributes.end()) {
                         const tinygltf::Accessor& accessor = gltfModel.accessors[primitive.attributes.find("TEXCOORD_0")->second];
                         const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
                         const tinygltf::Buffer& buffer = gltfModel.buffers[bufferView.buffer];
                         texcoordDataBytes = &buffer.data[bufferView.byteOffset + accessor.byteOffset];
-                        texStride = accessor.ByteStride(bufferView);
+                        int stride = accessor.ByteStride(bufferView);
+                        texStride = (stride > 0) ? static_cast<size_t>(stride) : sizeof(float) * 2;
                     }
                     
+                    glm::mat3 m3 = glm::mat3(matrix);
+                    float det = glm::determinant(m3);
+                    glm::mat3 normalMatrix = (std::abs(det) > 1e-6f) ? glm::transpose(glm::inverse(m3)) : m3;
+
                     for (size_t v = 0; v < vertexCount; ++v) {
                         Vertex vertex{};
                         if (positionDataBytes) {
@@ -892,10 +966,14 @@ void VulkanApp::loadModel(const std::string& path, Mesh& mesh)
                             vertex.pos = glm::vec3(0.0f);
                         }
                         
+                        if (std::isnan(vertex.pos.x) || std::isinf(vertex.pos.x)) vertex.pos.x = 0.0f;
+                        if (std::isnan(vertex.pos.y) || std::isinf(vertex.pos.y)) vertex.pos.y = 0.0f;
+                        if (std::isnan(vertex.pos.z) || std::isinf(vertex.pos.z)) vertex.pos.z = 0.0f;
+
                         if (normalDataBytes) {
                             const float* norm = reinterpret_cast<const float*>(normalDataBytes + v * normStride);
-                            glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(matrix)));
-                            vertex.normal = glm::normalize(normalMatrix * glm::vec3(norm[0], norm[1], norm[2]));
+                            glm::vec3 n = normalMatrix * glm::vec3(norm[0], norm[1], norm[2]);
+                            vertex.normal = (glm::length(n) > 1e-5f) ? glm::normalize(n) : glm::vec3(0.0f, 1.0f, 0.0f);
                         } else {
                             vertex.normal = {0.0f, 1.0f, 0.0f};
                         }
@@ -950,43 +1028,337 @@ void VulkanApp::loadModel(const std::string& path, Mesh& mesh)
         for (int nodeIdx : scene.nodes) {
             processNode(nodeIdx, glm::mat4(1.0f));
         }
+
+        // Extract glTF material and textures
+        int primaryTexIndex = -1;
+        for (const auto& mat : gltfModel.materials) {
+            if (mat.pbrMetallicRoughness.baseColorTexture.index >= 0) {
+                primaryTexIndex = mat.pbrMetallicRoughness.baseColorTexture.index;
+                mesh.defaultRoughness = static_cast<float>(mat.pbrMetallicRoughness.roughnessFactor);
+                mesh.defaultMetallic = static_cast<float>(mat.pbrMetallicRoughness.metallicFactor);
+                break;
+            }
+        }
+
+        int imageIndex = -1;
+        if (primaryTexIndex >= 0 && primaryTexIndex < static_cast<int>(gltfModel.textures.size())) {
+            imageIndex = gltfModel.textures[primaryTexIndex].source;
+        } else if (!gltfModel.textures.empty() && gltfModel.textures[0].source >= 0) {
+            imageIndex = gltfModel.textures[0].source;
+        } else if (!gltfModel.images.empty()) {
+            imageIndex = 0;
+        }
+
+        if (imageIndex >= 0 && imageIndex < static_cast<int>(gltfModel.images.size())) {
+            const auto& gltfImg = gltfModel.images[imageIndex];
+            if (!gltfImg.image.empty() && gltfImg.width > 0 && gltfImg.height > 0) {
+                std::string cacheKey = path + "#img" + std::to_string(imageIndex);
+                if (cachedTextureIds.find(cacheKey) != cachedTextureIds.end()) {
+                    mesh.defaultTextureId = cachedTextureIds[cacheKey];
+                } else {
+                    try {
+                        Texture newTex;
+                        createTextureFromRawPixels(gltfImg.image.data(), gltfImg.width, gltfImg.height, newTex);
+                        textures.push_back(newTex);
+                        int newTexId = static_cast<int>(textures.size()) - 1;
+                        cachedTextureIds[cacheKey] = newTexId;
+                        mesh.defaultTextureId = newTexId;
+                    } catch (const std::exception& ex) {
+                        printf("Failed to create Vulkan texture from glTF image %d: %s\n", imageIndex, ex.what());
+                    }
+                }
+            } else if (!gltfImg.uri.empty()) {
+                std::filesystem::path p(path);
+                std::filesystem::path imgPath = p.parent_path() / gltfImg.uri;
+                int texId = getOrLoadTextureAsset(imgPath.string());
+                if (texId >= 0) mesh.defaultTextureId = texId;
+            }
+        }
         
+        std::string lowerGltf = path;
+        std::transform(lowerGltf.begin(), lowerGltf.end(), lowerGltf.begin(), ::tolower);
+        if (lowerGltf.find("tree") != std::string::npos || lowerGltf.find("foliage") != std::string::npos || lowerGltf.find("plant") != std::string::npos) {
+            mesh.isFoliage = true;
+        }
     } else {
         // Fallback to OBJ
+        std::filesystem::path objPath(path);
+        std::string mtlBaseDir = objPath.parent_path().string();
+        if (mtlBaseDir.empty()) mtlBaseDir = ".";
+
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
         std::vector<tinyobj::material_t> materials;
         std::string warn, err;
 
-        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.c_str()))
+        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.c_str(), mtlBaseDir.c_str()))
             throw std::runtime_error(warn + err);
         
+        // Determine whether this OBJ is a tree/foliage model
+        std::string lowerObjPath = path;
+        std::transform(lowerObjPath.begin(), lowerObjPath.end(), lowerObjPath.begin(), ::tolower);
+        bool isTreeAsset = (lowerObjPath.find("tree") != std::string::npos || lowerObjPath.find("foliage") != std::string::npos);
+        for (const auto& mat : materials) {
+            std::string mtex = mat.diffuse_texname;
+            std::transform(mtex.begin(), mtex.end(), mtex.begin(), ::tolower);
+            if (mtex.find("bark") != std::string::npos || mtex.find("walnut") != std::string::npos ||
+                mtex.find("oak") != std::string::npos || mtex.find("leaf") != std::string::npos ||
+                mtex.find("leav") != std::string::npos || mtex.find("mossy") != std::string::npos ||
+                mtex.find("bottom_t") != std::string::npos || mtex.find("sonnerat") != std::string::npos) {
+                isTreeAsset = true;
+                break;
+            }
+        }
+
+        std::vector<int> matTexIds(materials.size(), -1);
+        for (size_t m = 0; m < materials.size(); ++m) {
+            std::string texName = materials[m].diffuse_texname;
+            if (!texName.empty()) {
+                std::string normTex = texName;
+                std::replace(normTex.begin(), normTex.end(), '\\', '/');
+                std::filesystem::path tp(normTex);
+                std::string filename = tp.filename().string();
+                std::string stem = tp.stem().string();
+
+                std::vector<std::string> candidates = {
+                    normTex,
+                    mtlBaseDir + "/" + normTex,
+                    mtlBaseDir + "/../" + normTex,
+                    mtlBaseDir + "/textures/" + filename,
+                    mtlBaseDir + "/../textures/" + filename,
+                    mtlBaseDir + "/Texture/" + filename,
+                    mtlBaseDir + "/../Texture/" + filename,
+                    "assets/" + normTex,
+                    "assets/textures/" + filename,
+                    "assets/Texture/" + filename,
+                    "assets/models/Texture/" + filename,
+                    "assets/" + filename,
+                    "assets/models/" + filename
+                };
+
+                // Also prioritize .png versions if available (for alpha cutout transparency)
+                if (tp.extension() == ".jpg" || tp.extension() == ".JPG") {
+                    std::vector<std::string> pngCandidates = {
+                        mtlBaseDir + "/textures/" + stem + ".png",
+                        mtlBaseDir + "/../textures/" + stem + ".png",
+                        mtlBaseDir + "/Texture/" + stem + ".png",
+                        mtlBaseDir + "/" + stem + ".png",
+                        "assets/textures/" + stem + ".png",
+                        "assets/Texture/" + stem + ".png",
+                        "assets/models/Texture/" + stem + ".png",
+                        "assets/" + stem + ".png"
+                    };
+                    candidates.insert(candidates.begin(), pngCandidates.begin(), pngCandidates.end());
+                }
+
+                for (const auto& cand : candidates) {
+                    if (std::filesystem::exists(cand)) {
+                        int texId = getOrLoadTextureAsset(cand);
+                        if (texId >= 0) {
+                            matTexIds[m] = texId;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Group faces by material ID across all shapes with polygon fan triangulation
+        std::map<int, std::vector<tinyobj::index_t>> matFaces;
         for (const auto& shape : shapes) {
-            for (const auto& idx : shape.mesh.indices) {
+            if (shape.mesh.num_face_vertices.empty() && !shape.mesh.indices.empty()) {
+                int defMat = (!shape.mesh.material_ids.empty()) ? shape.mesh.material_ids[0] : -1;
+                for (const auto& idx : shape.mesh.indices) {
+                    matFaces[defMat].push_back(idx);
+                }
+                continue;
+            }
+            size_t index_offset = 0;
+            for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); ++f) {
+                size_t fv = shape.mesh.num_face_vertices[f];
+                int mat_id = -1;
+                if (f < shape.mesh.material_ids.size()) {
+                    mat_id = shape.mesh.material_ids[f];
+                }
+                if (fv == 3) {
+                    matFaces[mat_id].push_back(shape.mesh.indices[index_offset + 0]);
+                    matFaces[mat_id].push_back(shape.mesh.indices[index_offset + 1]);
+                    matFaces[mat_id].push_back(shape.mesh.indices[index_offset + 2]);
+                } else if (fv > 3) {
+                    // Triangle fan for quads and n-gons to eliminate mesh distortion and shifted triangles
+                    for (size_t v = 1; v + 1 < fv; ++v) {
+                        matFaces[mat_id].push_back(shape.mesh.indices[index_offset + 0]);
+                        matFaces[mat_id].push_back(shape.mesh.indices[index_offset + v]);
+                        matFaces[mat_id].push_back(shape.mesh.indices[index_offset + v + 1]);
+                    }
+                }
+                index_offset += fv;
+            }
+        }
+
+        for (const auto& pair : matFaces) {
+            int mat_id = pair.first;
+            const auto& faceIndices = pair.second;
+            if (faceIndices.empty()) continue;
+
+            uint32_t subIndexOffset = static_cast<uint32_t>(mesh.indices.size());
+
+            for (const auto& idx : faceIndices) {
+                // Strict bounds checking on vertex index
+                if (idx.vertex_index < 0 || (size_t)(3 * idx.vertex_index + 2) >= attrib.vertices.size()) {
+                    continue;
+                }
+
                 Vertex vertex{};
                 vertex.pos = {
                     attrib.vertices[3 * idx.vertex_index + 0],
                     attrib.vertices[3 * idx.vertex_index + 1],
                     attrib.vertices[3 * idx.vertex_index + 2]
                 };
-                
-                if (idx.texcoord_index >= 0) {
+
+                // Prevent any NaN or Inf coordinates that cause vertex explosion
+                if (std::isnan(vertex.pos.x) || std::isinf(vertex.pos.x)) vertex.pos.x = 0.0f;
+                if (std::isnan(vertex.pos.y) || std::isinf(vertex.pos.y)) vertex.pos.y = 0.0f;
+                if (std::isnan(vertex.pos.z) || std::isinf(vertex.pos.z)) vertex.pos.z = 0.0f;
+
+                if (idx.texcoord_index >= 0 && (size_t)(2 * idx.texcoord_index + 1) < attrib.texcoords.size()) {
+                    float u = attrib.texcoords[2 * idx.texcoord_index + 0];
+                    float v = attrib.texcoords[2 * idx.texcoord_index + 1];
                     vertex.texCoord = {
-                        attrib.texcoords[2 * idx.texcoord_index + 0],
-                        1.0f - attrib.texcoords[2 * idx.texcoord_index + 1]
+                        u,
+                        isTreeAsset ? v : (1.0f - v)
                     };
+                } else {
+                    vertex.texCoord = {0.0f, 0.0f};
                 }
-                if (idx.normal_index >= 0) {
+
+                if (idx.normal_index >= 0 && (size_t)(3 * idx.normal_index + 2) < attrib.normals.size()) {
                     vertex.normal = {
                         attrib.normals[3 * idx.normal_index + 0],
                         attrib.normals[3 * idx.normal_index + 1],
                         attrib.normals[3 * idx.normal_index + 2]
                     };
+                    float nLen = glm::length(vertex.normal);
+                    if (nLen > 1e-5f && !std::isnan(nLen)) {
+                        vertex.normal /= nLen;
+                    } else {
+                        vertex.normal = {0.0f, 0.0f, 0.0f};
+                    }
+                } else {
+                    vertex.normal = {0.0f, 0.0f, 0.0f};
                 }
+
                 vertex.color = {1.0f, 1.0f, 1.0f};
 
                 mesh.vertices.push_back(vertex);
                 mesh.indices.push_back(static_cast<uint32_t>(mesh.vertices.size()) - 1);
+            }
+
+            uint32_t subIndexCount = static_cast<uint32_t>(mesh.indices.size()) - subIndexOffset;
+            if (subIndexCount == 0) continue;
+
+            SubMesh sub{};
+            sub.indexOffset = subIndexOffset;
+            sub.indexCount = subIndexCount;
+            if (mat_id >= 0 && mat_id < static_cast<int>(matTexIds.size())) {
+                sub.textureId = matTexIds[mat_id];
+                if (mat_id < static_cast<int>(materials.size())) {
+                    sub.roughness = materials[mat_id].roughness > 0.0f ? materials[mat_id].roughness : 0.5f;
+                    sub.metallic = materials[mat_id].metallic;
+
+                    std::string mName = materials[mat_id].name;
+                    std::string mTex = materials[mat_id].diffuse_texname;
+                    std::string mCombined = mName + " " + mTex;
+                    std::transform(mCombined.begin(), mCombined.end(), mCombined.begin(), ::tolower);
+
+                    if (mCombined.find("leav") != std::string::npos ||
+                        mCombined.find("leaf") != std::string::npos ||
+                        mCombined.find("foliage") != std::string::npos ||
+                        mCombined.find("walnut") != std::string::npos ||
+                        mCombined.find("oak") != std::string::npos ||
+                        mCombined.find("sonnerat") != std::string::npos) {
+                        sub.isFoliage = true;
+                        sub.twoSided = true;
+                        sub.roughness = 0.55f;
+                        sub.metallic = 0.0f;
+                        mesh.isFoliage = true;
+                    } else if (mCombined.find("bark") != std::string::npos ||
+                               mCombined.find("trunk") != std::string::npos ||
+                               mCombined.find("wood") != std::string::npos) {
+                        sub.isFoliage = false;
+                        sub.roughness = 0.88f;
+                        sub.metallic = 0.0f;
+                    }
+                }
+            } else {
+                sub.textureId = -1;
+            }
+            mesh.submeshes.push_back(sub);
+        }
+
+        // Automatic normal verification and smooth reconstruction
+        bool needsNormals = attrib.normals.empty();
+        if (!needsNormals) {
+            for (const auto& v : mesh.vertices) {
+                if (glm::length(v.normal) < 0.001f || std::isnan(v.normal.x)) {
+                    needsNormals = true;
+                    break;
+                }
+            }
+        }
+
+        if (needsNormals) {
+            for (auto& v : mesh.vertices) {
+                v.normal = glm::vec3(0.0f);
+            }
+            for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+                uint32_t i0 = mesh.indices[i];
+                uint32_t i1 = mesh.indices[i + 1];
+                uint32_t i2 = mesh.indices[i + 2];
+                if (i0 < mesh.vertices.size() && i1 < mesh.vertices.size() && i2 < mesh.vertices.size()) {
+                    glm::vec3 v0 = mesh.vertices[i0].pos;
+                    glm::vec3 v1 = mesh.vertices[i1].pos;
+                    glm::vec3 v2 = mesh.vertices[i2].pos;
+                    glm::vec3 fn = glm::cross(v1 - v0, v2 - v0);
+                    mesh.vertices[i0].normal += fn;
+                    mesh.vertices[i1].normal += fn;
+                    mesh.vertices[i2].normal += fn;
+                }
+            }
+            for (auto& v : mesh.vertices) {
+                float len = glm::length(v.normal);
+                if (len > 1e-5f && !std::isnan(len)) {
+                    v.normal = v.normal / len;
+                } else {
+                    v.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+                }
+            }
+        }
+
+        if (mesh.indices.size() % 3 != 0) {
+            mesh.indices.resize(mesh.indices.size() - (mesh.indices.size() % 3));
+        }
+
+        // Determine default fallback texture
+        for (const auto& sub : mesh.submeshes) {
+            if (sub.textureId >= 0) {
+                mesh.defaultTextureId = sub.textureId;
+                break;
+            }
+        }
+
+        if (mesh.defaultTextureId < 0) {
+            std::string stem = objPath.stem().string();
+            std::string parentDir = objPath.parent_path().string();
+            std::string texName = "";
+            if (std::filesystem::exists(parentDir + "/" + stem + ".png")) texName = parentDir + "/" + stem + ".png";
+            else if (std::filesystem::exists(parentDir + "/" + stem + ".jpg")) texName = parentDir + "/" + stem + ".jpg";
+            else if (stem.find("tree") != std::string::npos || stem.find("Tree") != std::string::npos) {
+                if (std::filesystem::exists("assets/Texture/Bark___0.jpg")) texName = "assets/Texture/Bark___0.jpg";
+                else if (std::filesystem::exists("assets/Texture/Oak_Leav.jpg")) texName = "assets/Texture/Oak_Leav.jpg";
+            }
+            if (!texName.empty()) {
+                mesh.defaultTextureId = getOrLoadTextureAsset(texName);
             }
         }
     }
@@ -1106,6 +1478,1381 @@ int VulkanApp::createPlaneMesh()
     return static_cast<int>(meshes.size()) - 1;
 }
 
+int VulkanApp::createCylinderMesh(float radiusTop, float radiusBottom, float height, int slices)
+{
+    Mesh mesh;
+    const float PI = glm::pi<float>();
+    float halfH = height * 0.5f;
+
+    // Side wall
+    for (int i = 0; i <= slices; ++i) {
+        float theta = 2.0f * PI * float(i) / float(slices);
+        float cosT = std::cos(theta);
+        float sinT = std::sin(theta);
+
+        glm::vec3 normal = glm::normalize(glm::vec3(cosT, (radiusBottom - radiusTop) / height, sinT));
+
+        Vertex vBot{};
+        vBot.pos = glm::vec3(radiusBottom * cosT, -halfH, radiusBottom * sinT);
+        vBot.normal = normal;
+        vBot.color = glm::vec3(0.75f, 0.75f, 0.75f);
+        vBot.texCoord = glm::vec2(float(i) / float(slices), 1.0f);
+        mesh.vertices.push_back(vBot);
+
+        Vertex vTop{};
+        vTop.pos = glm::vec3(radiusTop * cosT, halfH, radiusTop * sinT);
+        vTop.normal = normal;
+        vTop.color = glm::vec3(0.9f, 0.9f, 0.9f);
+        vTop.texCoord = glm::vec2(float(i) / float(slices), 0.0f);
+        mesh.vertices.push_back(vTop);
+    }
+
+    for (int i = 0; i < slices; ++i) {
+        uint32_t b0 = i * 2;
+        uint32_t t0 = i * 2 + 1;
+        uint32_t b1 = (i + 1) * 2;
+        uint32_t t1 = (i + 1) * 2 + 1;
+
+        mesh.indices.insert(mesh.indices.end(), { b0, b1, t0, t0, b1, t1 });
+    }
+
+    // Top cap
+    uint32_t topCenterIdx = static_cast<uint32_t>(mesh.vertices.size());
+    Vertex vTopCenter{};
+    vTopCenter.pos = glm::vec3(0.0f, halfH, 0.0f);
+    vTopCenter.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+    vTopCenter.color = glm::vec3(0.95f);
+    vTopCenter.texCoord = glm::vec2(0.5f, 0.5f);
+    mesh.vertices.push_back(vTopCenter);
+
+    uint32_t topRingStart = static_cast<uint32_t>(mesh.vertices.size());
+    for (int i = 0; i <= slices; ++i) {
+        float theta = 2.0f * PI * float(i) / float(slices);
+        Vertex v{};
+        v.pos = glm::vec3(radiusTop * std::cos(theta), halfH, radiusTop * std::sin(theta));
+        v.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+        v.color = glm::vec3(0.95f);
+        v.texCoord = glm::vec2(0.5f + 0.5f * std::cos(theta), 0.5f + 0.5f * std::sin(theta));
+        mesh.vertices.push_back(v);
+    }
+    for (int i = 0; i < slices; ++i) {
+        mesh.indices.insert(mesh.indices.end(), { topCenterIdx, topRingStart + i, topRingStart + i + 1 });
+    }
+
+    // Bottom cap
+    uint32_t botCenterIdx = static_cast<uint32_t>(mesh.vertices.size());
+    Vertex vBotCenter{};
+    vBotCenter.pos = glm::vec3(0.0f, -halfH, 0.0f);
+    vBotCenter.normal = glm::vec3(0.0f, -1.0f, 0.0f);
+    vBotCenter.color = glm::vec3(0.6f);
+    vBotCenter.texCoord = glm::vec2(0.5f, 0.5f);
+    mesh.vertices.push_back(vBotCenter);
+
+    uint32_t botRingStart = static_cast<uint32_t>(mesh.vertices.size());
+    for (int i = 0; i <= slices; ++i) {
+        float theta = 2.0f * PI * float(i) / float(slices);
+        Vertex v{};
+        v.pos = glm::vec3(radiusBottom * std::cos(theta), -halfH, radiusBottom * std::sin(theta));
+        v.normal = glm::vec3(0.0f, -1.0f, 0.0f);
+        v.color = glm::vec3(0.6f);
+        v.texCoord = glm::vec2(0.5f + 0.5f * std::cos(theta), 0.5f + 0.5f * std::sin(theta));
+        mesh.vertices.push_back(v);
+    }
+    for (int i = 0; i < slices; ++i) {
+        mesh.indices.insert(mesh.indices.end(), { botCenterIdx, botRingStart + i + 1, botRingStart + i });
+    }
+
+    mesh.indexCount = static_cast<uint32_t>(mesh.indices.size());
+    createMeshBuffers(mesh);
+    meshes.push_back(std::move(mesh));
+    return static_cast<int>(meshes.size()) - 1;
+}
+
+int VulkanApp::createConeMesh(float radius, float height, int slices)
+{
+    return createCylinderMesh(0.001f, radius, height, slices);
+}
+
+int VulkanApp::createTerrainMesh(int gridW, int gridD, float cellSize, float heightScale, int seed, int biomeType)
+{
+    Mesh mesh;
+    float halfW = (gridW - 1) * cellSize * 0.5f;
+    float halfD = (gridD - 1) * cellSize * 0.5f;
+
+    auto noiseFunc = [seed, heightScale, biomeType](float x, float z) -> float {
+        float sx = x * 0.1f + seed * 0.13f;
+        float sz = z * 0.1f + seed * 0.17f;
+
+        float h = 0.0f;
+        if (biomeType == 0) { // Forest & Mountains
+            h += std::sin(sx) * std::cos(sz) * 0.6f;
+            h += std::sin(sx * 2.3f + 1.2f) * std::cos(sz * 2.1f + 0.5f) * 0.3f;
+            h += std::sin(sx * 4.7f) * std::cos(sz * 4.9f) * 0.1f;
+            h = std::pow(std::abs(h), 1.3f) * (h >= 0 ? 1.0f : -0.5f);
+        } else if (biomeType == 1) { // Desert Dunes
+            h += std::sin(sx * 0.7f + sz * 0.5f) * 0.8f;
+            h += std::cos(sx * 1.8f - sz * 1.2f) * 0.2f;
+        } else if (biomeType == 2) { // Cyberpunk City Floor
+            float cx = std::floor(x * 0.2f);
+            float cz = std::floor(z * 0.2f);
+            h = (std::sin(cx * 12.3f + cz * 45.6f + seed) > 0.3f) ? 0.05f : 0.0f;
+        } else if (biomeType == 3) { // Medieval Village Valley
+            float distFromCenter = std::sqrt(x * x + z * z);
+            h = (1.0f - std::exp(-distFromCenter * 0.05f)) * 0.8f;
+            h += std::sin(sx * 1.5f) * std::cos(sz * 1.5f) * 0.2f;
+        } else if (biomeType == 4) { // Floating Islands
+            h = std::sin(sx * 1.2f) * std::cos(sz * 1.2f) * 1.2f;
+        } else { // 3D Maze Floor
+            h = 0.0f;
+        }
+        return h * heightScale;
+    };
+
+    std::vector<std::vector<glm::vec3>> positions(gridD, std::vector<glm::vec3>(gridW));
+    std::vector<std::vector<glm::vec3>> normals(gridD, std::vector<glm::vec3>(gridW));
+
+    for (int z = 0; z < gridD; ++z) {
+        for (int x = 0; x < gridW; ++x) {
+            float worldX = -halfW + x * cellSize;
+            float worldZ = -halfD + z * cellSize;
+            float worldY = noiseFunc(worldX, worldZ);
+            positions[z][x] = glm::vec3(worldX, worldY, worldZ);
+        }
+    }
+
+    for (int z = 0; z < gridD; ++z) {
+        for (int x = 0; x < gridW; ++x) {
+            float xL = (x > 0) ? positions[z][x - 1].y : positions[z][x].y;
+            float xR = (x < gridW - 1) ? positions[z][x + 1].y : positions[z][x].y;
+            float zU = (z > 0) ? positions[z - 1][x].y : positions[z][x].y;
+            float zD = (z < gridD - 1) ? positions[z + 1][x].y : positions[z][x].y;
+
+            glm::vec3 normal = glm::normalize(glm::vec3(xL - xR, 2.0f * cellSize, zU - zD));
+            normals[z][x] = normal;
+        }
+    }
+
+    for (int z = 0; z < gridD; ++z) {
+        for (int x = 0; x < gridW; ++x) {
+            Vertex v{};
+            v.pos = positions[z][x];
+            v.normal = normals[z][x];
+            v.texCoord = glm::vec2(float(x) / float(gridW - 1) * 12.0f, float(z) / float(gridD - 1) * 12.0f);
+
+            float y = v.pos.y;
+            if (biomeType == 0) { // Forest
+                if (y < heightScale * 0.2f) v.color = glm::vec3(0.2f, 0.6f, 0.25f);
+                else if (y < heightScale * 0.6f) v.color = glm::vec3(0.45f, 0.4f, 0.25f);
+                else v.color = glm::vec3(0.9f, 0.92f, 0.95f);
+            } else if (biomeType == 1) { // Desert
+                v.color = glm::vec3(0.85f + 0.1f * std::sin(y), 0.68f, 0.35f);
+            } else if (biomeType == 2) { // Cyberpunk Floor
+                v.color = glm::vec3(0.12f, 0.14f, 0.18f);
+            } else if (biomeType == 3) { // Medieval Valley
+                v.color = (y > heightScale * 0.5f) ? glm::vec3(0.5f, 0.5f, 0.5f) : glm::vec3(0.3f, 0.65f, 0.3f);
+            } else if (biomeType == 4) { // Floating Island
+                v.color = glm::vec3(0.4f, 0.45f, 0.35f);
+            } else { // Dungeon Stone
+                v.color = glm::vec3(0.3f, 0.3f, 0.32f);
+            }
+
+            mesh.vertices.push_back(v);
+        }
+    }
+
+    for (int z = 0; z < gridD - 1; ++z) {
+        for (int x = 0; x < gridW - 1; ++x) {
+            uint32_t topLeft = z * gridW + x;
+            uint32_t topRight = topLeft + 1;
+            uint32_t botLeft = (z + 1) * gridW + x;
+            uint32_t botRight = botLeft + 1;
+
+            mesh.indices.insert(mesh.indices.end(), { topLeft, botLeft, topRight, topRight, botLeft, botRight });
+        }
+    }
+
+    mesh.indexCount = static_cast<uint32_t>(mesh.indices.size());
+    createMeshBuffers(mesh);
+    meshes.push_back(std::move(mesh));
+    return static_cast<int>(meshes.size()) - 1;
+}
+
+int VulkanApp::getOrLoadTextureAsset(const std::string& pathStr)
+{
+    if (cachedTextureIds.find(pathStr) != cachedTextureIds.end())
+    {
+        return cachedTextureIds[pathStr];
+    }
+    int texId = loadTextureAsset(pathStr);
+    if (texId >= 0)
+    {
+        cachedTextureIds[pathStr] = texId;
+    }
+    return texId;
+}
+
+int VulkanApp::getOrLoadModelAsset(const std::string& pathStr)
+{
+    if (cachedModelMeshIds.find(pathStr) != cachedModelMeshIds.end())
+    {
+        return cachedModelMeshIds[pathStr];
+    }
+    int meshId = load3DModelAsset(pathStr);
+    if (meshId >= 0)
+    {
+        cachedModelMeshIds[pathStr] = meshId;
+    }
+    return meshId;
+}
+
+static std::vector<std::string> scanAvailable3DModels()
+{
+    std::vector<std::string> modelFiles;
+    std::vector<std::string> searchDirs = { "assets", "assets/models" };
+    for (const auto& dir : searchDirs)
+    {
+        if (std::filesystem::exists(dir))
+        {
+            for (const auto& entry : std::filesystem::directory_iterator(dir))
+            {
+                if (entry.is_regular_file())
+                {
+                    std::string stem = entry.path().stem().string();
+                    std::string ext = entry.path().extension().string();
+                    for (auto& c : ext) c = tolower(c);
+                    if (stem == "trees9") continue; // Multi-tree asset pack (100m wide), use tree9.obj for single tree
+                    if (ext == ".glb" || ext == ".gltf" || ext == ".obj")
+                    {
+                        modelFiles.push_back(entry.path().string());
+                    }
+                }
+            }
+        }
+    }
+    return modelFiles;
+}
+
+void VulkanApp::generate3DScene()
+{
+    saveHistory();
+    if (genClearExisting)
+    {
+        sceneObjects.clear();
+        selectedObjectIndex = -1;
+    }
+
+    // Always ensure Directional Sun Light
+    bool sunExists = false;
+    for (const auto& obj : sceneObjects)
+    {
+        if (obj.type == ObjectType::LIGHT) { sunExists = true; break; }
+    }
+
+    if (!sunExists)
+    {
+        SceneObject sun;
+        sun.id = static_cast<int>(sceneObjects.size());
+        sun.name = "☀️ Sun Light (Main)";
+        sun.type = ObjectType::LIGHT;
+        sun.position = glm::vec3(0.0f, 15.0f, 10.0f);
+        sun.rotation = glm::vec3(45.0f, 30.0f, 0.0f);
+        sun.scale = glm::vec3(0.5f, 0.5f, 0.5f);
+        sun.color = glm::vec4(genSunColor, 1.0f);
+        sun.meshId = primitiveCubeMeshId;
+        auto lightComp = std::make_shared<LightComponent>();
+        lightComp->color = sun.color;
+        lightComp->intensity = genSunIntensity;
+        sun.components.push_back(lightComp);
+        sceneObjects.push_back(sun);
+    }
+
+    std::mt19937 rng(genSeed);
+    std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
+    std::uniform_real_distribution<float> distRot(0.0f, 360.0f);
+
+    float cellSize = 1.0f;
+    float halfW = (genGridSize - 1) * cellSize * 0.5f;
+
+    // Scan real 3D models (.glb, .obj) in assets/
+    std::vector<std::string> realModels = scanAvailable3DModels();
+
+    auto sampleHeight = [&](float x, float z) -> float {
+        float sx = x * 0.1f + genSeed * 0.13f;
+        float sz = z * 0.1f + genSeed * 0.17f;
+        float h = 0.0f;
+        if (genPreset == 0) { // Forest
+            h += std::sin(sx) * std::cos(sz) * 0.6f;
+            h += std::sin(sx * 2.3f + 1.2f) * std::cos(sz * 2.1f + 0.5f) * 0.3f;
+            h += std::sin(sx * 4.7f) * std::cos(sz * 4.9f) * 0.1f;
+        } else if (genPreset == 1) { // Desert
+            h += std::sin(sx * 0.7f + sz * 0.5f) * 0.8f;
+            h += std::cos(sx * 1.8f - sz * 1.2f) * 0.2f;
+        } else if (genPreset == 3) { // Medieval Valley
+            float distFromCenter = std::sqrt(x * x + z * z);
+            h = (1.0f - std::exp(-distFromCenter * 0.05f)) * 0.8f;
+            h += std::sin(sx * 1.5f) * std::cos(sz * 1.5f) * 0.2f;
+        } else if (genPreset == 4) { // Floating Islands
+            h = std::sin(sx * 1.2f) * std::cos(sz * 1.2f) * 1.2f;
+        }
+        return h * genHeightScale;
+    };
+
+    auto sampleNormal = [&](float x, float z) -> glm::vec3 {
+        float eps = 0.25f;
+        float hL = sampleHeight(x - eps, z);
+        float hR = sampleHeight(x + eps, z);
+        float hD = sampleHeight(x, z - eps);
+        float hU = sampleHeight(x, z + eps);
+        glm::vec3 n(-(hR - hL) / (2.0f * eps), 1.0f, -(hU - hD) / (2.0f * eps));
+        return glm::normalize(n);
+    };
+
+    auto setupRockTransform = [&](SceneObject& rockObj, float rx, float ry, float rz, float baseScale) {
+        // Lay completely flat on the horizontal ground plane (0 pitch, 0 roll, rotation purely horizontal around Y)
+        float yaw = distRot(rng);
+        rockObj.rotation = glm::vec3(0.0f, yaw, 0.0f);
+
+        // Lie flat: horizontal slab/outcropping with compressed vertical height (22% - 30% of spread)
+        float flatFactor = 0.22f + dist01(rng) * 0.08f;
+        float spreadX = baseScale * (1.10f + dist01(rng) * 0.20f);
+        float spreadZ = baseScale * (1.10f + dist01(rng) * 0.20f);
+        float heightY = baseScale * flatFactor;
+
+        // Base rests flush on the ground with slight natural embed
+        float embed = heightY * 0.30f;
+
+        rockObj.scale = glm::vec3(spreadX, heightY, spreadZ);
+        rockObj.position = glm::vec3(rx, ry - embed, rz);
+    };
+
+    if (genPreset == 0) // 🌲 FOREST & MOUNTAIN LANDSCAPE
+    {
+        int terrainMeshId = createTerrainMesh(genGridSize, genGridSize, cellSize, genHeightScale, genSeed, 0);
+        SceneObject terrain;
+        terrain.id = static_cast<int>(sceneObjects.size());
+        terrain.name = "🏔️ Terrain_Landscape";
+        terrain.type = ObjectType::PLANE;
+        terrain.position = glm::vec3(0.0f, 0.0f, 0.0f);
+        terrain.meshId = terrainMeshId;
+        terrain.color = glm::vec4(1.0f);
+
+        // Bind realistic grass texture
+        if (std::filesystem::exists("assets/grass.jpg"))
+        {
+            terrain.textureId = getOrLoadTextureAsset("assets/grass.jpg");
+        }
+
+        sceneObjects.push_back(terrain);
+
+        int count = static_cast<int>(genGridSize * genGridSize * 0.06f * genDensity);
+        for (int i = 0; i < count; ++i)
+        {
+            float rx = (dist01(rng) * 2.0f - 1.0f) * (halfW - 2.0f);
+            float rz = (dist01(rng) * 2.0f - 1.0f) * (halfW - 2.0f);
+            float ry = sampleHeight(rx, rz);
+
+            if (genUseReal3DModels && !realModels.empty() && dist01(rng) < 0.4f)
+            {
+                // Place a real 3D model asset!
+                std::string chosenPath = realModels[rng() % realModels.size()];
+                int mId = getOrLoadModelAsset(chosenPath);
+                if (mId >= 0)
+                {
+                    std::filesystem::path p(chosenPath);
+                    std::string modelName = p.stem().string();
+
+                    SceneObject realObj;
+                    realObj.id = static_cast<int>(sceneObjects.size());
+                    realObj.name = "🌐 " + modelName + "_" + std::to_string(i);
+                    realObj.type = ObjectType::CUBE;
+                    if (modelName.find("rock") != std::string::npos || modelName.find("Rock") != std::string::npos)
+                    {
+                        // Rocks must lie on flat ground, not on slopes or ridges like trees
+                        glm::vec3 n = sampleNormal(rx, rz);
+                        if (n.y < 0.88f) continue;
+                        float rockScale = 0.22f + dist01(rng) * 0.22f;
+                        setupRockTransform(realObj, rx, ry, rz, rockScale);
+                    }
+                    else
+                    {
+                        realObj.rotation = glm::vec3(0.0f, distRot(rng), 0.0f);
+                        float sc = 1.0f;
+                        if (modelName == "Fox") sc = 0.02f;
+                        else if (modelName == "Duck") sc = 0.5f;
+                        else if (modelName == "Lantern") sc = 0.2f;
+                        else if (modelName == "DamagedHelmet") sc = 0.4f;
+                        else if (modelName == "CesiumMan") sc = 1.0f;
+                        else if (modelName == "Avocado") sc = 4.0f;
+                        else if (modelName == "PineTree" || modelName == "Tree" || modelName.find("tree") != std::string::npos || modelName.find("Tree") != std::string::npos) sc = 1.0f;
+
+                        bool snapGround = (modelName.find("tree") != std::string::npos || modelName.find("Tree") != std::string::npos);
+                        realObj.position = glm::vec3(rx, snapGround ? ry : (ry + 0.5f), rz);
+                        realObj.scale = glm::vec3(sc);
+                    }
+                    realObj.color = glm::vec4(1.0f);
+                    realObj.meshId = mId;
+                    if (mId >= 0 && mId < static_cast<int>(meshes.size())) {
+                        if (meshes[mId].submeshes.empty()) {
+                            realObj.textureId = meshes[mId].defaultTextureId;
+                        } else {
+                            realObj.textureId = -1;
+                        }
+                        realObj.roughness = meshes[mId].defaultRoughness;
+                        realObj.metallic = meshes[mId].defaultMetallic;
+                    }
+                    sceneObjects.push_back(realObj);
+                    continue;
+                }
+            }
+
+            // Occasional flat rock slab lying in the valley / meadow
+            if (genIncludeRocks && dist01(rng) < 0.20f)
+            {
+                glm::vec3 n = sampleNormal(rx, rz);
+                if (n.y >= 0.88f && ry <= genHeightScale * 0.45f)
+                {
+                    int rockMeshId = -1;
+                    if (std::filesystem::exists("assets/models/rock.glb")) rockMeshId = getOrLoadModelAsset("assets/models/rock.glb");
+                    else if (std::filesystem::exists("assets/rock.glb")) rockMeshId = getOrLoadModelAsset("assets/rock.glb");
+
+                    if (rockMeshId >= 0)
+                    {
+                        float rockScale = 0.18f + dist01(rng) * 0.22f;
+                        SceneObject rock;
+                        rock.id = static_cast<int>(sceneObjects.size());
+                        rock.name = "🪨 Valley_FlatRock_" + std::to_string(i);
+                        rock.type = ObjectType::CUBE;
+                        setupRockTransform(rock, rx, ry, rz, rockScale);
+                        rock.color = glm::vec4(1.0f);
+                        rock.meshId = rockMeshId;
+                        if (rockMeshId < static_cast<int>(meshes.size())) {
+                            rock.textureId = meshes[rockMeshId].defaultTextureId;
+                            rock.roughness = meshes[rockMeshId].defaultRoughness;
+                            rock.metallic = meshes[rockMeshId].defaultMetallic;
+                        }
+                        sceneObjects.push_back(rock);
+                        continue;
+                    }
+                }
+            }
+
+            if (genIncludeTrees && ry < genHeightScale * 0.55f)
+            {
+                float treeScale = 0.85f + dist01(rng) * 0.35f;
+
+                static const std::vector<std::string> treeVariantPool = {
+                    "assets/models/tree9.obj",
+                    "assets/models/tree_mossy.obj",
+                    "assets/models/tree_cedar.obj",
+                    "assets/models/tree_pine.obj",
+                    "assets/models/tree_savanna.obj",
+                    "assets/models/tree_redwood.obj",
+                    "assets/models/tree_oak.obj"
+                };
+
+                std::vector<std::string> availableTrees;
+                for (const auto& tp : treeVariantPool) {
+                    if (std::filesystem::exists(tp)) availableTrees.push_back(tp);
+                }
+                if (availableTrees.empty()) {
+                    if (std::filesystem::exists("assets/models/PineTree.glb")) availableTrees.push_back("assets/models/PineTree.glb");
+                }
+
+                std::string treeModelPath = "";
+                if (!availableTrees.empty()) {
+                    treeModelPath = availableTrees[rng() % availableTrees.size()];
+                }
+
+                if (!treeModelPath.empty())
+                {
+                    int treeMeshId = getOrLoadModelAsset(treeModelPath);
+                    if (treeMeshId >= 0)
+                    {
+                        std::filesystem::path tp(treeModelPath);
+                        std::string tStem = tp.stem().string();
+
+                        SceneObject treeObj;
+                        treeObj.id = static_cast<int>(sceneObjects.size());
+                        treeObj.name = "🌲 " + tStem + "_" + std::to_string(i);
+                        treeObj.type = ObjectType::CUBE;
+                        treeObj.position = glm::vec3(rx, ry, rz);
+                        treeObj.rotation = glm::vec3(0.0f, distRot(rng), 0.0f);
+                        treeObj.scale = glm::vec3(treeScale);
+                        treeObj.color = glm::vec4(1.0f);
+                        treeObj.meshId = treeMeshId;
+                        if (treeMeshId < static_cast<int>(meshes.size())) {
+                            if (meshes[treeMeshId].submeshes.empty()) {
+                                if (meshes[treeMeshId].defaultTextureId >= 0) {
+                                    treeObj.textureId = meshes[treeMeshId].defaultTextureId;
+                                } else {
+                                    int defTex = getOrLoadTextureAsset("assets/textures/Tree_Leaves_Green.png");
+                                    if (defTex < 0) defTex = getOrLoadTextureAsset("assets/Texture/Walnut_L.png");
+                                    if (defTex >= 0) treeObj.textureId = defTex;
+                                }
+                            } else {
+                                treeObj.textureId = -1; // Let submeshes handle Bark & Leaves independently
+                            }
+                        }
+                        sceneObjects.push_back(treeObj);
+                        continue;
+                    }
+                }
+
+                SceneObject trunk;
+                trunk.id = static_cast<int>(sceneObjects.size());
+                trunk.name = "🌲 PineTree_Trunk_" + std::to_string(i);
+                trunk.type = ObjectType::CUBE;
+                trunk.position = glm::vec3(rx, ry + 0.6f * treeScale, rz);
+                trunk.rotation = glm::vec3(0.0f, distRot(rng), 0.0f);
+                trunk.scale = glm::vec3(0.25f * treeScale, 1.2f * treeScale, 0.25f * treeScale);
+                trunk.color = glm::vec4(1.0f);
+                trunk.meshId = (primitiveCylinderMeshId >= 0) ? primitiveCylinderMeshId : primitiveCubeMeshId;
+                trunk.textureId = getOrLoadTextureAsset("assets/Texture/Bark___0.jpg");
+                sceneObjects.push_back(trunk);
+
+                SceneObject foliage1;
+                foliage1.id = static_cast<int>(sceneObjects.size());
+                foliage1.name = "🌲 PineTree_Foliage1_" + std::to_string(i);
+                foliage1.type = ObjectType::CUBE;
+                foliage1.position = glm::vec3(rx, ry + 1.6f * treeScale, rz);
+                foliage1.rotation = glm::vec3(0.0f, distRot(rng), 0.0f);
+                foliage1.scale = glm::vec3(1.2f * treeScale, 1.0f * treeScale, 1.2f * treeScale);
+                foliage1.color = glm::vec4(1.0f);
+                foliage1.meshId = (primitiveConeMeshId >= 0) ? primitiveConeMeshId : primitiveSphereMeshId;
+                foliage1.textureId = getOrLoadTextureAsset("assets/Texture/Oak_Leav.jpg");
+                sceneObjects.push_back(foliage1);
+
+                SceneObject foliage2;
+                foliage2.id = static_cast<int>(sceneObjects.size());
+                foliage2.name = "🌲 PineTree_Foliage2_" + std::to_string(i);
+                foliage2.type = ObjectType::CUBE;
+                foliage2.position = glm::vec3(rx, ry + 2.3f * treeScale, rz);
+                foliage2.rotation = glm::vec3(0.0f, distRot(rng), 0.0f);
+                foliage2.scale = glm::vec3(0.8f * treeScale, 0.8f * treeScale, 0.8f * treeScale);
+                foliage2.color = glm::vec4(1.0f);
+                foliage2.meshId = (primitiveConeMeshId >= 0) ? primitiveConeMeshId : primitiveSphereMeshId;
+                foliage2.textureId = getOrLoadTextureAsset("assets/Texture/Oak_Leav.jpg");
+                sceneObjects.push_back(foliage2);
+            }
+            else if (genIncludeRocks)
+            {
+                // Only place flat rocks on flat ground / meadow plains (slope normal y >= 0.88f), never on steep slopes like trees
+                glm::vec3 n = sampleNormal(rx, rz);
+                if (n.y >= 0.88f && ry <= genHeightScale * 0.45f)
+                {
+                    int rockMeshId = -1;
+                    if (std::filesystem::exists("assets/models/rock.glb")) {
+                        rockMeshId = getOrLoadModelAsset("assets/models/rock.glb");
+                    } else if (std::filesystem::exists("assets/rock.glb")) {
+                        rockMeshId = getOrLoadModelAsset("assets/rock.glb");
+                    }
+
+                    if (rockMeshId >= 0)
+                    {
+                        float rockScale = 0.20f + dist01(rng) * 0.25f;
+                        SceneObject rock;
+                        rock.id = static_cast<int>(sceneObjects.size());
+                        rock.name = "🪨 Meadow_FlatRock_" + std::to_string(i);
+                        rock.type = ObjectType::CUBE;
+                        setupRockTransform(rock, rx, ry, rz, rockScale);
+                        rock.color = glm::vec4(1.0f);
+                        rock.meshId = rockMeshId;
+                        if (rockMeshId < static_cast<int>(meshes.size())) {
+                            rock.textureId = meshes[rockMeshId].defaultTextureId;
+                            rock.roughness = meshes[rockMeshId].defaultRoughness;
+                            rock.metallic = meshes[rockMeshId].defaultMetallic;
+                        }
+                        sceneObjects.push_back(rock);
+                    }
+                    else
+                    {
+                        float rockScale = 0.35f + dist01(rng) * 0.4f;
+                        SceneObject rock;
+                        rock.id = static_cast<int>(sceneObjects.size());
+                        rock.name = "🪨 Meadow_Boulder_" + std::to_string(i);
+                        rock.type = ObjectType::SPHERE;
+                        setupRockTransform(rock, rx, ry, rz, rockScale);
+                        rock.color = glm::vec4(0.45f + dist01(rng) * 0.1f, 0.45f + dist01(rng) * 0.1f, 0.48f, 1.0f);
+                        rock.meshId = primitiveSphereMeshId;
+                        sceneObjects.push_back(rock);
+                    }
+                }
+            }
+        }
+    }
+    else if (genPreset == 1) // 🏜️ DESERT DUNES & ANCIENT RUINS
+    {
+        int terrainMeshId = createTerrainMesh(genGridSize, genGridSize, cellSize, genHeightScale * 0.6f, genSeed, 1);
+        SceneObject terrain;
+        terrain.id = static_cast<int>(sceneObjects.size());
+        terrain.name = "🏜️ Desert_Dunes";
+        terrain.type = ObjectType::PLANE;
+        terrain.position = glm::vec3(0.0f, 0.0f, 0.0f);
+        terrain.meshId = terrainMeshId;
+        terrain.color = glm::vec4(0.9f, 0.75f, 0.4f, 1.0f);
+        sceneObjects.push_back(terrain);
+
+        if (genIncludeBuildings)
+        {
+            for (int step = 0; step < 6; ++step)
+            {
+                SceneObject pyramidLayer;
+                pyramidLayer.id = static_cast<int>(sceneObjects.size());
+                pyramidLayer.name = "🏛️ Ancient_Pyramid_Layer_" + std::to_string(step);
+                pyramidLayer.type = ObjectType::CUBE;
+                pyramidLayer.position = glm::vec3(0.0f, step * 0.8f + 0.4f, 0.0f);
+                float width = (6 - step) * 1.6f;
+                pyramidLayer.scale = glm::vec3(width, 0.8f, width);
+                pyramidLayer.color = glm::vec4(0.85f - step * 0.03f, 0.68f - step * 0.03f, 0.38f, 1.0f);
+                pyramidLayer.meshId = primitiveCubeMeshId;
+                sceneObjects.push_back(pyramidLayer);
+            }
+
+            // Top relic 3D helmet/artifact on top of pyramid
+            if (genUseReal3DModels && !realModels.empty())
+            {
+                int helmetMeshId = getOrLoadModelAsset("assets/models/DamagedHelmet.glb");
+                if (helmetMeshId >= 0)
+                {
+                    SceneObject relic;
+                    relic.id = static_cast<int>(sceneObjects.size());
+                    relic.name = "👑 Ancient_Relic_Helmet";
+                    relic.type = ObjectType::CUBE;
+                    relic.position = glm::vec3(0.0f, 5.2f, 0.0f);
+                    relic.scale = glm::vec3(0.6f);
+                    relic.color = glm::vec4(1.0f);
+                    relic.meshId = helmetMeshId;
+                    if (helmetMeshId < static_cast<int>(meshes.size())) {
+                        relic.textureId = meshes[helmetMeshId].defaultTextureId;
+                        relic.roughness = meshes[helmetMeshId].defaultRoughness;
+                        relic.metallic = meshes[helmetMeshId].defaultMetallic;
+                    }
+                    sceneObjects.push_back(relic);
+                }
+            }
+        }
+
+        int count = static_cast<int>(20 * genDensity);
+        for (int i = 0; i < count; ++i)
+        {
+            float rx = (dist01(rng) * 2.0f - 1.0f) * (halfW - 3.0f);
+            float rz = (dist01(rng) * 2.0f - 1.0f) * (halfW - 3.0f);
+            if (std::abs(rx) < 6.0f && std::abs(rz) < 6.0f) continue;
+
+            float ry = sampleHeight(rx, rz);
+
+            if (genUseReal3DModels && !realModels.empty() && dist01(rng) < 0.35f)
+            {
+                std::string chosenPath = realModels[rng() % realModels.size()];
+                int mId = getOrLoadModelAsset(chosenPath);
+                if (mId >= 0)
+                {
+                    std::filesystem::path p(chosenPath);
+                    std::string mName = p.stem().string();
+
+                    SceneObject realObj;
+                    realObj.id = static_cast<int>(sceneObjects.size());
+                    realObj.name = "🌐 Desert_" + mName + "_" + std::to_string(i);
+                    realObj.type = ObjectType::CUBE;
+                    if (mName.find("rock") != std::string::npos || mName.find("Rock") != std::string::npos)
+                    {
+                        glm::vec3 n = sampleNormal(rx, rz);
+                        if (n.y < 0.88f) continue;
+                        float rockScale = 0.25f + dist01(rng) * 0.25f;
+                        setupRockTransform(realObj, rx, ry, rz, rockScale);
+                    }
+                    else
+                    {
+                        float sc = 0.6f;
+                        if (mName == "Fox") sc = 0.02f;
+                        else if (mName == "Lantern") sc = 0.2f;
+
+                        bool snapGround = (mName.find("tree") != std::string::npos || mName.find("Tree") != std::string::npos);
+                        realObj.position = glm::vec3(rx, snapGround ? ry : (ry + 0.5f), rz);
+                        realObj.rotation = glm::vec3(0.0f, distRot(rng), 0.0f);
+                        realObj.scale = glm::vec3(sc);
+                    }
+                    realObj.color = glm::vec4(1.0f);
+                    realObj.meshId = mId;
+                    if (mId < static_cast<int>(meshes.size())) {
+                        realObj.textureId = meshes[mId].defaultTextureId;
+                        realObj.roughness = meshes[mId].defaultRoughness;
+                        realObj.metallic = meshes[mId].defaultMetallic;
+                    }
+                    sceneObjects.push_back(realObj);
+                    continue;
+                }
+            }
+
+            SceneObject pillar;
+            pillar.id = static_cast<int>(sceneObjects.size());
+            pillar.name = "🏛️ Ruin_Pillar_" + std::to_string(i);
+            pillar.type = ObjectType::CUBE;
+            pillar.position = glm::vec3(rx, ry + 1.5f, rz);
+            pillar.rotation = glm::vec3((dist01(rng) > 0.8f ? dist01(rng) * 25.0f : 0.0f), distRot(rng), 0.0f);
+            pillar.scale = glm::vec3(0.6f, 3.0f, 0.6f);
+            pillar.color = glm::vec4(0.78f, 0.65f, 0.45f, 1.0f);
+            pillar.meshId = (primitiveCylinderMeshId >= 0) ? primitiveCylinderMeshId : primitiveCubeMeshId;
+            sceneObjects.push_back(pillar);
+        }
+    }
+    else if (genPreset == 2) // 🏙️ SCI-FI CYBERPUNK CITY
+    {
+        int terrainMeshId = createTerrainMesh(genGridSize, genGridSize, cellSize, 0.0f, genSeed, 2);
+        SceneObject ground;
+        ground.id = static_cast<int>(sceneObjects.size());
+        ground.name = "🌃 City_Ground_Grid";
+        ground.type = ObjectType::PLANE;
+        ground.position = glm::vec3(0.0f, 0.0f, 0.0f);
+        ground.meshId = terrainMeshId;
+        sceneObjects.push_back(ground);
+
+        int cityBlocks = static_cast<int>(std::floor(genGridSize / 4));
+        float blockStep = 3.5f;
+
+        for (int bx = -cityBlocks / 2; bx <= cityBlocks / 2; ++bx)
+        {
+            for (int bz = -cityBlocks / 2; bz <= cityBlocks / 2; ++bz)
+            {
+                if (dist01(rng) < 0.2f) continue;
+
+                float posX = bx * blockStep;
+                float posZ = bz * blockStep;
+
+                float bHeight = 3.0f + dist01(rng) * 18.0f * genHeightScale * 0.3f;
+                float bWidth = 1.2f + dist01(rng) * 1.2f;
+
+                SceneObject building;
+                building.id = static_cast<int>(sceneObjects.size());
+                building.name = "🏢 Skyscraper_" + std::to_string(bx) + "_" + std::to_string(bz);
+                building.type = ObjectType::CUBE;
+                building.position = glm::vec3(posX, bHeight * 0.5f, posZ);
+                building.scale = glm::vec3(bWidth, bHeight, bWidth);
+
+                float colR = 0.1f + dist01(rng) * 0.2f;
+                float colG = 0.15f + dist01(rng) * 0.25f;
+                float colB = 0.3f + dist01(rng) * 0.4f;
+                building.color = glm::vec4(colR, colG, colB, 1.0f);
+                building.meshId = primitiveCubeMeshId;
+                sceneObjects.push_back(building);
+
+                if (genIncludeLights && dist01(rng) > 0.5f)
+                {
+                    SceneObject neonLight;
+                    neonLight.id = static_cast<int>(sceneObjects.size());
+                    neonLight.name = "💡 Neon_Beacon_" + std::to_string(bx) + "_" + std::to_string(bz);
+                    neonLight.type = ObjectType::LIGHT;
+                    neonLight.position = glm::vec3(posX, bHeight + 0.8f, posZ);
+                    neonLight.scale = glm::vec3(0.3f);
+
+                    glm::vec3 neonColor = (dist01(rng) > 0.5f) ? glm::vec3(0.0f, 0.9f, 1.0f) : glm::vec3(1.0f, 0.1f, 0.8f);
+                    neonLight.color = glm::vec4(neonColor, 1.0f);
+                    neonLight.meshId = primitiveCubeMeshId;
+
+                    auto lComp = std::make_shared<LightComponent>();
+                    lComp->color = neonLight.color;
+                    lComp->intensity = 2.5f;
+                    neonLight.components.push_back(lComp);
+
+                    sceneObjects.push_back(neonLight);
+                }
+            }
+        }
+    }
+    else if (genPreset == 3) // 🏰 MEDIEVAL VILLAGE & CITADEL
+    {
+        int terrainMeshId = createTerrainMesh(genGridSize, genGridSize, cellSize, genHeightScale * 0.4f, genSeed, 3);
+        SceneObject terrain;
+        terrain.id = static_cast<int>(sceneObjects.size());
+        terrain.name = "🏰 Citadel_Valley";
+        terrain.type = ObjectType::PLANE;
+        terrain.position = glm::vec3(0.0f, 0.0f, 0.0f);
+        terrain.meshId = terrainMeshId;
+        sceneObjects.push_back(terrain);
+
+        if (genIncludeBuildings)
+        {
+            SceneObject keep;
+            keep.id = static_cast<int>(sceneObjects.size());
+            keep.name = "🏰 Castle_Main_Keep";
+            keep.type = ObjectType::CUBE;
+            keep.position = glm::vec3(0.0f, 2.5f, 0.0f);
+            keep.scale = glm::vec3(4.0f, 5.0f, 4.0f);
+            keep.color = glm::vec4(0.55f, 0.55f, 0.58f, 1.0f);
+            keep.meshId = primitiveCubeMeshId;
+            sceneObjects.push_back(keep);
+
+            glm::vec2 offsets[4] = { {-2.5f, -2.5f}, {2.5f, -2.5f}, {2.5f, 2.5f}, {-2.5f, 2.5f} };
+            for (int t = 0; t < 4; ++t)
+            {
+                SceneObject tower;
+                tower.id = static_cast<int>(sceneObjects.size());
+                tower.name = "🏰 Watch_Tower_" + std::to_string(t);
+                tower.type = ObjectType::CUBE;
+                tower.position = glm::vec3(offsets[t].x, 3.2f, offsets[t].y);
+                tower.scale = glm::vec3(1.2f, 6.4f, 1.2f);
+                tower.color = glm::vec4(0.5f, 0.5f, 0.52f, 1.0f);
+                tower.meshId = (primitiveCylinderMeshId >= 0) ? primitiveCylinderMeshId : primitiveCubeMeshId;
+                sceneObjects.push_back(tower);
+
+                SceneObject roof;
+                roof.id = static_cast<int>(sceneObjects.size());
+                roof.name = "🏰 Tower_Roof_" + std::to_string(t);
+                roof.type = ObjectType::CUBE;
+                roof.position = glm::vec3(offsets[t].x, 6.9f, offsets[t].y);
+                roof.scale = glm::vec3(1.5f, 1.2f, 1.5f);
+                roof.color = glm::vec4(0.7f, 0.15f, 0.12f, 1.0f);
+                roof.meshId = (primitiveConeMeshId >= 0) ? primitiveConeMeshId : primitiveSphereMeshId;
+                sceneObjects.push_back(roof);
+            }
+
+            // Real 3D Character models in citadel
+            if (genUseReal3DModels && !realModels.empty())
+            {
+                int charMeshId = getOrLoadModelAsset("assets/models/CesiumMan.glb");
+                if (charMeshId >= 0)
+                {
+                    SceneObject knight;
+                    knight.id = static_cast<int>(sceneObjects.size());
+                    knight.name = "🧍 Citadel_Guard_Knight";
+                    knight.type = ObjectType::CUBE;
+                    knight.position = glm::vec3(0.0f, 0.0f, 2.8f);
+                    knight.rotation = glm::vec3(0.0f, 180.0f, 0.0f);
+                    knight.scale = glm::vec3(1.0f);
+                    knight.color = glm::vec4(1.0f);
+                    knight.meshId = charMeshId;
+                    if (charMeshId < static_cast<int>(meshes.size())) {
+                        knight.textureId = meshes[charMeshId].defaultTextureId;
+                        knight.roughness = meshes[charMeshId].defaultRoughness;
+                        knight.metallic = meshes[charMeshId].defaultMetallic;
+                    }
+                    sceneObjects.push_back(knight);
+                }
+            }
+        }
+
+        int villageCount = static_cast<int>(15 * genDensity);
+        for (int i = 0; i < villageCount; ++i)
+        {
+            float angle = (float(i) / float(villageCount)) * 6.28318f + dist01(rng) * 0.2f;
+            float radius = 7.0f + dist01(rng) * 8.0f;
+            float rx = std::cos(angle) * radius;
+            float rz = std::sin(angle) * radius;
+            float ry = sampleHeight(rx, rz);
+
+            SceneObject house;
+            house.id = static_cast<int>(sceneObjects.size());
+            house.name = "🏡 Village_Cottage_" + std::to_string(i);
+            house.type = ObjectType::CUBE;
+            house.position = glm::vec3(rx, ry + 0.9f, rz);
+            house.rotation = glm::vec3(0.0f, glm::degrees(angle) + 90.0f, 0.0f);
+            house.scale = glm::vec3(1.6f, 1.8f, 2.2f);
+            house.color = glm::vec4(0.75f, 0.65f, 0.52f, 1.0f);
+            house.meshId = primitiveCubeMeshId;
+            sceneObjects.push_back(house);
+
+            SceneObject hRoof;
+            hRoof.id = static_cast<int>(sceneObjects.size());
+            hRoof.name = "🏡 Cottage_Roof_" + std::to_string(i);
+            hRoof.type = ObjectType::CUBE;
+            hRoof.position = glm::vec3(rx, ry + 2.3f, rz);
+            hRoof.rotation = glm::vec3(0.0f, glm::degrees(angle) + 90.0f, 0.0f);
+            hRoof.scale = glm::vec3(1.8f, 1.0f, 2.4f);
+            hRoof.color = glm::vec4(0.55f, 0.25f, 0.15f, 1.0f);
+            hRoof.meshId = (primitiveConeMeshId >= 0) ? primitiveConeMeshId : primitiveCubeMeshId;
+            sceneObjects.push_back(hRoof);
+        }
+    }
+    else if (genPreset == 4) // 🌌 FLOATING ISLANDS ARCHIPELAGO
+    {
+        int islandCount = static_cast<int>(7 * genDensity);
+        for (int i = 0; i < islandCount; ++i)
+        {
+            float rx = (dist01(rng) * 2.0f - 1.0f) * (halfW * 0.8f);
+            float rz = (dist01(rng) * 2.0f - 1.0f) * (halfW * 0.8f);
+            float ry = (dist01(rng) * 2.0f - 1.0f) * 8.0f;
+            float scaleXZ = 3.0f + dist01(rng) * 5.0f;
+
+            SceneObject island;
+            island.id = static_cast<int>(sceneObjects.size());
+            island.name = "🏝️ Floating_Island_" + std::to_string(i);
+            island.type = ObjectType::SPHERE;
+            island.position = glm::vec3(rx, ry, rz);
+            island.rotation = glm::vec3(dist01(rng) * 10.0f, distRot(rng), 0.0f);
+            island.scale = glm::vec3(scaleXZ, 1.5f + dist01(rng) * 2.0f, scaleXZ);
+            island.color = glm::vec4(0.35f, 0.48f, 0.3f, 1.0f);
+            island.meshId = primitiveSphereMeshId;
+            sceneObjects.push_back(island);
+
+            if (genUseReal3DModels && !realModels.empty() && dist01(rng) < 0.5f)
+            {
+                std::string chosenPath = realModels[rng() % realModels.size()];
+                int mId = getOrLoadModelAsset(chosenPath);
+                if (mId >= 0)
+                {
+                    std::filesystem::path p(chosenPath);
+                    std::string mName = p.stem().string();
+
+                    SceneObject realObj;
+                    realObj.id = static_cast<int>(sceneObjects.size());
+                    realObj.name = "🌐 Sky_" + mName + "_" + std::to_string(i);
+                    realObj.type = ObjectType::CUBE;
+                    if (mName.find("rock") != std::string::npos || mName.find("Rock") != std::string::npos) {
+                        float rSc = 0.22f + dist01(rng) * 0.18f;
+                        setupRockTransform(realObj, rx, ry + 0.75f, rz, rSc);
+                    } else {
+                        realObj.position = glm::vec3(rx, ry + 1.2f, rz);
+                        realObj.rotation = glm::vec3(0.0f, distRot(rng), 0.0f);
+                        float sc = (mName == "Fox") ? 0.02f : (mName == "Duck" ? 0.5f : 0.3f);
+                        realObj.scale = glm::vec3(sc);
+                    }
+                    realObj.color = glm::vec4(1.0f);
+                    realObj.meshId = mId;
+                    if (mId < static_cast<int>(meshes.size())) {
+                        realObj.textureId = meshes[mId].defaultTextureId;
+                        realObj.roughness = meshes[mId].defaultRoughness;
+                        realObj.metallic = meshes[mId].defaultMetallic;
+                    }
+                    sceneObjects.push_back(realObj);
+                    continue;
+                }
+            }
+
+            if (genIncludeLights)
+            {
+                SceneObject crystal;
+                crystal.id = static_cast<int>(sceneObjects.size());
+                crystal.name = "💎 Sky_Crystal_" + std::to_string(i);
+                crystal.type = ObjectType::LIGHT;
+                crystal.position = glm::vec3(rx, ry + 2.0f, rz);
+                crystal.rotation = glm::vec3(0.0f, 45.0f, 45.0f);
+                crystal.scale = glm::vec3(0.6f, 1.2f, 0.6f);
+                crystal.color = glm::vec4(0.1f, 0.9f, 1.0f, 1.0f);
+                crystal.meshId = primitiveCubeMeshId;
+
+                auto lComp = std::make_shared<LightComponent>();
+                lComp->color = crystal.color;
+                lComp->intensity = 3.0f;
+                crystal.components.push_back(lComp);
+                sceneObjects.push_back(crystal);
+            }
+        }
+    }
+    else if (genPreset == 5) // 🌀 3D MAZE COMPLEX
+    {
+        int mazeSize = 13;
+        std::vector<std::vector<int>> maze(mazeSize, std::vector<int>(mazeSize, 1));
+
+        std::function<void(int, int)> generateMazeDFS = [&](int cx, int cz) {
+            maze[cz][cx] = 0;
+            int dirs[4][2] = { {0, -2}, {2, 0}, {0, 2}, {-2, 0} };
+            std::vector<int> p = {0, 1, 2, 3};
+            std::shuffle(p.begin(), p.end(), rng);
+
+            for (int i : p) {
+                int nx = cx + dirs[i][0];
+                int nz = cz + dirs[i][1];
+                if (nx > 0 && nx < mazeSize - 1 && nz > 0 && nz < mazeSize - 1 && maze[nz][nx] == 1) {
+                    maze[cz + dirs[i][1]/2][cx + dirs[i][0]/2] = 0;
+                    generateMazeDFS(nx, nz);
+                }
+            }
+        };
+
+        generateMazeDFS(1, 1);
+
+        float mCell = 2.0f;
+        float offsetM = (mazeSize * mCell) * 0.5f;
+
+        SceneObject floor;
+        floor.id = static_cast<int>(sceneObjects.size());
+        floor.name = "🌀 Maze_Floor";
+        floor.type = ObjectType::PLANE;
+        floor.position = glm::vec3(0.0f, 0.0f, 0.0f);
+        floor.scale = glm::vec3(mazeSize * mCell, 1.0f, mazeSize * mCell);
+        floor.color = glm::vec4(0.25f, 0.25f, 0.28f, 1.0f);
+        floor.meshId = primitivePlaneMeshId;
+        sceneObjects.push_back(floor);
+
+        for (int z = 0; z < mazeSize; ++z)
+        {
+            for (int x = 0; x < mazeSize; ++x)
+            {
+                float wx = -offsetM + x * mCell + mCell * 0.5f;
+                float wz = -offsetM + z * mCell + mCell * 0.5f;
+
+                if (maze[z][x] == 1)
+                {
+                    SceneObject wall;
+                    wall.id = static_cast<int>(sceneObjects.size());
+                    wall.name = "🧱 Maze_Wall_" + std::to_string(x) + "_" + std::to_string(z);
+                    wall.type = ObjectType::CUBE;
+                    wall.position = glm::vec3(wx, 1.25f, wz);
+                    wall.scale = glm::vec3(mCell, 2.5f, mCell);
+                    wall.color = glm::vec4(0.42f, 0.42f, 0.46f, 1.0f);
+                    wall.meshId = primitiveCubeMeshId;
+                    sceneObjects.push_back(wall);
+                }
+                else if (genIncludeLights && dist01(rng) < 0.15f)
+                {
+                    if (genUseReal3DModels && !realModels.empty())
+                    {
+                        int lanternMeshId = getOrLoadModelAsset("assets/models/Lantern.glb");
+                        if (lanternMeshId >= 0)
+                        {
+                            SceneObject lantern;
+                            lantern.id = static_cast<int>(sceneObjects.size());
+                            lantern.name = "🏮 Maze_Lantern_" + std::to_string(x) + "_" + std::to_string(z);
+                            lantern.type = ObjectType::LIGHT;
+                            lantern.position = glm::vec3(wx, 0.5f, wz);
+                            lantern.scale = glm::vec3(0.12f);
+                            lantern.color = glm::vec4(1.0f, 0.7f, 0.3f, 1.0f);
+                            lantern.meshId = lanternMeshId;
+                            if (lanternMeshId < static_cast<int>(meshes.size())) {
+                                lantern.textureId = meshes[lanternMeshId].defaultTextureId;
+                                lantern.roughness = meshes[lanternMeshId].defaultRoughness;
+                                lantern.metallic = meshes[lanternMeshId].defaultMetallic;
+                            }
+
+                            auto lComp = std::make_shared<LightComponent>();
+                            lComp->color = lantern.color;
+                            lComp->intensity = 2.5f;
+                            lantern.components.push_back(lComp);
+                            sceneObjects.push_back(lantern);
+                            continue;
+                        }
+                    }
+
+                    SceneObject torch;
+                    torch.id = static_cast<int>(sceneObjects.size());
+                    torch.name = "🔥 Torch_Light_" + std::to_string(x) + "_" + std::to_string(z);
+                    torch.type = ObjectType::LIGHT;
+                    torch.position = glm::vec3(wx, 1.8f, wz);
+                    torch.scale = glm::vec3(0.2f);
+                    torch.color = glm::vec4(1.0f, 0.55f, 0.1f, 1.0f);
+                    torch.meshId = primitiveCubeMeshId;
+
+                    auto lComp = std::make_shared<LightComponent>();
+                    lComp->color = torch.color;
+                    lComp->intensity = 2.0f;
+                    torch.components.push_back(lComp);
+                    sceneObjects.push_back(torch);
+                }
+            }
+        }
+    }
+
+    printf("[3D Scene Generator] Created scene preset %d with %zu entities!\n", genPreset, sceneObjects.size());
+}
+
+void VulkanApp::drawSceneGeneratorPanel()
+{
+    if (!showSceneGeneratorPanel) return;
+
+    ImGui::SetNextWindowSize(ImVec2(370, 560), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("🏞️ 3D Scene Generator (Sinh Cảnh 3D)", &showSceneGeneratorPanel))
+    {
+        ImGui::TextColored(ImVec4(0.2f, 0.85f, 1.0f, 1.0f), "✨ Sinh Cảnh 3D Tự Động (Procedural Scene)");
+        ImGui::Separator();
+
+        const char* presets[] = {
+            "🌲 1. Rừng & Núi Đồi (Forest & Mountains)",
+            "🏜️ 2. Sa Mạc & Cổ Tích (Desert Dunes & Ruins)",
+            "🏙️ 3. Thành Phố Tương Lai (Cyberpunk City)",
+            "🏰 4. Ngôi Làng & Lâu Đài (Medieval Citadel)",
+            "🌌 5. Quần Đảo Phao (Floating Archipelago)",
+            "🌀 6. Mê Cung 3D (3D Dungeon Maze)"
+        };
+        ImGui::Combo("Preset Mẫu", &genPreset, presets, IM_ARRAYSIZE(presets));
+
+        ImGui::Spacing();
+        ImGui::Checkbox("🌐 Sử Dụng Objects 3D Thực Tế (.GLB / .OBJ)", &genUseReal3DModels);
+
+        ImGui::Spacing();
+        ImGui::Text("⚙️ Thông Số Sinh Cảnh:");
+        ImGui::InputInt("Seed (Hạt giống)", &genSeed);
+        ImGui::SameLine();
+        if (ImGui::Button("🎲 Random"))
+        {
+            genSeed = rand();
+        }
+
+        ImGui::SliderInt("Kích Thước Scene", &genGridSize, 10, 80);
+        ImGui::SliderFloat("Độ Cao Địa Hình", &genHeightScale, 0.0f, 15.0f, "%.1f");
+        ImGui::SliderFloat("Mật Độ Vật Thể", &genDensity, 0.1f, 3.0f, "%.2f");
+
+        ImGui::Spacing();
+        ImGui::Text("🎨 Phân Bố Thành Phần:");
+        ImGui::Checkbox("Thảm Thực Vật / Cây (Trees)", &genIncludeTrees);
+        ImGui::SameLine();
+        ImGui::Checkbox("Đá / Mỏm Núi (Rocks)", &genIncludeRocks);
+        ImGui::Checkbox("Tòa Nhà / Kiến Trúc (Buildings)", &genIncludeBuildings);
+        ImGui::SameLine();
+        ImGui::Checkbox("Ánh Sáng & Đèn (Lights)", &genIncludeLights);
+
+        ImGui::Spacing();
+        ImGui::Text("☀️ Chiếu Sáng Tự Nhiên:");
+        ImGui::ColorEdit3("Màu Mặt Trời", &genSunColor.x);
+        ImGui::SliderFloat("Cường Độ Nắng", &genSunIntensity, 0.5f, 5.0f, "%.1f");
+
+        ImGui::Separator();
+        ImGui::Checkbox("Xóa Cảnh Cũ Trước Khi Sinh", &genClearExisting);
+
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.65f, 0.35f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.8f, 0.4f, 1.0f));
+        if (ImGui::Button(" 🎲 SINH CẢNH 3D MỚI (GENERATE SCENE) ", ImVec2(-1, 38)))
+        {
+            generate3DScene();
+        }
+        ImGui::PopStyleColor(2);
+
+        ImGui::Spacing();
+        std::vector<std::string> detectedModels = scanAvailable3DModels();
+        if (ImGui::TreeNode("📦 Danh Sách Object 3D Đã Tải (.GLB / .OBJ)"))
+        {
+            if (detectedModels.empty())
+            {
+                ImGui::TextDisabled("Chưa tìm thấy file .glb hoặc .obj trong thư mục assets/models/");
+            }
+            else
+            {
+                for (const auto& mPath : detectedModels)
+                {
+                    std::filesystem::path p(mPath);
+                    std::string mLabel = "🧊 " + p.filename().string();
+                    if (ImGui::Selectable(mLabel.c_str()))
+                    {
+                        saveHistory();
+                        int mId = getOrLoadModelAsset(mPath);
+                        if (mId >= 0)
+                        {
+                            SceneObject newObj;
+                            newObj.id = static_cast<int>(sceneObjects.size());
+                            newObj.name = p.stem().string();
+                            newObj.type = ObjectType::CUBE;
+                            std::string stemName = p.stem().string();
+                            float initScale = 1.0f;
+                            if (stemName == "Fox") initScale = 0.02f;
+                            else if (stemName == "Lantern") initScale = 0.2f;
+
+                            if (stemName.find("rock") != std::string::npos || stemName.find("Rock") != std::string::npos)
+                            {
+                                newObj.scale = glm::vec3(0.35f, 0.10f, 0.35f);
+                                newObj.rotation = glm::vec3(0.0f);
+                                newObj.position = glm::vec3(0.0f, 0.0f, 0.0f);
+                            }
+                            else
+                            {
+                                newObj.scale = glm::vec3(initScale);
+                                newObj.position = glm::vec3(0.0f, (initScale < 0.5f ? 0.0f : 0.5f), 0.0f);
+                            }
+                            newObj.color = glm::vec4(1.0f);
+                            newObj.meshId = mId;
+                            if (mId < static_cast<int>(meshes.size())) {
+                                newObj.textureId = meshes[mId].defaultTextureId;
+                                newObj.roughness = meshes[mId].defaultRoughness;
+                                newObj.metallic = meshes[mId].defaultMetallic;
+                            }
+                            sceneObjects.push_back(newObj);
+                            selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+                        }
+                    }
+                }
+            }
+            ImGui::TreePop();
+        }
+
+        ImGui::Spacing();
+        if (ImGui::Button("📂 Mở Thư Mục assets/models (Chứa File GLB/OBJ)", ImVec2(-1, 26)))
+        {
+            system("start assets\\models");
+        }
+
+        ImGui::Spacing();
+        if (ImGui::Button("🧹 Xóa Tất Cả Vật Thể (Clear All)", ImVec2(-1, 26)))
+        {
+            saveHistory();
+            sceneObjects.clear();
+            selectedObjectIndex = -1;
+        }
+
+        ImGui::Separator();
+        ImGui::TextDisabled("Tổng số vật thể 3D hiện tại: %zu | Models 3D có sẵn: %zu", sceneObjects.size(), detectedModels.size());
+    }
+    ImGui::End();
+}
+
+bool VulkanApp::downloadModelFromUrl(const std::string& urlStr, const std::string& customFileName)
+{
+    if (urlStr.empty()) return false;
+
+    std::filesystem::create_directories("assets/models");
+
+    std::string fileName = customFileName;
+    if (fileName.empty())
+    {
+        size_t lastSlash = urlStr.find_last_of("/\\");
+        if (lastSlash != std::string::npos)
+        {
+            fileName = urlStr.substr(lastSlash + 1);
+        }
+        else
+        {
+            fileName = "DownloadedModel.glb";
+        }
+    }
+
+    std::filesystem::path p(fileName);
+    std::string ext = p.extension().string();
+    if (ext.empty())
+    {
+        fileName += ".glb";
+    }
+
+    std::string destPath = "assets/models/" + fileName;
+    downloaderStatusMsg = "⏳ Đang tải từ API URL: " + fileName + "...";
+    printf("[Downloader] Requesting API URL: %s -> %s\n", urlStr.c_str(), destPath.c_str());
+
+    isDownloadingModel = true;
+
+    HRESULT hr = URLDownloadToFileA(NULL, urlStr.c_str(), destPath.c_str(), 0, NULL);
+    isDownloadingModel = false;
+
+    if (SUCCEEDED(hr))
+    {
+        downloaderStatusMsg = "✅ Tải thành công! Đã lưu vào " + destPath;
+        printf("[Downloader SUCCESS] Saved model to %s\n", destPath.c_str());
+
+        int mId = getOrLoadModelAsset(destPath);
+        if (mId >= 0)
+        {
+            saveHistory();
+            SceneObject newObj;
+            newObj.id = static_cast<int>(sceneObjects.size());
+            newObj.name = p.stem().string();
+            newObj.type = ObjectType::CUBE;
+            newObj.position = glm::vec3(0.0f, 1.0f, 0.0f);
+            newObj.scale = glm::vec3(1.0f);
+            newObj.color = glm::vec4(1.0f);
+            newObj.meshId = mId;
+            sceneObjects.push_back(newObj);
+            selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+        }
+        return true;
+    }
+    else
+    {
+        downloaderStatusMsg = "❌ Thất bại khi tải file từ API URL: " + urlStr;
+        printf("[Downloader ERROR] Failed HRESULT: 0x%08X\n", (unsigned int)hr);
+        return false;
+    }
+}
+
+struct OnlineCatalogItem {
+    std::string name;
+    std::string category;
+    std::string url;
+    std::string filename;
+    std::string description;
+};
+
+void VulkanApp::drawOnlineModelDownloaderPanel()
+{
+    if (!showOnlineDownloaderPanel) return;
+
+    ImGui::SetNextWindowSize(ImVec2(430, 540), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("📥 Tải Model 3D Trực Tuyến (Online Asset Downloader)", &showOnlineDownloaderPanel))
+    {
+        ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.5f, 1.0f), "🌐 Plugin Tải Model 3D Tự Động Từ Link API / Internet");
+        ImGui::Separator();
+
+        if (ImGui::BeginTabBar("DownloaderTabs"))
+        {
+            if (ImGui::BeginTabItem("🌐 Tải từ Link URL Direct"))
+            {
+                ImGui::Spacing();
+                ImGui::Text("Dán URL trực tiếp tới file 3D (.glb, .gltf, .obj):");
+                ImGui::InputText("URL Link", downloaderUrlBuffer, IM_ARRAYSIZE(downloaderUrlBuffer));
+                ImGui::InputText("Tên file lưu (tùy chọn)", downloaderFilenameBuffer, IM_ARRAYSIZE(downloaderFilenameBuffer));
+
+                ImGui::Spacing();
+                if (isDownloadingModel)
+                {
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "⏳ Đang tải dữ liệu 3D từ internet...");
+                }
+                else
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.6f, 0.3f, 1.0f));
+                    if (ImGui::Button(" 📥 TẢI MODEL VỀ ASSETS & THẢ VÀO 3D SCENE ", ImVec2(-1, 36)))
+                    {
+                        std::string url = downloaderUrlBuffer;
+                        std::string customName = downloaderFilenameBuffer;
+                        if (!url.empty())
+                        {
+                            std::thread([this, url, customName]() {
+                                downloadModelFromUrl(url, customName);
+                            }).detach();
+                        }
+                    }
+                    ImGui::PopStyleColor();
+                }
+
+                ImGui::Spacing();
+                ImGui::TextWrapped("💡 Mẹo: Bạn có thể copy link raw .glb/.obj từ GitHub, Khronos Sample Repository, hoặc link direct từ Sketchfab/PolyPizza.");
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("📚 Kho Catalog Model 3D Miễn Phí (1-Click)"))
+            {
+                ImGui::Spacing();
+                ImGui::TextDisabled("Bấm nút 📥 1-Click Download để tải model thẳng về assets/models/ và hiện lên Scene:");
+
+                std::vector<OnlineCatalogItem> catalog = {
+                    { "🌲 Cây Thông (Pine Tree)", "Rừng & Tự Nhiên", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/Tree/glTF-Binary/Tree.glb", "PineTree.glb", "Cây thông 3D lá kim xanh rậm" },
+                    { "🦊 Con Cáo (Fox 3D)", "Động Vật", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/Fox/glTF-Binary/Fox.glb", "Fox.glb", "Mẫu con cáo 3D đáng yêu" },
+                    { "🦆 Con Vịt (Duck 3D)", "Động Vật", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/Duck/glTF-Binary/Duck.glb", "Duck.glb", "Mẫu con vịt vàng 3D" },
+                    { "🧍 Nhân Vật Người (Cesium Man)", "Nhân Vật", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/CesiumMan/glTF-Binary/CesiumMan.glb", "CesiumMan.glb", "Mẫu nhân vật 3D đi bộ" },
+                    { "🏮 Đèn Lồng Cổ (Lantern)", "Đồ Vật & Cổ Vật", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/Lantern/glTF-Binary/Lantern.glb", "Lantern.glb", "Đèn lồng cổ 3D cao cấp" },
+                    { "👑 Mũ Chiến Binh (Damaged Helmet)", "Cổ Vật & Vũ Khí", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb", "DamagedHelmet.glb", "Mũ bảo hiểm PBR cực đẹp" },
+                    { "🥑 Quả Bơ (Avocado)", "Vật Thể", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/Avocado/glTF-Binary/Avocado.glb", "Avocado.glb", "Mẫu quả bơ 3D PBR" }
+                };
+
+                for (size_t i = 0; i < catalog.size(); ++i)
+                {
+                    const auto& item = catalog[i];
+                    ImGui::PushID(static_cast<int>(i));
+
+                    ImGui::TextColored(ImVec4(0.9f, 0.7f, 0.2f, 1.0f), "%s", item.name.c_str());
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("[%s]", item.category.c_str());
+
+                    ImGui::Text("    %s (%s)", item.description.c_str(), item.filename.c_str());
+
+                    if (ImGui::Button(" 📥 1-Click Download & Import "))
+                    {
+                        std::string u = item.url;
+                        std::string f = item.filename;
+                        std::thread([this, u, f]() {
+                            downloadModelFromUrl(u, f);
+                        }).detach();
+                    }
+                    ImGui::Separator();
+                    ImGui::PopID();
+                }
+
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "Trạng thái: %s", downloaderStatusMsg.c_str());
+    }
+    ImGui::End();
+}
+
 void VulkanApp::initVulkan()
 {
     createInstance();
@@ -1130,6 +2877,7 @@ void VulkanApp::initVulkan()
     createDescriptorSets();
     createCommandBuffers();
     createOffscreenResources(); // Add offscreen resources
+    createTextureSampler();     // Texture sampler with anisotropic filtering
     createDefaultTexture();     // Default 1x1 white texture
     createSyncObjects();
 }
@@ -1323,7 +3071,13 @@ void VulkanApp::createLogicalDevice()
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
+    VkPhysicalDeviceFeatures supportedFeatures{};
+    vkGetPhysicalDeviceFeatures(physicalDevice, &supportedFeatures);
+
     VkPhysicalDeviceFeatures deviceFeatures{};
+    if (supportedFeatures.samplerAnisotropy) {
+        deviceFeatures.samplerAnisotropy = VK_TRUE;
+    }
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -1638,7 +3392,7 @@ void VulkanApp::createGraphicsPipeline()
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.cullMode = VK_CULL_MODE_NONE; // Two-sided rendering for foliage leaf cards and transparent meshes
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
@@ -1676,11 +3430,18 @@ void VulkanApp::createGraphicsPipeline()
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(PushConstants);
+
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     std::array<VkDescriptorSetLayout, 2> setLayouts = {uboSetLayout, textureSetLayout};
     pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(setLayouts.size());
     pipelineLayoutInfo.pSetLayouts = setLayouts.data();
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
     {
@@ -2552,11 +4313,30 @@ void VulkanApp::drawAssetBrowserPanel(float windowWidth, float bottomBarHeight)
                                     {
                                         SceneObject newObj;
                                         newObj.id = sceneObjects.size();
-                                        newObj.name = entry.path().stem().string();
+                                        std::string sName = entry.path().stem().string();
+                                        newObj.name = sName;
+                                        newObj.type = ObjectType::CUBE;
                                         newObj.position = glm::vec3(0.0f);
-                                        newObj.scale = glm::vec3(1.0f);
+                                        float sc = 1.0f;
+                                        if (sName == "Fox") sc = 0.02f;
+                                        else if (sName == "Lantern") sc = 0.2f;
+
+                                        if (sName.find("rock") != std::string::npos || sName.find("Rock") != std::string::npos)
+                                        {
+                                            newObj.scale = glm::vec3(0.35f, 0.10f, 0.35f);
+                                            newObj.rotation = glm::vec3(0.0f);
+                                        }
+                                        else
+                                        {
+                                            newObj.scale = glm::vec3(sc);
+                                        }
                                         newObj.color = glm::vec4(1.0f);
                                         newObj.meshId = meshId;
+                                        if (meshId < static_cast<int>(meshes.size())) {
+                                            newObj.textureId = meshes[meshId].defaultTextureId;
+                                            newObj.roughness = meshes[meshId].defaultRoughness;
+                                            newObj.metallic = meshes[meshId].defaultMetallic;
+                                        }
                                         sceneObjects.push_back(newObj);
                                         selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
                                     }
@@ -2728,6 +4508,16 @@ void VulkanApp::renderImGuiUI()
         {
             activeGizmo = GizmoType::RECT;
         }
+        if (ImGui::IsKeyPressed(ImGuiKey_G) && selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+        {
+            isBlenderGrabMode = !isBlenderGrabMode;
+            if (isBlenderGrabMode)
+            {
+                saveHistory();
+                grabStartPos = sceneObjects[selectedObjectIndex].position;
+                grabConstrainAxis = -1;
+            }
+        }
         if (ImGui::IsKeyPressed(ImGuiKey_Escape) && isGameFullscreen)
         {
             toggleGameFullscreen();
@@ -2852,9 +4642,17 @@ void VulkanApp::renderImGuiUI()
         }
 
         ImGui::Separator();
-        if (ImGui::Button(showGameViewWindow ? " [ [x] Game View Window ] " : " [ [ ] Game View Window ] "))
+        if (ImGui::Button(showGameViewWindow ? " [ [x] Game View ] " : " [ [ ] Game View ] "))
         {
             showGameViewWindow = !showGameViewWindow;
+        }
+        if (showGameViewWindow)
+        {
+            ImGui::SameLine();
+            if (ImGui::Button(isGameViewDetached ? " [ 🧲 Gộp Vào Editor ] " : " [ ↗️ Pop-out Cửa Sổ Nổi ] "))
+            {
+                isGameViewDetached = !isGameViewDetached;
+            }
         }
 
         ImGui::Separator();
@@ -2867,6 +4665,18 @@ void VulkanApp::renderImGuiUI()
         if (ImGui::Button(showAssetBrowserPanel ? " [ [x] 📁 Asset Browser ] " : " [ [ ] 📁 Asset Browser ] "))
         {
             showAssetBrowserPanel = !showAssetBrowserPanel;
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button(showSceneGeneratorPanel ? " [ [x] 🏞️ Sinh Cảnh 3D ] " : " [ [ ] 🏞️ Sinh Cảnh 3D ] "))
+        {
+            showSceneGeneratorPanel = !showSceneGeneratorPanel;
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button(showOnlineDownloaderPanel ? " [ [x] 📥 Online Downloader ] " : " [ [ ] 📥 Online Downloader ] "))
+        {
+            showOnlineDownloaderPanel = !showOnlineDownloaderPanel;
         }
 
         ImGui::Separator();
@@ -2924,6 +4734,34 @@ void VulkanApp::renderImGuiUI()
                 sceneObjects.push_back(newObj);
                 selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
             }
+            if (ImGui::MenuItem("3D Cylinder"))
+            {
+                saveHistory();
+                SceneObject newObj;
+                newObj.id = sceneObjects.size();
+                newObj.name = "Cylinder " + std::to_string(sceneObjects.size());
+                newObj.type = ObjectType::CUBE;
+                newObj.position = glm::vec3(0.0f, 0.0f, 0.0f);
+                newObj.scale = glm::vec3(0.5f, 1.0f, 0.5f);
+                newObj.color = glm::vec4(0.7f, 0.7f, 0.8f, 1.0f);
+                newObj.meshId = primitiveCylinderMeshId;
+                sceneObjects.push_back(newObj);
+                selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+            }
+            if (ImGui::MenuItem("3D Cone"))
+            {
+                saveHistory();
+                SceneObject newObj;
+                newObj.id = sceneObjects.size();
+                newObj.name = "Cone " + std::to_string(sceneObjects.size());
+                newObj.type = ObjectType::CUBE;
+                newObj.position = glm::vec3(0.0f, 0.0f, 0.0f);
+                newObj.scale = glm::vec3(0.6f, 1.0f, 0.6f);
+                newObj.color = glm::vec4(0.2f, 0.7f, 0.3f, 1.0f);
+                newObj.meshId = primitiveConeMeshId;
+                sceneObjects.push_back(newObj);
+                selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+            }
             if (ImGui::MenuItem("Directional Light"))
             {
                 saveHistory();
@@ -2939,6 +4777,12 @@ void VulkanApp::renderImGuiUI()
                 newObj.meshId = primitiveCubeMeshId;
                 sceneObjects.push_back(newObj);
                 selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("🎲 Sinh Cảnh 3D Tự Động..."))
+            {
+                showSceneGeneratorPanel = true;
+                generate3DScene();
             }
             ImGui::EndPopup();
         }
@@ -2997,6 +4841,11 @@ void VulkanApp::renderImGuiUI()
                         if (meshId >= 0)
                         {
                             sceneObjects[i].meshId = meshId;
+                            if (meshId < static_cast<int>(meshes.size()) && meshes[meshId].defaultTextureId >= 0) {
+                                sceneObjects[i].textureId = meshes[meshId].defaultTextureId;
+                                sceneObjects[i].roughness = meshes[meshId].defaultRoughness;
+                                sceneObjects[i].metallic = meshes[meshId].defaultMetallic;
+                            }
                             selectedObjectIndex = static_cast<int>(i);
                         }
                     }
@@ -3051,25 +4900,48 @@ void VulkanApp::renderImGuiUI()
     }
     ImGui::End();
 
-    // 3. Scene View (Center-Left Window)
+    // 3. Scene View (Center Window)
+    float sceneWidth = (showGameViewWindow && !isGameViewDetached) ? centerWidth * 0.5f : centerWidth;
     ImGui::SetNextWindowPos(ImVec2(leftPanelWidth, menuBarHeight));
-    ImGui::SetNextWindowSize(ImVec2(showGameViewWindow ? centerWidth * 0.5f : centerWidth, centerHeight));
+    ImGui::SetNextWindowSize(ImVec2(sceneWidth, centerHeight));
     if (ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
     {
         drawSceneView(ImGui::GetWindowPos(), ImGui::GetWindowSize());
     }
     ImGui::End();
 
-    // 4. Game View (Center-Right Window or Dedicated Secondary Window Fullscreen)
+    // 4. Game View (Center-Right Window or Detached Floating Pop-out Window)
     if (showGameViewWindow || isGameFullscreen)
     {
-        ImGui::SetNextWindowPos(ImVec2(leftPanelWidth + centerWidth * 0.5f, menuBarHeight));
-        ImGui::SetNextWindowSize(ImVec2(centerWidth * 0.5f, centerHeight));
-        if (ImGui::Begin("Game", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
+        if (isGameViewDetached)
         {
-            drawGameView(ImGui::GetWindowPos(), ImGui::GetWindowSize());
+            // Detached Pop-out Window (Movable, Resizable, Independent)
+            ImGui::SetNextWindowSize(ImVec2(680, 480), ImGuiCond_FirstUseEver);
+            if (ImGui::Begin("🎮 Game View (Pop-out Window)", &showGameViewWindow, ImGuiWindowFlags_NoScrollbar))
+            {
+                if (ImGui::Button(" 🧲 Gộp Lại Vào Editor "))
+                {
+                    isGameViewDetached = false;
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("| Kéo di chuyển / thay đổi kích thước cửa sổ tự do");
+                ImGui::Separator();
+
+                drawGameView(ImGui::GetWindowPos(), ImGui::GetWindowSize());
+            }
+            ImGui::End();
         }
-        ImGui::End();
+        else
+        {
+            // Tiled Side-by-Side Mode
+            ImGui::SetNextWindowPos(ImVec2(leftPanelWidth + centerWidth * 0.5f, menuBarHeight));
+            ImGui::SetNextWindowSize(ImVec2(centerWidth * 0.5f, centerHeight));
+            if (ImGui::Begin("Game", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
+            {
+                drawGameView(ImGui::GetWindowPos(), ImGui::GetWindowSize());
+            }
+            ImGui::End();
+        }
     }
 
     // 5. Inspector Panel (Right Window)
@@ -3135,6 +5007,16 @@ void VulkanApp::renderImGuiUI()
                     ImGui::ColorEdit4("Mesh Color", &obj.color.x);
                     
                     ImGui::Spacing();
+                    ImGui::TextColored(ImVec4(0.9f, 0.7f, 0.2f, 1.0f), "🎨 PBR Material Parameters");
+                    ImGui::Checkbox("Enable PBR Shading", &obj.usePBR);
+                    if (obj.usePBR)
+                    {
+                        ImGui::SliderFloat("Roughness", &obj.roughness, 0.0f, 1.0f, "%.2f (0=Smooth, 1=Rough)");
+                        ImGui::SliderFloat("Metallic", &obj.metallic, 0.0f, 1.0f, "%.2f (0=Dielectric, 1=Metal)");
+                        ImGui::SliderFloat("Ambient Occlusion", &obj.ambientOcclusion, 0.0f, 1.0f, "%.2f");
+                    }
+                    
+                    ImGui::Spacing();
                     if (ImGui::Button("Load 3D Mesh (.obj, .glb, .gltf)", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
                     {
                         const char* filterPatterns[3] = { "*.obj", "*.glb", "*.gltf" };
@@ -3147,6 +5029,11 @@ void VulkanApp::renderImGuiUI()
                                 createMeshBuffers(newMesh);
                                 meshes.push_back(newMesh);
                                 obj.meshId = static_cast<int>(meshes.size()) - 1;
+                                if (newMesh.defaultTextureId >= 0) {
+                                    obj.textureId = newMesh.defaultTextureId;
+                                    obj.roughness = newMesh.defaultRoughness;
+                                    obj.metallic = newMesh.defaultMetallic;
+                                }
                             }
                             catch (const std::exception& e) {
                                 tinyfd_messageBox("Error", e.what(), "ok", "error", 1);
@@ -3170,6 +5057,19 @@ void VulkanApp::renderImGuiUI()
                                 tinyfd_messageBox("Error", e.what(), "ok", "error", 1);
                             }
                         }
+                    }
+
+                    int effectiveTex = obj.textureId >= 0 ? obj.textureId : (obj.meshId >= 0 && obj.meshId < static_cast<int>(meshes.size()) ? meshes[obj.meshId].defaultTextureId : -1);
+                    if (obj.meshId >= 0 && obj.meshId < static_cast<int>(meshes.size()) && !meshes[obj.meshId].submeshes.empty() && obj.textureId < 0) {
+                        ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "🎨 Multi-Material: %zu Submeshes (Native Textures)", meshes[obj.meshId].submeshes.size());
+                    } else if (effectiveTex >= 0 && effectiveTex < static_cast<int>(textures.size())) {
+                        ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.4f, 1.0f), "🎨 Active Texture: Slot %d", effectiveTex);
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton("Clear")) {
+                            obj.textureId = -1;
+                        }
+                    } else {
+                        ImGui::TextDisabled("🎨 Active Texture: Default White (None)");
                     }
 
                     if (obj.name != "Player Cube" && obj.name != "Gold Collectible")
@@ -3506,6 +5406,12 @@ void VulkanApp::renderImGuiUI()
     // 8. Asset Browser Panel & Drag-and-Drop System
     drawAssetBrowserPanel(editorWidth, bottomPanelHeight);
 
+    // 9. 3D Scene Generator Panel
+    drawSceneGeneratorPanel();
+
+    // 10. Online 3D Model Downloader Panel
+    drawOnlineModelDownloaderPanel();
+
     ImGui::Render();
 }
 
@@ -3546,6 +5452,21 @@ bool VulkanApp::getRayFromScreenPos(const ImVec2& mousePos, const ImVec2& window
 
     rayOrigin = glm::vec3(nearWorld);
     rayDir = glm::normalize(glm::vec3(farWorld - nearWorld));
+    return true;
+}
+
+static bool intersectRaySphere(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const glm::vec3& center, float radius, float& hitDist)
+{
+    glm::vec3 oc = rayOrigin - center;
+    float b = glm::dot(oc, rayDir);
+    float c = glm::dot(oc, oc) - radius * radius;
+    float disc = b * b - c;
+    if (disc < 0.0f) return false;
+    float sqrtDisc = std::sqrt(disc);
+    float t = -b - sqrtDisc;
+    if (t < 0.0f) t = -b + sqrtDisc;
+    if (t < 0.0f) return false;
+    hitDist = t;
     return true;
 }
 
@@ -3650,14 +5571,21 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
     ImVec2 sX(-99999.0f, -99999.0f);
     ImVec2 sY(-99999.0f, -99999.0f);
     ImVec2 sZ(-99999.0f, -99999.0f);
+    ImVec2 sPlaneX(-99999.0f, -99999.0f);
+    ImVec2 sPlaneZ(-99999.0f, -99999.0f);
+    ImVec2 sXZ(-99999.0f, -99999.0f);
 
-    float L = 0.15f * sceneCameraDistance;
+    float L = std::clamp(0.18f * sceneCameraDistance, 0.8f, 3.5f);
+    float planeOffset = L * 0.35f;
     if (hasSelection)
     {
         sP = projectPoint(pivotPos, view, proj, windowPos, windowSize);
         sX = projectPoint(pivotPos + glm::vec3(L, 0.0f, 0.0f), view, proj, windowPos, windowSize);
         sY = projectPoint(pivotPos + glm::vec3(0.0f, L, 0.0f), view, proj, windowPos, windowSize);
         sZ = projectPoint(pivotPos + glm::vec3(0.0f, 0.0f, L), view, proj, windowPos, windowSize);
+        sPlaneX = projectPoint(pivotPos + glm::vec3(planeOffset, 0.0f, 0.0f), view, proj, windowPos, windowSize);
+        sPlaneZ = projectPoint(pivotPos + glm::vec3(0.0f, 0.0f, planeOffset), view, proj, windowPos, windowSize);
+        sXZ = projectPoint(pivotPos + glm::vec3(planeOffset, 0.0f, planeOffset), view, proj, windowPos, windowSize);
     }
 
     ImVec2 mousePos = ImGui::GetMousePos();
@@ -3684,6 +5612,15 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                         float delta = curAxisVal - gizmoDragState.startAxisVal;
                         posRef = gizmoDragState.startObjPos + gizmoDragState.axisDir * delta;
                     }
+                    else if (gizmoDragState.axis == DragAxis::XZ)
+                    {
+                        glm::vec3 curHit;
+                        if (intersectRayPlane(curRayOrig, curRayDir, gizmoDragState.pivotPos, glm::vec3(0.0f, 1.0f, 0.0f), curHit))
+                        {
+                            glm::vec3 delta = curHit - gizmoDragState.startHitPoint;
+                            posRef = gizmoDragState.startObjPos + glm::vec3(delta.x, 0.0f, delta.z);
+                        }
+                    }
                     else if (gizmoDragState.axis == DragAxis::FREE)
                     {
                         glm::vec3 curHit;
@@ -3707,7 +5644,7 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                                 float curAngle = atan2(glm::dot(dirVec, gizmoDragState.rotBasisV), glm::dot(dirVec, gizmoDragState.rotBasisU));
                                 float deltaAngle = curAngle - gizmoDragState.startAngle;
                                 while (deltaAngle > glm::pi<float>()) deltaAngle -= glm::two_pi<float>();
-                                while (deltaAngle < -glm::pi<float>()) deltaAngle += glm::two_pi<float>();
+                                while (deltaAngle < -glm::pi<float>()) deltaAngle -= glm::two_pi<float>();
 
                                 rotRef = gizmoDragState.startObjRot + gizmoDragState.axisDir * glm::degrees(deltaAngle);
                             }
@@ -3766,8 +5703,6 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                     }
                 }
 
-
-
                 // Re-update pivotPos and project handle positions so Gizmo stays 100% attached to object while dragging
                 if (hasSelection)
                 {
@@ -3776,6 +5711,9 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                     sX = projectPoint(pivotPos + glm::vec3(L, 0.0f, 0.0f), view, proj, windowPos, windowSize);
                     sY = projectPoint(pivotPos + glm::vec3(0.0f, L, 0.0f), view, proj, windowPos, windowSize);
                     sZ = projectPoint(pivotPos + glm::vec3(0.0f, 0.0f, L), view, proj, windowPos, windowSize);
+                    sPlaneX = projectPoint(pivotPos + glm::vec3(planeOffset, 0.0f, 0.0f), view, proj, windowPos, windowSize);
+                    sPlaneZ = projectPoint(pivotPos + glm::vec3(0.0f, 0.0f, planeOffset), view, proj, windowPos, windowSize);
+                    sXZ = projectPoint(pivotPos + glm::vec3(planeOffset, 0.0f, planeOffset), view, proj, windowPos, windowSize);
                 }
             }
         }
@@ -3789,9 +5727,139 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
         }
     }
 
+    // 1b. BLENDER GRAB MODE (G hotkey)
+    if (isBlenderGrabMode && hasSelection)
+    {
+        // Cancel Grab mode on Escape or Right-Click
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape) || ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+        {
+            if (selectedObjectIndex == -1) mainCameraPos = grabStartPos;
+            else sceneObjects[selectedObjectIndex].position = grabStartPos;
+            isBlenderGrabMode = false;
+        }
+        // Confirm Grab mode on Enter, Space, or Left-Click
+        else if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_Space) || ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            isBlenderGrabMode = false;
+        }
+        else
+        {
+            // Axis constraint shortcuts: X, Y, Z
+            if (ImGui::IsKeyPressed(ImGuiKey_X)) grabConstrainAxis = (grabConstrainAxis == 0) ? -1 : 0;
+            if (ImGui::IsKeyPressed(ImGuiKey_Y)) grabConstrainAxis = (grabConstrainAxis == 1) ? -1 : 1;
+            if (ImGui::IsKeyPressed(ImGuiKey_Z)) grabConstrainAxis = (grabConstrainAxis == 2) ? -1 : 2;
+
+            glm::vec3 curRayOrig, curRayDir;
+            if (getRayFromScreenPos(mousePos, windowPos, windowSize, view, proj, curRayOrig, curRayDir))
+            {
+                glm::vec3& posRef = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
+                if (grabConstrainAxis == 0) // Lock to X
+                {
+                    float curVal = getClosestPointOnAxis(curRayOrig, curRayDir, grabStartPos, glm::vec3(1.0f, 0.0f, 0.0f), cameraWorldPos);
+                    posRef = glm::vec3(curVal, grabStartPos.y, grabStartPos.z);
+                }
+                else if (grabConstrainAxis == 1) // Lock to Y
+                {
+                    float curVal = getClosestPointOnAxis(curRayOrig, curRayDir, grabStartPos, glm::vec3(0.0f, 1.0f, 0.0f), cameraWorldPos);
+                    posRef = glm::vec3(grabStartPos.x, curVal, grabStartPos.z);
+                }
+                else if (grabConstrainAxis == 2) // Lock to Z
+                {
+                    float curVal = getClosestPointOnAxis(curRayOrig, curRayDir, grabStartPos, glm::vec3(0.0f, 0.0f, 1.0f), cameraWorldPos);
+                    posRef = glm::vec3(grabStartPos.x, grabStartPos.y, curVal);
+                }
+                else // Free XZ ground plane
+                {
+                    glm::vec3 hitPoint;
+                    if (intersectRayPlane(curRayOrig, curRayDir, grabStartPos, glm::vec3(0.0f, 1.0f, 0.0f), hitPoint))
+                    {
+                        posRef = glm::vec3(hitPoint.x, grabStartPos.y, hitPoint.z);
+                    }
+                }
+
+                // Snap support with Ctrl
+                if (ImGui::GetIO().KeyCtrl)
+                {
+                    posRef.x = std::round(posRef.x * 2.0f) / 2.0f;
+                    posRef.y = std::round(posRef.y * 2.0f) / 2.0f;
+                    posRef.z = std::round(posRef.z * 2.0f) / 2.0f;
+                }
+
+                pivotPos = posRef;
+                sP = projectPoint(pivotPos, view, proj, windowPos, windowSize);
+                sX = projectPoint(pivotPos + glm::vec3(L, 0.0f, 0.0f), view, proj, windowPos, windowSize);
+                sY = projectPoint(pivotPos + glm::vec3(0.0f, L, 0.0f), view, proj, windowPos, windowSize);
+                sZ = projectPoint(pivotPos + glm::vec3(0.0f, 0.0f, L), view, proj, windowPos, windowSize);
+                sPlaneX = projectPoint(pivotPos + glm::vec3(planeOffset, 0.0f, 0.0f), view, proj, windowPos, windowSize);
+                sPlaneZ = projectPoint(pivotPos + glm::vec3(0.0f, 0.0f, planeOffset), view, proj, windowPos, windowSize);
+                sXZ = projectPoint(pivotPos + glm::vec3(planeOffset, 0.0f, planeOffset), view, proj, windowPos, windowSize);
+            }
+        }
+    }
+
     // 2. HOVER DETECTION AND DRAG INITIALIZATION
     hoveredDragAxis = DragAxis::NONE;
-    if (hasSelection && sP.x > -90000.0f && activeGizmo != GizmoType::HAND && !gizmoDragState.isDragging)
+    int hoveredSceneObjIdx = -2; // -2: none, -1: main camera, >=0: sceneObjects[i]
+
+    glm::vec3 hRayOrig, hRayDir;
+    bool hasHoverRay = getRayFromScreenPos(mousePos, windowPos, windowSize, view, proj, hRayOrig, hRayDir);
+
+    if (hasHoverRay && isMouseInWindow && !gizmoDragState.isDragging && !isBlenderGrabMode)
+    {
+        float closestHitT = 1e9f;
+
+        // Check 3D Camera marker
+        float camHitT = 0.0f;
+        if (intersectRaySphere(hRayOrig, hRayDir, mainCameraPos, 0.8f, camHitT))
+        {
+            if (camHitT < closestHitT)
+            {
+                closestHitT = camHitT;
+                hoveredSceneObjIdx = -1;
+            }
+        }
+
+        // Raycast against all scene objects in 3D
+        for (size_t i = 0; i < sceneObjects.size(); ++i)
+        {
+            const auto& obj = sceneObjects[i];
+            float maxScale = std::max({ std::abs(obj.scale.x), std::abs(obj.scale.y), std::abs(obj.scale.z) });
+            float radius = std::max(0.8f, maxScale * 0.9f);
+            glm::vec3 center = obj.position;
+
+            std::string lowerName = obj.name;
+            for (char& c : lowerName) c = (char)std::tolower((unsigned char)c);
+
+            if (lowerName.find("tree") != std::string::npos)
+            {
+                radius = std::max(1.2f, 2.2f * maxScale);
+                center.y += radius * 0.6f;
+            }
+            else if (lowerName.find("rock") != std::string::npos)
+            {
+                radius = std::max(0.8f, 1.6f * maxScale);
+                center.y += radius * 0.3f;
+            }
+            else if (lowerName.find("house") != std::string::npos || lowerName.find("building") != std::string::npos)
+            {
+                radius = std::max(1.5f, 3.2f * maxScale);
+                center.y += radius * 0.5f;
+            }
+
+            float hitT = 0.0f;
+            if (intersectRaySphere(hRayOrig, hRayDir, center, radius, hitT))
+            {
+                if (hitT < closestHitT)
+                {
+                    closestHitT = hitT;
+                    hoveredSceneObjIdx = static_cast<int>(i);
+                }
+            }
+        }
+    }
+
+    // Check Gizmo Axis and Plane Hover
+    if (hasSelection && sP.x > -90000.0f && activeGizmo != GizmoType::HAND && !gizmoDragState.isDragging && !isBlenderGrabMode)
     {
         auto distToSeg = [](glm::vec2 p, glm::vec2 a, glm::vec2 b) -> float {
             glm::vec2 ab = b - a;
@@ -3807,8 +5875,17 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
         float distX = (sX.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sX.x, sX.y)) : 99999.0f;
         float distY = (sY.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sY.x, sY.y)) : 99999.0f;
         float distZ = (sZ.x > -90000.0f) ? distToSeg(mPos, glm::vec2(sP.x, sP.y), glm::vec2(sZ.x, sZ.y)) : 99999.0f;
+        float distXZ = (sXZ.x > -90000.0f) ? glm::distance(mPos, glm::vec2(sXZ.x, sXZ.y)) : 99999.0f;
 
-        if (activeGizmo == GizmoType::TRANSLATE || activeGizmo == GizmoType::TRANSFORM_COMBINED || activeGizmo == GizmoType::SCALE)
+        if (activeGizmo == GizmoType::TRANSLATE || activeGizmo == GizmoType::TRANSFORM_COMBINED)
+        {
+            if (distCenter < 14.0f) hoveredDragAxis = DragAxis::FREE;
+            else if (distXZ < 16.0f) hoveredDragAxis = DragAxis::XZ;
+            else if (distX < 12.0f) hoveredDragAxis = DragAxis::X;
+            else if (distY < 12.0f) hoveredDragAxis = DragAxis::Y;
+            else if (distZ < 12.0f) hoveredDragAxis = DragAxis::Z;
+        }
+        else if (activeGizmo == GizmoType::SCALE)
         {
             if (distCenter < 14.0f) hoveredDragAxis = DragAxis::FREE;
             else if (distX < 12.0f) hoveredDragAxis = DragAxis::X;
@@ -3856,13 +5933,18 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
         }
     }
 
+    // Set cursor feedback
     if (hoveredDragAxis != DragAxis::NONE || gizmoDragState.isDragging)
     {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
     }
+    else if (hoveredSceneObjIdx != -2 && !isBlenderGrabMode)
+    {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    }
 
-    // Handle mouse click to start drag or select object
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && isMouseInWindow && !gizmoDragState.isDragging)
+    // Handle mouse click to start gizmo drag or select & drag object directly
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && isMouseInWindow && !gizmoDragState.isDragging && !isBlenderGrabMode)
     {
         if (hoveredDragAxis != DragAxis::NONE && hasSelection)
         {
@@ -3897,6 +5979,11 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                 {
                     gizmoDragState.axisDir = glm::vec3(0.0f, 0.0f, 1.0f);
                     gizmoDragState.startAxisVal = getClosestPointOnAxis(rayOrig, rayDir, pivotPos, gizmoDragState.axisDir, cameraWorldPos);
+                }
+                else if (hoveredDragAxis == DragAxis::XZ)
+                {
+                    gizmoDragState.planeNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+                    intersectRayPlane(rayOrig, rayDir, pivotPos, glm::vec3(0.0f, 1.0f, 0.0f), gizmoDragState.startHitPoint);
                 }
                 else if (hoveredDragAxis == DragAxis::FREE)
                 {
@@ -3933,54 +6020,91 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                 gizmoDragState.startAngle = atan2(glm::dot(dirVec, gizmoDragState.rotBasisV), glm::dot(dirVec, gizmoDragState.rotBasisU));
             }
         }
-        else
+        else if (hoveredSceneObjIdx != -2)
         {
-            // Click to select center object
-            float minDistance = 22.0f;
-            int closestIdx = -2;
+            // Direct Object Click & Drag (Unity-style)!
+            selectedObjectIndex = hoveredSceneObjIdx;
+            hasSelection = true;
+            pivotPos = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
 
-            ImVec2 camScreenPos = projectPoint(mainCameraPos, view, proj, windowPos, windowSize);
-            if (camScreenPos.x > -90000.0f)
+            if (activeGizmo != GizmoType::HAND)
             {
-                float dist = glm::distance(glm::vec2(mousePos.x, mousePos.y), glm::vec2(camScreenPos.x, camScreenPos.y));
-                if (dist < minDistance) { minDistance = dist; closestIdx = -1; }
-            }
+                saveHistory();
+                gizmoDragState.isDragging = true;
+                gizmoDragState.axis = DragAxis::XZ; // Drag smoothly along XZ ground plane
+                gizmoDragState.gizmoType = GizmoType::TRANSLATE;
+                activeDragAxis = DragAxis::XZ;
+                isDraggingObject = true;
 
-            for (size_t i = 0; i < sceneObjects.size(); ++i)
-            {
-                ImVec2 screenPos = projectPoint(sceneObjects[i].position, view, proj, windowPos, windowSize);
-                if (screenPos.x > -90000.0f)
+                gizmoDragState.startObjPos = pivotPos;
+                gizmoDragState.startObjRot = (selectedObjectIndex == -1) ? glm::vec3(0.0f) : sceneObjects[selectedObjectIndex].rotation;
+                gizmoDragState.startObjScale = (selectedObjectIndex == -1) ? glm::vec3(1.0f) : sceneObjects[selectedObjectIndex].scale;
+                gizmoDragState.pivotPos = pivotPos;
+                gizmoDragState.planeNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+
+                glm::vec3 rayOrig, rayDir;
+                if (getRayFromScreenPos(mousePos, windowPos, windowSize, view, proj, rayOrig, rayDir))
                 {
-                    float dist = glm::distance(glm::vec2(mousePos.x, mousePos.y), glm::vec2(screenPos.x, screenPos.y));
-                    if (dist < minDistance) { minDistance = dist; closestIdx = static_cast<int>(i); }
+                    intersectRayPlane(rayOrig, rayDir, pivotPos, glm::vec3(0.0f, 1.0f, 0.0f), gizmoDragState.startHitPoint);
                 }
             }
-
-            if (closestIdx != -2)
+        }
+        else
+        {
+            // Clicked empty background - deselect if not holding Ctrl or Shift
+            if (!ImGui::GetIO().KeyShift && !ImGui::GetIO().KeyCtrl)
             {
-                selectedObjectIndex = closestIdx;
+                selectedObjectIndex = -2; // None selected
             }
         }
     }
 
-    // Camera Navigation Orbiting (Hand tool or dragging background)
-    if (activeGizmo == GizmoType::HAND || (!gizmoDragState.isDragging && hoveredDragAxis == DragAxis::NONE && ImGui::IsMouseDown(ImGuiMouseButton_Left) && isMouseInWindow))
+    // Camera Navigation Orbiting & Zooming (Separate from Object Dragging)
+    // 1. Right-Click Drag (Unity-style orbit)
+    // 2. Middle-Click Drag (Blender-style orbit)
+    // 3. Alt + Left-Click Drag (Unity/Maya orbit)
+    // 4. Hand tool Left-Click Drag
+    // 5. Left-Click Drag on empty space
+    if (isMouseInWindow && !isBlenderGrabMode)
     {
-        ImGui::SetCursorScreenPos(windowPos);
-        ImGui::InvisibleButton("##SceneDragArea", windowSize);
-        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        if (ImGui::IsMouseDragging(ImGuiMouseButton_Right))
+        {
+            ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Right);
+            sceneRotationY += delta.x * 0.4f;
+            sceneRotationX += delta.y * 0.4f;
+            ImGui::ResetMouseDragDelta(ImGuiMouseButton_Right);
+        }
+        else if (ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
+        {
+            ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Middle);
+            sceneRotationY += delta.x * 0.4f;
+            sceneRotationX += delta.y * 0.4f;
+            ImGui::ResetMouseDragDelta(ImGuiMouseButton_Middle);
+        }
+        else if (ImGui::GetIO().KeyAlt && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
         {
             ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
-            sceneRotationY += delta.x * 0.5f;
-            sceneRotationX += delta.y * 0.5f;
+            sceneRotationY += delta.x * 0.4f;
+            sceneRotationX += delta.y * 0.4f;
             ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
         }
-    }
+        else if (activeGizmo == GizmoType::HAND && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        {
+            ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
+            sceneRotationY += delta.x * 0.4f;
+            sceneRotationX += delta.y * 0.4f;
+            ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
+        }
+        else if (!gizmoDragState.isDragging && !isDraggingObject && hoveredDragAxis == DragAxis::NONE && hoveredSceneObjIdx == -2 && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        {
+            ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
+            sceneRotationY += delta.x * 0.4f;
+            sceneRotationX += delta.y * 0.4f;
+            ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
+        }
 
-    if (ImGui::IsItemHovered())
-    {
         sceneCameraDistance -= ImGui::GetIO().MouseWheel * 0.5f;
-        sceneCameraDistance = std::clamp(sceneCameraDistance, 2.0f, 20.0f);
+        sceneCameraDistance = std::clamp(sceneCameraDistance, 2.0f, 25.0f);
     }
 
     // 1. Draw Grid lines in XZ plane (y = -1.5)
@@ -4042,6 +6166,88 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
     }
 
     // 4. Draw Gizmos & Selection Highlights
+    // Ground Selection Ring for selected entity (Unity/RTS style visual highlight)
+    if (hasSelection && selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
+    {
+        const auto& selObj = sceneObjects[selectedObjectIndex];
+        float selRadius = std::max({ std::abs(selObj.scale.x), std::abs(selObj.scale.z) }) * 0.8f;
+        std::string lowerName = selObj.name;
+        for (char& c : lowerName) c = (char)std::tolower((unsigned char)c);
+
+        if (lowerName.find("tree") != std::string::npos) selRadius = std::max(1.0f, 1.4f * selObj.scale.x);
+        else if (lowerName.find("house") != std::string::npos || lowerName.find("building") != std::string::npos) selRadius = std::max(1.5f, 2.2f * selObj.scale.x);
+        else if (lowerName.find("rock") != std::string::npos) selRadius = std::max(0.8f, 1.2f * selObj.scale.x);
+        selRadius = std::max(0.6f, selRadius);
+
+        const int ringSegs = 32;
+        ImVec2 prevPt(-99999.0f, -99999.0f);
+        ImVec2 firstPt(-99999.0f, -99999.0f);
+        for (int s = 0; s <= ringSegs; ++s)
+        {
+            float ang = (s % ringSegs) * 2.0f * 3.14159f / ringSegs;
+            glm::vec3 rPt = glm::vec3(selObj.position.x + std::cos(ang) * selRadius, selObj.position.y + 0.05f, selObj.position.z + std::sin(ang) * selRadius);
+            ImVec2 sPt = projectPoint(rPt, view, proj, windowPos, windowSize);
+            if (s == 0) firstPt = sPt;
+            if (s > 0 && prevPt.x > -90000.0f && sPt.x > -90000.0f)
+            {
+                drawList->AddLine(prevPt, sPt, IM_COL32(255, 200, 40, 220), 2.0f);
+            }
+            prevPt = sPt;
+        }
+    }
+
+    // Blender Grab Mode Guideline & Controls
+    if (isBlenderGrabMode && hasSelection)
+    {
+        glm::vec3 objPos = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
+        if (grabConstrainAxis == 0) // X axis
+        {
+            glm::vec3 pA = objPos - glm::vec3(50.0f, 0.0f, 0.0f);
+            glm::vec3 pB = objPos + glm::vec3(50.0f, 0.0f, 0.0f);
+            ImVec2 spA = projectPoint(pA, view, proj, windowPos, windowSize);
+            ImVec2 spB = projectPoint(pB, view, proj, windowPos, windowSize);
+            if (spA.x > -90000.0f && spB.x > -90000.0f)
+                drawList->AddLine(spA, spB, IM_COL32(255, 60, 60, 220), 2.0f);
+        }
+        else if (grabConstrainAxis == 1) // Y axis
+        {
+            glm::vec3 pA = objPos - glm::vec3(0.0f, 50.0f, 0.0f);
+            glm::vec3 pB = objPos + glm::vec3(0.0f, 50.0f, 0.0f);
+            ImVec2 spA = projectPoint(pA, view, proj, windowPos, windowSize);
+            ImVec2 spB = projectPoint(pB, view, proj, windowPos, windowSize);
+            if (spA.x > -90000.0f && spB.x > -90000.0f)
+                drawList->AddLine(spA, spB, IM_COL32(60, 255, 60, 220), 2.0f);
+        }
+        else if (grabConstrainAxis == 2) // Z axis
+        {
+            glm::vec3 pA = objPos - glm::vec3(0.0f, 0.0f, 50.0f);
+            glm::vec3 pB = objPos + glm::vec3(0.0f, 0.0f, 50.0f);
+            ImVec2 spA = projectPoint(pA, view, proj, windowPos, windowSize);
+            ImVec2 spB = projectPoint(pB, view, proj, windowPos, windowSize);
+            if (spA.x > -90000.0f && spB.x > -90000.0f)
+                drawList->AddLine(spA, spB, IM_COL32(60, 100, 255, 220), 2.0f);
+        }
+        else
+        {
+            ImVec2 spStart = projectPoint(grabStartPos, view, proj, windowPos, windowSize);
+            ImVec2 spCur = projectPoint(objPos, view, proj, windowPos, windowSize);
+            if (spStart.x > -90000.0f && spCur.x > -90000.0f)
+                drawList->AddLine(spStart, spCur, IM_COL32(255, 220, 50, 180), 1.5f);
+        }
+
+        // Draw Blender Grab banner at bottom of scene view
+        float barW = 560.0f;
+        float barH = 34.0f;
+        ImVec2 barPos(windowPos.x + (windowSize.x - barW) * 0.5f, windowPos.y + windowSize.y - barH - 15.0f);
+        drawList->AddRectFilled(barPos, ImVec2(barPos.x + barW, barPos.y + barH), IM_COL32(18, 22, 30, 240), 6.0f);
+        drawList->AddRect(barPos, ImVec2(barPos.x + barW, barPos.y + barH), IM_COL32(255, 180, 0, 255), 6.0f, 0, 2.0f);
+
+        const char* axisLockStr = (grabConstrainAxis == 0) ? "X-Axis [Red]" : (grabConstrainAxis == 1) ? "Y-Axis [Green]" : (grabConstrainAxis == 2) ? "Z-Axis [Blue]" : "Free Ground (XZ)";
+        char grabMsg[256];
+        snprintf(grabMsg, sizeof(grabMsg), "🕹️ GRAB (G): Move mouse | Axis: %s | [X/Y/Z] Lock | [L-Click/Enter] Confirm | [R-Click/Esc] Cancel", axisLockStr);
+        drawList->AddText(ImVec2(barPos.x + 14.0f, barPos.y + 8.0f), IM_COL32(255, 255, 255, 255), grabMsg);
+    }
+
     DragAxis activeHighlight = gizmoDragState.isDragging ? gizmoDragState.axis : hoveredDragAxis;
     if (hasSelection && sP.x > -90000.0f && activeGizmo != GizmoType::HAND)
     {
@@ -4053,6 +6259,16 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
 
         if (activeGizmo == GizmoType::TRANSLATE || activeGizmo == GizmoType::TRANSFORM_COMBINED)
         {
+            // XZ Ground Plane handle (Quad between X and Z axes - ground plane mover)
+            if (sPlaneX.x > -90000.0f && sPlaneZ.x > -90000.0f && sXZ.x > -90000.0f && sP.x > -90000.0f)
+            {
+                bool isH = (activeHighlight == DragAxis::XZ);
+                ImU32 fillCol = isH ? IM_COL32(0, 230, 230, 180) : IM_COL32(0, 180, 180, 90);
+                ImU32 borderCol = isH ? IM_COL32(0, 255, 255, 255) : IM_COL32(0, 210, 210, 200);
+                drawList->AddQuadFilled(sP, sPlaneX, sXZ, sPlaneZ, fillCol);
+                drawList->AddQuad(sP, sPlaneX, sXZ, sPlaneZ, borderCol, 1.5f);
+            }
+
             // X-Axis (Red)
             if (sX.x > -90000.0f)
             {
@@ -4188,6 +6404,7 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
         if (gizmoDragState.axis == DragAxis::X) axisBadgeCol = IM_COL32(255, 80, 80, 255);
         else if (gizmoDragState.axis == DragAxis::Y) axisBadgeCol = IM_COL32(80, 255, 80, 255);
         else if (gizmoDragState.axis == DragAxis::Z) axisBadgeCol = IM_COL32(80, 150, 255, 255);
+        else if (gizmoDragState.axis == DragAxis::XZ) axisBadgeCol = IM_COL32(0, 220, 220, 255);
 
         glm::vec3 curPos = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
         glm::vec3 curRot = (selectedObjectIndex == -1) ? glm::vec3(0.0f) : sceneObjects[selectedObjectIndex].rotation;
@@ -4206,6 +6423,9 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                 snprintf(badgeLine2, sizeof(badgeLine2), "Pos Y: %.2fm  (ΔY: %+.2fm)", curPos.y, curPos.y - gizmoDragState.startObjPos.y);
             else if (gizmoDragState.axis == DragAxis::Z)
                 snprintf(badgeLine2, sizeof(badgeLine2), "Pos Z: %.2fm  (ΔZ: %+.2fm)", curPos.z, curPos.z - gizmoDragState.startObjPos.z);
+            else if (gizmoDragState.axis == DragAxis::XZ)
+                snprintf(badgeLine2, sizeof(badgeLine2), "Pos XZ: (%.2f, %.2f)  (Δ: %+.2f, %+.2f)", 
+                    curPos.x, curPos.z, curPos.x - gizmoDragState.startObjPos.x, curPos.z - gizmoDragState.startObjPos.z);
             else
                 snprintf(badgeLine2, sizeof(badgeLine2), "Pos: (%.2f, %.2f, %.2f)", curPos.x, curPos.y, curPos.z);
         }
@@ -4418,12 +6638,30 @@ void VulkanApp::drawSceneView(const ImVec2& windowPos, const ImVec2& windowSize)
                 {
                     SceneObject newObj;
                     newObj.id = sceneObjects.size();
-                    newObj.name = p.stem().string();
+                    std::string sName = p.stem().string();
+                    newObj.name = sName;
                     newObj.type = ObjectType::CUBE;
                     newObj.position = dropPos;
-                    newObj.scale = glm::vec3(1.0f);
+                    float sc = 1.0f;
+                    if (sName == "Fox") sc = 0.02f;
+                    else if (sName == "Lantern") sc = 0.2f;
+
+                    if (sName.find("rock") != std::string::npos || sName.find("Rock") != std::string::npos)
+                    {
+                        newObj.scale = glm::vec3(0.35f, 0.10f, 0.35f);
+                        newObj.rotation = glm::vec3(0.0f);
+                    }
+                    else
+                    {
+                        newObj.scale = glm::vec3(sc);
+                    }
                     newObj.color = glm::vec4(1.0f);
                     newObj.meshId = meshId;
+                    if (meshId < static_cast<int>(meshes.size())) {
+                        newObj.textureId = meshes[meshId].defaultTextureId;
+                        newObj.roughness = meshes[meshId].defaultRoughness;
+                        newObj.metallic = meshes[meshId].defaultMetallic;
+                    }
                     sceneObjects.push_back(newObj);
                     selectedObjectIndex = static_cast<int>(sceneObjects.size()) - 1;
                 }
@@ -4759,9 +6997,22 @@ return GoldCollectible
     ground.position = glm::vec3(0.0f, -1.5f, 0.0f);
     ground.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
     ground.scale = glm::vec3(5.0f, 0.1f, 5.0f);
-    ground.color = glm::vec4(0.3f, 0.3f, 0.35f, 1.0f);
+    ground.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    ground.roughness = 0.85f;
+    ground.metallic = 0.1f;
+    ground.usePBR = true;
     ground.isPhysicsEnabled = true;
     ground.meshId = primitivePlaneMeshId;
+
+    // Load road asphalt texture for ground
+    try {
+        Texture roadTexture;
+        loadTexture("assets/road.jpg", roadTexture);
+        textures.push_back(roadTexture);
+        ground.textureId = static_cast<int>(textures.size()) - 1;
+    } catch (const std::exception& e) {
+        printf("Failed to load assets/road.jpg texture: %s\n", e.what());
+    }
 
     auto groundRb = std::make_shared<RigidBodyComponent>();
     groundRb->colliderType = ColliderType::PLANE;
@@ -5576,16 +7827,11 @@ void VulkanApp::drawFrame()
 
     // Draw objects into shadow map
     if (enableShadowMapping) {
-        for (const auto& obj : sceneObjects) {
-        if (obj.meshId >= 0 && obj.meshId < meshes.size()) {
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, obj.position);
-            model = glm::rotate(model, glm::radians(obj.rotation.x), glm::vec3(1, 0, 0));
-            model = glm::rotate(model, glm::radians(obj.rotation.y), glm::vec3(0, 1, 0));
-            model = glm::rotate(model, glm::radians(obj.rotation.z), glm::vec3(0, 0, 1));
-            model = glm::scale(model, obj.scale);
-
-            vkCmdPushConstants(commandBuffers[currentFrame], shadowPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &model);
+        for (size_t i = 0; i < sceneObjects.size(); ++i) {
+            const auto& obj = sceneObjects[i];
+            if (obj.meshId >= 0 && obj.meshId < static_cast<int>(meshes.size())) {
+                glm::mat4 model = getWorldMatrix(sceneObjects, static_cast<int>(i));
+                vkCmdPushConstants(commandBuffers[currentFrame], shadowPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &model);
 
             VkBuffer vertexBuffers[] = {meshes[obj.meshId].vertexBuffer};
             VkDeviceSize offsets[] = {0};
@@ -5632,23 +7878,79 @@ void VulkanApp::drawFrame()
     vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
     for (size_t i = 0; i < sceneObjects.size(); ++i) {
-        VkDescriptorSet texSet = defaultTexture.descriptorSet;
-        if (sceneObjects[i].textureId >= 0 && sceneObjects[i].textureId < textures.size()) {
-            texSet = textures[sceneObjects[i].textureId].descriptorSet;
-        }
-        vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texSet, 0, nullptr);
+        if (sceneObjects[i].meshId < 0 || sceneObjects[i].meshId >= static_cast<int>(meshes.size())) continue;
+        const auto& currentMesh = meshes[sceneObjects[i].meshId];
 
-        if (sceneObjects[i].meshId >= 0 && sceneObjects[i].meshId < meshes.size()) {
+        bool isMeshFoliage = currentMesh.isFoliage || (sceneObjects[i].name.find("Tree") != std::string::npos);
+
+        VkBuffer vertexBuffers[] = { currentMesh.vertexBuffer };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, vertexBuffers, offsets);
+        vkCmdBindIndexBuffer(commandBuffers[currentFrame], currentMesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+        if (currentMesh.submeshes.empty()) {
             PushConstants push{};
             push.model = getWorldMatrix(sceneObjects, i);
-            vkCmdPushConstants(commandBuffers[currentFrame], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &push);
+            push.pbrParams = glm::vec4(
+                sceneObjects[i].roughness,
+                sceneObjects[i].metallic,
+                sceneObjects[i].usePBR ? 1.0f : 0.0f,
+                sceneObjects[i].ambientOcclusion
+            );
+            push.foliageParams = glm::vec4(
+                0.35f,
+                isMeshFoliage ? 1.0f : 0.0f,
+                isMeshFoliage ? 1.0f : 0.0f,
+                0.65f
+            );
+            vkCmdPushConstants(commandBuffers[currentFrame], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &push);
 
-            VkBuffer vertexBuffers[] = { meshes[sceneObjects[i].meshId].vertexBuffer };
-            VkDeviceSize offsets[] = { 0 };
-            vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, vertexBuffers, offsets);
-            vkCmdBindIndexBuffer(commandBuffers[currentFrame], meshes[sceneObjects[i].meshId].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            VkDescriptorSet texSet = defaultTexture.descriptorSet;
+            int activeTexId = sceneObjects[i].textureId;
+            if (activeTexId < 0) {
+                activeTexId = currentMesh.defaultTextureId;
+            }
+            if (activeTexId >= 0 && activeTexId < static_cast<int>(textures.size())) {
+                texSet = textures[activeTexId].descriptorSet;
+            }
+            vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texSet, 0, nullptr);
+            vkCmdDrawIndexed(commandBuffers[currentFrame], currentMesh.indexCount, 1, 0, 0, 0);
+        } else {
+            for (const auto& sub : currentMesh.submeshes) {
+                bool isSubFoliage = currentMesh.submeshes.empty() ? isMeshFoliage : sub.isFoliage;
+                float subRoughness = sub.roughness > 0.0f ? sub.roughness : sceneObjects[i].roughness;
+                float subMetallic = sub.metallic >= 0.0f ? sub.metallic : sceneObjects[i].metallic;
 
-            vkCmdDrawIndexed(commandBuffers[currentFrame], meshes[sceneObjects[i].meshId].indexCount, 1, 0, 0, 0);
+                PushConstants subPush{};
+                subPush.model = getWorldMatrix(sceneObjects, i);
+                subPush.pbrParams = glm::vec4(
+                    subRoughness,
+                    subMetallic,
+                    sceneObjects[i].usePBR ? 1.0f : 0.0f,
+                    sceneObjects[i].ambientOcclusion
+                );
+                subPush.foliageParams = glm::vec4(
+                    0.35f,
+                    isSubFoliage ? 1.0f : 0.0f,
+                    (isSubFoliage || sub.twoSided) ? 1.0f : 0.0f,
+                    0.65f
+                );
+                vkCmdPushConstants(commandBuffers[currentFrame], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &subPush);
+
+                int activeTexId = sub.textureId;
+                if (sceneObjects[i].textureId >= 0 && sceneObjects[i].textureId != currentMesh.defaultTextureId) {
+                    activeTexId = sceneObjects[i].textureId;
+                }
+                if (activeTexId < 0) {
+                    activeTexId = currentMesh.defaultTextureId;
+                }
+                VkDescriptorSet texSet = defaultTexture.descriptorSet;
+                if (activeTexId >= 0 && activeTexId < static_cast<int>(textures.size())) {
+                    texSet = textures[activeTexId].descriptorSet;
+                }
+                vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texSet, 0, nullptr);
+                vkCmdDrawIndexed(commandBuffers[currentFrame], sub.indexCount, 1, sub.indexOffset, 0, 0);
+            }
         }
     }
     vkCmdEndRenderPass(commandBuffers[currentFrame]);
@@ -5676,21 +7978,79 @@ void VulkanApp::drawFrame()
     vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &gameDescriptorSets[currentFrame], 0, nullptr);
 
     for (size_t i = 0; i < sceneObjects.size(); ++i) {
-        VkDescriptorSet texSet = defaultTexture.descriptorSet;
-        if (sceneObjects[i].textureId >= 0 && sceneObjects[i].textureId < textures.size()) {
-            texSet = textures[sceneObjects[i].textureId].descriptorSet;
-        }
-        vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texSet, 0, nullptr);
+        if (sceneObjects[i].meshId < 0 || sceneObjects[i].meshId >= static_cast<int>(meshes.size())) continue;
+        const auto& currentMesh = meshes[sceneObjects[i].meshId];
 
-        if (sceneObjects[i].meshId >= 0 && sceneObjects[i].meshId < meshes.size()) {
+        bool isMeshFoliage = currentMesh.isFoliage || (sceneObjects[i].name.find("Tree") != std::string::npos);
+
+        VkBuffer vbs[] = { currentMesh.vertexBuffer };
+        VkDeviceSize offs[] = { 0 };
+        vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, vbs, offs);
+        vkCmdBindIndexBuffer(commandBuffers[currentFrame], currentMesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+        if (currentMesh.submeshes.empty()) {
             PushConstants push{};
             push.model = getWorldMatrix(sceneObjects, i);
-            vkCmdPushConstants(commandBuffers[currentFrame], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &push);
-            VkBuffer vbs[] = { meshes[sceneObjects[i].meshId].vertexBuffer };
-            VkDeviceSize offs[] = { 0 };
-            vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, vbs, offs);
-            vkCmdBindIndexBuffer(commandBuffers[currentFrame], meshes[sceneObjects[i].meshId].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-            vkCmdDrawIndexed(commandBuffers[currentFrame], meshes[sceneObjects[i].meshId].indexCount, 1, 0, 0, 0);
+            push.pbrParams = glm::vec4(
+                sceneObjects[i].roughness,
+                sceneObjects[i].metallic,
+                sceneObjects[i].usePBR ? 1.0f : 0.0f,
+                sceneObjects[i].ambientOcclusion
+            );
+            push.foliageParams = glm::vec4(
+                0.35f,
+                isMeshFoliage ? 1.0f : 0.0f,
+                isMeshFoliage ? 1.0f : 0.0f,
+                0.65f
+            );
+            vkCmdPushConstants(commandBuffers[currentFrame], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &push);
+
+            VkDescriptorSet texSet = defaultTexture.descriptorSet;
+            int activeTexId = sceneObjects[i].textureId;
+            if (activeTexId < 0) {
+                activeTexId = currentMesh.defaultTextureId;
+            }
+            if (activeTexId >= 0 && activeTexId < static_cast<int>(textures.size())) {
+                texSet = textures[activeTexId].descriptorSet;
+            }
+            vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texSet, 0, nullptr);
+            vkCmdDrawIndexed(commandBuffers[currentFrame], currentMesh.indexCount, 1, 0, 0, 0);
+        } else {
+            for (const auto& sub : currentMesh.submeshes) {
+                bool isSubFoliage = currentMesh.submeshes.empty() ? isMeshFoliage : sub.isFoliage;
+                float subRoughness = sub.roughness > 0.0f ? sub.roughness : sceneObjects[i].roughness;
+                float subMetallic = sub.metallic >= 0.0f ? sub.metallic : sceneObjects[i].metallic;
+
+                PushConstants subPush{};
+                subPush.model = getWorldMatrix(sceneObjects, i);
+                subPush.pbrParams = glm::vec4(
+                    subRoughness,
+                    subMetallic,
+                    sceneObjects[i].usePBR ? 1.0f : 0.0f,
+                    sceneObjects[i].ambientOcclusion
+                );
+                subPush.foliageParams = glm::vec4(
+                    0.35f,
+                    isSubFoliage ? 1.0f : 0.0f,
+                    (isSubFoliage || sub.twoSided) ? 1.0f : 0.0f,
+                    0.65f
+                );
+                vkCmdPushConstants(commandBuffers[currentFrame], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &subPush);
+
+                int activeTexId = sub.textureId;
+                if (sceneObjects[i].textureId >= 0 && sceneObjects[i].textureId != currentMesh.defaultTextureId) {
+                    activeTexId = sceneObjects[i].textureId;
+                }
+                if (activeTexId < 0) {
+                    activeTexId = currentMesh.defaultTextureId;
+                }
+                VkDescriptorSet texSet = defaultTexture.descriptorSet;
+                if (activeTexId >= 0 && activeTexId < static_cast<int>(textures.size())) {
+                    texSet = textures[activeTexId].descriptorSet;
+                }
+                vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texSet, 0, nullptr);
+                vkCmdDrawIndexed(commandBuffers[currentFrame], sub.indexCount, 1, sub.indexOffset, 0, 0);
+            }
         }
     }
     vkCmdEndRenderPass(commandBuffers[currentFrame]);
@@ -5943,6 +8303,10 @@ void VulkanApp::cleanup()
 
 
     // Cleanup textures
+    if (textureSampler != VK_NULL_HANDLE) {
+        vkDestroySampler(device, textureSampler, nullptr);
+        textureSampler = VK_NULL_HANDLE;
+    }
     if (defaultTexture.image != VK_NULL_HANDLE) {
         vkDestroyImageView(device, defaultTexture.view, nullptr);
         vkDestroyImage(device, defaultTexture.image, nullptr);
@@ -5956,6 +8320,44 @@ void VulkanApp::cleanup()
         }
     }
     textures.clear();
+
+    // Cleanup offscreen resources
+    if (offscreenFramebuffer != VK_NULL_HANDLE) {
+        vkDestroyFramebuffer(device, offscreenFramebuffer, nullptr);
+        offscreenFramebuffer = VK_NULL_HANDLE;
+    }
+    if (offscreenColorImageView != VK_NULL_HANDLE) {
+        vkDestroyImageView(device, offscreenColorImageView, nullptr);
+        offscreenColorImageView = VK_NULL_HANDLE;
+    }
+    if (offscreenColorImage != VK_NULL_HANDLE) {
+        vkDestroyImage(device, offscreenColorImage, nullptr);
+        offscreenColorImage = VK_NULL_HANDLE;
+    }
+    if (offscreenColorImageMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, offscreenColorImageMemory, nullptr);
+        offscreenColorImageMemory = VK_NULL_HANDLE;
+    }
+    if (offscreenDepthImageView != VK_NULL_HANDLE) {
+        vkDestroyImageView(device, offscreenDepthImageView, nullptr);
+        offscreenDepthImageView = VK_NULL_HANDLE;
+    }
+    if (offscreenDepthImage != VK_NULL_HANDLE) {
+        vkDestroyImage(device, offscreenDepthImage, nullptr);
+        offscreenDepthImage = VK_NULL_HANDLE;
+    }
+    if (offscreenDepthImageMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, offscreenDepthImageMemory, nullptr);
+        offscreenDepthImageMemory = VK_NULL_HANDLE;
+    }
+    if (offscreenSampler != VK_NULL_HANDLE) {
+        vkDestroySampler(device, offscreenSampler, nullptr);
+        offscreenSampler = VK_NULL_HANDLE;
+    }
+    if (offscreenRenderPass != VK_NULL_HANDLE) {
+        vkDestroyRenderPass(device, offscreenRenderPass, nullptr);
+        offscreenRenderPass = VK_NULL_HANDLE;
+    }
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -6106,7 +8508,16 @@ void VulkanApp::createShadowResources() {
 }
 
 void VulkanApp::createShadowPipeline() {
-    auto vertShaderCode = readFile("shadow_vert.spv");
+    std::vector<char> vertShaderCode;
+    try {
+        vertShaderCode = readFile("shadow_vert.spv");
+    } catch (...) {
+        try {
+            vertShaderCode = readFile("shaders/shadow_vert.spv");
+        } catch (...) {
+            vertShaderCode = readFile("build/Release/shadow_vert.spv");
+        }
+    }
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};

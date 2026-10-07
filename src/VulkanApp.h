@@ -29,6 +29,9 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <psapi.h>
+#include <urlmon.h>
+#pragma comment(lib, "urlmon.lib")
+#include <thread>
 #endif
 
 enum class AppMode
@@ -239,6 +242,12 @@ struct SceneObject
     glm::vec3 scale = glm::vec3(1.0f);
     glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     
+    // PBR Material Properties
+    float roughness = 0.5f;
+    float metallic = 0.0f;
+    bool usePBR = true;
+    float ambientOcclusion = 1.0f;
+    
     // Physics variables (for play mode)
     glm::vec3 velocity = glm::vec3(0.0f);
     bool isPhysicsEnabled = false;
@@ -336,6 +345,8 @@ struct QueueFamilyIndices
 
 struct PushConstants {
     glm::mat4 model;
+    alignas(16) glm::vec4 pbrParams;     // x: roughness, y: metallic, z: usePBR (1.0 or 0.0), w: ao
+    alignas(16) glm::vec4 foliageParams; // x: alphaCutoff (0.0=0.35), y: isFoliage (1.0), z: twoSided (1.0), w: sssIntensity
 };
 
 struct Vertex
@@ -382,6 +393,16 @@ struct Vertex
     }
 };
 
+struct SubMesh {
+    uint32_t indexOffset = 0;
+    uint32_t indexCount = 0;
+    int textureId = -1;
+    float roughness = 0.5f;
+    float metallic = 0.0f;
+    bool isFoliage = false;
+    bool twoSided = false;
+};
+
 struct Mesh {
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
@@ -390,6 +411,11 @@ struct Mesh {
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
     uint32_t indexCount;
+    int defaultTextureId = -1;
+    float defaultRoughness = 0.5f;
+    float defaultMetallic = 0.0f;
+    bool isFoliage = false;
+    std::vector<SubMesh> submeshes;
 };
 
 struct Texture {
@@ -463,9 +489,21 @@ private:
     int createCubeMesh();
     int createSphereMesh(int stacks = 16, int slices = 32);
     int createPlaneMesh();
+    int createCylinderMesh(float radiusTop = 0.5f, float radiusBottom = 0.5f, float height = 1.0f, int slices = 16);
+    int createConeMesh(float radius = 0.5f, float height = 1.0f, int slices = 16);
+    int createTerrainMesh(int gridW, int gridD, float cellSize, float heightScale, int seed, int biomeType);
+
+    // 3D Scene Generator System
+    void drawSceneGeneratorPanel();
+    void generate3DScene();
+
+    // Online 3D Model Downloader Plugin API
+    void drawOnlineModelDownloaderPanel();
+    bool downloadModelFromUrl(const std::string& urlStr, const std::string& customFileName = "");
     
     // Texture loading helpers
     void loadTexture(const std::string& path, Texture& texture);
+    void createTextureFromRawPixels(const unsigned char* pixels, int texWidth, int texHeight, Texture& texture);
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
@@ -480,6 +518,7 @@ private:
     void createUniformBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
+    void createTextureSampler();
     void createDefaultTexture();
     void createCommandBuffers();
     void createSyncObjects();
@@ -649,6 +688,7 @@ private:
     float mainCameraNear = 0.1f;
     float mainCameraFar = 20.0f;
     bool showGameViewWindow = true;
+    bool isGameViewDetached = false;
 
     glm::vec3 cubePosition = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 cubeScale = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -689,6 +729,9 @@ private:
     DragAxis activeDragAxis = DragAxis::NONE;
     DragAxis hoveredDragAxis = DragAxis::NONE;
     GizmoDragState gizmoDragState;
+    bool isBlenderGrabMode = false;
+    glm::vec3 grabStartPos = glm::vec3(0.0f);
+    int grabConstrainAxis = -1; // -1: free XZ ground plane, 0: X, 1: Y, 2: Z
     ProfilerMetrics profilerMetrics;
     bool showProfilerPanel = true;
     bool showAssetBrowserPanel = true;
@@ -715,6 +758,37 @@ private:
     int primitiveCubeMeshId = -1;
     int primitiveSphereMeshId = -1;
     int primitivePlaneMeshId = -1;
+    int primitiveCylinderMeshId = -1;
+    int primitiveConeMeshId = -1;
+
+    // 3D Scene Generator Parameters
+    bool showSceneGeneratorPanel = true;
+    bool genUseReal3DModels = true;
+    int genPreset = 0; // 0: Forest, 1: Desert, 2: Cyberpunk City, 3: Medieval Village, 4: Floating Islands, 5: 3D Maze
+    int genSeed = 42;
+    int genGridSize = 35;
+    float genHeightScale = 5.0f;
+    float genDensity = 1.0f;
+    bool genIncludeTrees = true;
+    bool genIncludeRocks = true;
+    bool genIncludeBuildings = true;
+    bool genIncludeLights = true;
+    bool genClearExisting = true;
+    glm::vec3 genSunColor = glm::vec3(1.0f, 0.92f, 0.75f);
+    float genSunIntensity = 1.5f;
+
+    std::unordered_map<std::string, int> cachedModelMeshIds;
+    int getOrLoadModelAsset(const std::string& pathStr);
+
+    std::unordered_map<std::string, int> cachedTextureIds;
+    int getOrLoadTextureAsset(const std::string& pathStr);
+
+    // Online 3D Model Downloader Plugin State
+    bool showOnlineDownloaderPanel = true;
+    char downloaderUrlBuffer[512] = "";
+    char downloaderFilenameBuffer[128] = "";
+    std::string downloaderStatusMsg = "Sẵn sàng tải Model 3D trực tuyến từ URL hoặc Catalog mẫu...";
+    bool isDownloadingModel = false;
 
     static constexpr uint32_t WIDTH = 1280;
     static constexpr uint32_t HEIGHT = 720;

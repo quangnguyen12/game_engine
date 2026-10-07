@@ -106,4 +106,6 @@ target_link_libraries(ShapeRenderer
     sol2::sol2
     Comdlg32
     Ole32
+    urlmon
+    wininet
 )

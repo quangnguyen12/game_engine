@@ -15,3 +15,11 @@ CMakeFiles/
 CMakeUserPresets.json
 CMakeSettings.json
 *.user
+dist/
+*.zip
+
+# Large 3D Models (kept local or downloaded online)
+assets/models/
+
+# Root level shader copy
+/shadow_vert.spv

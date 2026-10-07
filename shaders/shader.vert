@@ -33,7 +33,10 @@ void main() {
     fragTexCoord = inTexCoord;
     fragPos = worldPos.xyz;
     
-    // Using inverse transpose to correctly transform normals
-    mat3 normalMatrix = transpose(inverse(mat3(push.model)));
-    fragNormal = normalize(normalMatrix * inNormal);
+    // Safe normal matrix calculation protecting against degenerate scale / zero determinant
+    mat3 m3 = mat3(push.model);
+    float det = determinant(m3);
+    mat3 normalMatrix = (abs(det) > 1e-6) ? transpose(inverse(m3)) : m3;
+    vec3 transformedNormal = normalMatrix * inNormal;
+    fragNormal = (length(transformedNormal) > 1e-4) ? normalize(transformedNormal) : vec3(0.0, 1.0, 0.0);
 }

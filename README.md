@@ -24,17 +24,128 @@ Dự án mang lại trải nghiệm phát triển mô phỏng lại giao diện 
 - **Directional Light Gizmo:** Hệ thống Gizmo trực quan hóa góc chiếu và độ phủ bóng đổ của nguồn sáng dưới dạng khối chóp (Frustum), giúp bạn định vị ánh sáng chuẩn xác như đang thao tác với Camera.
 - **Ultra-Smooth 3D Raycasted Gizmo:** Công cụ điều khiển 3D trực quan mượt mà không khựng hay giật với thuật toán 3D Raycasting (Ray-Plane / Ray-Line Closest Point). Hỗ trợ đầy đủ Translate (Di chuyển), Rotate (Xoay), Scale (Co giãn), Rect Tool và Combined Transform.
 
-### 3. Tương Thích Mô Hình 3D Đa Dạng
-Engine sở hữu bộ giải mã mạnh mẽ cho phép bạn mang bất kỳ mô hình nào vào không gian 3D:
-- **Nguyên mẫu cơ bản (Primitives):** Cube, Sphere, Capsule, Cylinder, Quad,...
-- **Mô hình phức tạp (.OBJ):** Tích hợp qua `tinyobjloader`.
-- **Mô hình hiện đại (.GLB / .GLTF):** Tích hợp qua `tinygltf`, hỗ trợ xử lý linh hoạt cấu trúc Node Hierachy, ma trận biến đổi vật thể (Transform Matrix), giải mã dữ liệu gộp (Interleaved Data) chính xác ở cấp độ Byte Stride.
+### 4. Hệ Thống Sinh Cảnh 3D Tự Động (Procedural 3D Scene Generator)
+Dự án được trang bị công cụ **Sinh Cảnh 3D (3D Scene Generator)** chuyên nghiệp cho phép sinh tự động địa hình 3D, phân bố vật thể, cây cối, đá, tòa nhà và hệ thống chiếu sáng chỉ với **1-Click**:
+- **Tạo Địa Hình 3D Procedural (`createTerrainMesh`):** Thuật toán tính toán độ cao đa tần số (Multi-octave noise) sinh địa hình núi đồi, thung lũng, sa mạc, mê cung 3D mượt mà với Normal Vectors và dải màu đa dạng.
+- **6 Mẫu Cảnh (Presets) Đa Dạng:**
+  - 🌲 **Rừng & Núi Đồi (Forest & Mountain Landscape):** Địa hình đồi núi, rừng cây thông 3D (Cylinder trunk + Cone foliage), đá tảng rải rác trên mỏm núi.
+  - 🏜️ **Sa Mạc & Cổ Tích (Desert Dunes & Ruins):** Sa mạc cát vàng rolling dunes, Kim Tự Tháp 3D trung tâm, cột đá cổ obelisk rải rác.
+  - 🏙️ **Thành Phố Tương Lai (Sci-Fi Cyberpunk City Grid):** Mặt đường nhựa, mạng lưới tòa nhà chọc trời độ cao ngẫu nhiên, hệ thống đèn neon rực rỡ.
+  - 🏰 **Ngôi Làng & Lâu Đài Citadel (Medieval Village):** Lâu đài trung tâm, 4 tháp canh, nhà thờ nhỏ và nhà dân xung quanh.
+  - 🌌 **Quần Đảo Phao (Floating Islands Archipelago):** Các hòn đảo đá lơ lửng trên không trung kèm tinh thể năng lượng phát sáng.
+  - 🌀 **Mê Cung 3D (3D Dungeon Maze):** Thuật toán DFS tạo mê cung tường đá 3D, ngọn đuốc thắp sáng hành lang.
+- **Tương Thích & Sử Dụng Model 3D Thực Tế (.GLB / .OBJ / .GLTF):** Đã tích hợp sẵn các mẫu Model 3D thực tế trong thư mục `assets/models/` (`Fox.glb`, `Duck.glb`, `CesiumMan.glb`, `DamagedHelmet.glb`, `Lantern.glb`, `Avocado.glb`). Engine cho phép tải thêm **bất kỳ file 3D `.glb`, `.gltf` hoặc `.obj`** tải trên mạng từ các trang web như **Sketchfab, Poly Pizza, Kenney.nl, CGTrader, itch.io** và kéo thả trực tiếp vào không gian 3D hoặc dùng trong Sinh Cảnh!
+- **Bảng Điều Khiển "🏞️ Sinh Cảnh 3D":** Tự do bật/tắt **"🌐 Sử Dụng Objects 3D Thực Tế (.GLB / .OBJ)"**, tùy chỉnh **Seed (Hạt giống)**, **Grid Size (Kích thước)**, **Height Scale (Độ cao)**, **Density (Mật độ)**, **Sunlight (Góc & màu nắng)** và xuất scene trực tiếp.
+
+### 5. Plugin Tải Model 3D Trực Tuyến Từ API / URL (`📥 Online Model Downloader`)
+Đã tích hợp Plugin tải tự động model 3D trực tiếp ngay trong ứng dụng:
+- **Tải từ Đường Dẫn Direct URL:** Dán bất kỳ URL trực tiếp tới file 3D (`.glb`, `.gltf`, `.obj`), bấm nút **`📥 TẢI MODEL VỀ ASSETS & THẢ VÀO 3D SCENE`**, hệ thống sẽ tải ngầm (background thread), lưu thẳng vào `assets/models/` và spawn vật thể lập tức lên màn hình 3D!
+- **Kho Catalog Model 3D Miễn Phí (1-Click Download):** Danh mục mẫu có sẵn các model chất lượng cao (Cây thông 3D, Cáo, Vịt, Đèn lồng cổ, Mũ bảo hiểm PBR, Quả bơ, Nhân vật Cesium Man). Bấm **`📥 1-Click Download & Import`** để tải về và tự động tạo vật thể trong scene!
 
 ---
 
-## 🛠 Hướng Dẫn Sử Dụng (Dành cho Người Dùng)
+## 📦 Hướng Dẫn Sử Dụng Bộ Cài Đặt (Installation & Portable Package)
 
-### 🕹️ Điều Khiển (Controls) & Phím Tắt (Hotkeys)
+Bộ cài đặt của **Unity Hub 3D Vulkan Engine** được thiết kế dưới dạng **Portable (Chạy ngay không cần cài đặt rườm rà)**. Bạn chỉ cần giải nén và mở file thực thi là có thể trải nghiệm ngay lập tức.
+
+### 1. 🖥️ Yêu Cầu Hệ Thống (System Requirements)
+| Thành phần | Yêu cầu tối thiểu | Yêu cầu khuyến nghị |
+| :--- | :--- | :--- |
+| **Hệ Điều Hành** | Windows 10 (64-bit) Version 1909+ | Windows 10/11 (64-bit) bản mới nhất |
+| **Bộ Xử Lý (CPU)** | Intel Core i3 / AMD Ryzen 3 trở lên | Intel Core i5 / AMD Ryzen 5 trở lên |
+| **Bộ Nhớ (RAM)** | 4 GB RAM | 8 GB RAM trở lên |
+| **Card Đồ Họa (GPU)** | GPU hỗ trợ **Vulkan 1.2+** (NVIDIA GTX 900+, AMD RX 400+, Intel UHD 620+) | NVIDIA GTX 1060 / AMD RX 580 / RTX 2060+ |
+| **Driver GPU** | Đã cài driver card màn hình bản mới nhất | Driver Game Ready / Studio mới nhất từ NVIDIA / AMD / Intel |
+| **Thư Viện Phụ Thuộc** | [Microsoft Visual C++ 2015-2022 Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe) | Bắt buộc phải có trên máy |
+
+---
+
+### 2. 📂 Cấu Trúc Thư Mục Của Bộ Cài Đặt
+Khi giải nén file bộ cài (`UnityHub3D_Vulkan_Portable.zip`) hoặc thư mục phân phối `dist/UnityHub3D_Vulkan/`, bạn sẽ thấy các thành phần quan trọng sau:
+
+```text
+UnityHub3D_Vulkan/
+├── 🚀 ShapeRenderer.exe       # File chạy chính của Game Engine (Nhấp đúp để mở)
+├── ⚙️ glfw3.dll               # Thư viện quản lý cửa sổ hiển thị và tương tác chuột/phím
+├── 📜 lua.dll                 # Bộ máy thực thi kịch bản gameplay Lua Engine
+├── 🎨 vert.spv                # Shader đỉnh (Vertex Shader) đã biên dịch SPIR-V
+├── 🎨 frag.spv                # Shader điểm ảnh (Fragment PBR Shader) đã biên dịch
+├── 🌑 shadow_vert.spv         # Shader tính toán bóng đổ thời gian thực (Shadow Map)
+├── 🎛️ imgui.ini               # File lưu bố cục vị trí các cửa sổ giao diện Editor
+├── 📄 HUONG_DAN_SU_DUNG.txt   # File hướng dẫn tóm tắt nhanh đính kèm
+└── 📁 assets/                 # THƯ MỤC TÀI NGUYÊN BẮT BUỘC
+    ├── 📁 models/             # Chứa các mô hình 3D (.glb, .gltf, .obj như Fox, Duck, rock,...)
+    ├── 📁 Texture/            # Chứa vân bề mặt vật liệu PBR, địa hình cỏ, đá, vỏ cây
+    ├── 📁 textures/           # Thư mục phụ trợ texture
+    └── 📁 scripts/ (hoặc .lua) # Các file mã nguồn kịch bản Lua (Player movement, Patrol,...)
+```
+
+> [!IMPORTANT]
+> **Quy tắc vàng:** File thực thi `ShapeRenderer.exe`, các file `.dll`, các file `.spv` và thư mục `assets/` **PHẢI LUÔN NẰM CHUNG MỘT THƯ MỤC**. Không được kéo riêng file `ShapeRenderer.exe` ra màn hình Desktop (nếu muốn, hãy nhấp chuột phải vào file exe và chọn *Send to -> Desktop (create shortcut)*).
+
+---
+
+### 3. 🚀 Các Bước Cài Đặt Và Khởi Chạy Từng Bước
+
+#### Bước 1: Chuẩn bị môi trường (Chỉ cần làm 1 lần)
+1. Tải và cài đặt **Microsoft Visual C++ 2015-2022 Redistributable (x64)** từ trang chủ Microsoft:
+   👉 **[Tải vc_redist.x64.exe tại đây](https://aka.ms/vs/17/release/vc_redist.x64.exe)**
+2. Đảm bảo driver card màn hình (NVIDIA / AMD / Intel) đã được cập nhật phiên bản mới nhất để hỗ trợ đầy đủ tập lệnh đồ họa **Vulkan 1.2+**.
+
+#### Bước 2: Tải và Giải Nén Bộ Cài
+1. Tải gói cài đặt **`UnityHub3D_Vulkan_Portable.zip`**.
+2. Nhấp chuột phải vào file `.zip` -> chọn **Extract All...** (Giải nén tất cả).
+3. Chọn thư mục lưu trữ (Khuyến nghị lưu vào đường dẫn không có dấu tiếng Việt, ví dụ: `D:\UnityHub3D_Vulkan` hoặc `C:\Games\UnityHub3D_Vulkan`).
+
+#### Bước 3: Khởi Chạy Ứng Dụng
+1. Mở thư mục vừa giải nén.
+2. Nhấp đúp chuột vào file **`ShapeRenderer.exe`**.
+3. *Lưu ý khi gặp cảnh báo Windows Defender SmartScreen:* Nếu Windows hiện bảng xanh "Windows protected your PC", hãy bấm vào chữ **More info** (Thông tin thêm) -> chọn **Run anyway** (Vẫn chạy).
+
+#### Bước 4: Tối Ưu Hiệu Năng Cho Laptop Có 2 Card Đồ Họa (NVIDIA Optimus / AMD Dual GPU)
+Nếu máy bạn có cả card đồ họa tích hợp (Intel Onboard) và card rời (NVIDIA GeForce / AMD Radeon):
+1. Mở **Windows Settings** -> **System** -> **Display** -> **Graphics** (hoặc gõ tìm kiếm *Graphics Settings*).
+2. Bấm nút **Browse** và chọn tới file `ShapeRenderer.exe`.
+3. Bấm **Options** -> Chọn **High performance (GPU rời)** -> Bấm **Save**.
+4. Điều này đảm bảo engine luôn chạy với FPS cao nhất và tận dụng tối đa phần cứng đồ họa Vulkan.
+
+---
+
+### 4. 📦 Tự Đóng Gói Bộ Cài Mới (Dành Cho Nhà Phát Triển - 1 Click Package)
+Nếu bạn thay đổi mã nguồn hoặc cập nhật model/texture mới và muốn xuất ra bộ cài hoàn chỉnh cho người khác dùng:
+1. Chạy file script tự động: **`package_release.bat`** (Nhấp đúp chuột trực tiếp trong thư mục gốc dự án).
+2. Hệ thống sẽ tự động:
+   - Biên dịch bản Release mới nhất bằng CMake/MSBuild.
+   - Tự động gom các file `.exe`, `.dll`, Shaders `.spv`, và toàn bộ thư mục `assets/` vào thư mục `dist/UnityHub3D_Vulkan/`.
+   - Tự động nén thành file **`dist/UnityHub3D_Vulkan_Portable.zip`** sẵn sàng để gửi cho người dùng hoặc upload lên Drive/GitHub Releases!
+
+---
+
+### 5. ❓ Xử Lý Sự Cố Thường Gặp (Troubleshooting & FAQ)
+
+#### ❌ Lỗi 1: "The code execution cannot proceed because MSVCP140.dll / VCRUNTIME140.dll was not found"
+- **Nguyên nhân:** Máy tính của bạn thiếu gói thư viện C++ Runtime của Microsoft.
+- **Cách khắc phục:** Tải và cài đặt [Visual C++ 2015-2022 Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe), sau đó khởi động lại máy hoặc mở lại file exe.
+
+#### ❌ Lỗi 2: "Failed to find a compatible Vulkan Physical Device" hoặc crash khi mở
+- **Nguyên nhân:** Card đồ họa của bạn chưa cài driver Vulkan hoặc đang dùng driver mặc định của Windows.
+- **Cách khắc phục:** 
+  1. Tải driver mới nhất từ trang chủ: [NVIDIA Drivers](https://www.nvidia.com/Download/index.aspx) | [AMD Drivers](https://www.amd.com/en/support) | [Intel Drivers](https://www.intel.com/content/www/us/en/download-center/home.html).
+  2. Nếu dùng Laptop có 2 card, hãy ép ứng dụng chạy bằng card rời theo hướng dẫn ở **Bước 4** phía trên.
+
+#### ❌ Lỗi 3: "Failed to open vert.spv / frag.spv / shadow_vert.spv"
+- **Nguyên nhân:** File thực thi không tìm thấy các file Shader đồ họa.
+- **Cách khắc phục:** Đảm bảo các file đuôi `.spv` nằm cùng cấp thư mục với `ShapeRenderer.exe`. Tuyệt đối không copy mỗi file `.exe` ra chỗ khác mà không mang theo các file này.
+
+#### ❌ Lỗi 4: Mở ứng dụng thấy khung cảnh trống trơn hoặc mô hình 3D màu trắng/tím
+- **Nguyên nhân:** Thiếu thư mục `assets/` hoặc đường dẫn thư mục `assets/` bị đổi tên.
+- **Cách khắc phục:** Đảm bảo trong thư mục cài đặt có thư mục con tên là `assets/` chứa đầy đủ các file model `.glb`, `.obj` và các ảnh texture `.jpg`, `.png`.
+
+---
+
+## 🛠 Hướng Dẫn Điều Khiển Trong Editor (Dành cho Người Dùng)
+
+### 🕹️ Phím Tắt & Thao Tác (Controls & Hotkeys)
 - **Chuyển đổi Gizmo Tool:**
   - `Q`: **Hand Tool** (Chế độ điều hướng & xoay quan sát Scene View)
   - `W`: **Translate** (Di chuyển vật thể theo 3 trục X, Y, Z)
@@ -53,18 +164,21 @@ Engine sở hữu bộ giải mã mạnh mẽ cho phép bạn mang bất kỳ m�
 ## 💻 Hướng Dẫn Dành Cho Lập Trình Viên (Developers)
 
 ### 1. Kiến Trúc & Thư Viện Cốt Lõi
-- **Đồ họa:** `Vulkan SDK`
+- **Đồ họa:** `Vulkan SDK` (Vulkan 1.2 / 1.3)
 - **Cửa sổ & Input:** `GLFW`
 - **Toán học 3D:** `GLM`
 - **Giao diện Editor:** `Dear ImGui` (Tích hợp docking nhánh `docking`)
+- **Vật lý thời gian thực:** `Jolt Physics`
+- **Kịch bản Scripting:** `Lua 5.4` & `sol2`
 - **Đọc mô hình 3D:** `tiny_gltf`, `tiny_obj_loader`
-- **Trình mở file:** `tinyfiledialogs`
+- **Trình mở file hệ thống:** `tinyfiledialogs`
 
 ### 2. Biên Dịch Dự Án (Build)
 Dự án sử dụng CMake để quản lý cấu hình.
 1. Khởi tạo thư mục build: `cmake -B build`
 2. Biên dịch dự án (Chế độ Release): `cmake --build build --config Release`
 3. File chạy thực thi sẽ được tạo ra tại: `build/Release/ShapeRenderer.exe`
+4. Đóng gói bộ cài tự động: chạy file `package_release.bat`
 
 ---
 
