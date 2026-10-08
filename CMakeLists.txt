@@ -41,11 +41,11 @@ find_package(Jolt CONFIG REQUIRED)
 
 find_program(GLSL_COMPILER glslc HINTS $ENV{VULKAN_SDK}/Bin REQUIRED)
 
-set(VERT_SHADER ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.vert)
-set(FRAG_SHADER ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.frag)
+set(VERT_SHADER ${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/shader.vert)
+set(FRAG_SHADER ${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/shader.frag)
 set(VERT_SPV ${CMAKE_CURRENT_BINARY_DIR}/vert.spv)
 set(FRAG_SPV ${CMAKE_CURRENT_BINARY_DIR}/frag.spv)
-set(SHADOW_VERT_SHADER ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadow.vert)
+set(SHADOW_VERT_SHADER ${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/shadow.vert)
 set(SHADOW_VERT_SPV ${CMAKE_CURRENT_BINARY_DIR}/shadow_vert.spv)
 
 add_custom_command(
@@ -62,12 +62,28 @@ add_custom_target(CompileShaders ALL DEPENDS ${VERT_SPV} ${FRAG_SPV} ${SHADOW_VE
 add_executable(ShapeRenderer
     src/main.cpp
     src/VulkanApp.cpp
-    src/PhysicsSystem.cpp
-    src/VulkanApp.h
-    src/tinyfiledialogs.c
+    src/physics/PhysicsSystem.cpp
+    src/vendor/tinyfiledialogs.c
+    src/scene/Scene.cpp
+    src/renderer/VulkanRenderer.cpp
+    src/assets/PrimitiveGenerator.cpp
+    src/assets/ModelLoader.cpp
+    src/assets/AssetManager.cpp
+    src/scripting/ScriptEngine.cpp
+    src/editor/GizmoSystem.cpp
+    src/editor/ProfilerPanel.cpp
+    src/editor/AssetBrowserPanel.cpp
+    src/editor/SceneGenerator.cpp
+    src/editor/ModelDownloader.cpp
+    src/editor/EditorUI.cpp
 )
 
 add_dependencies(ShapeRenderer CompileShaders)
+
+if (MSVC)
+    target_compile_options(ShapeRenderer PRIVATE /bigobj)
+    set_source_files_properties(src/assets/ModelLoader.cpp PROPERTIES COMPILE_FLAGS "/O1 /Ob1")
+endif()
 
 add_custom_command(
     TARGET ShapeRenderer POST_BUILD
@@ -88,6 +104,9 @@ FetchContent_MakeAvailable(tinygltf)
 
 target_include_directories(ShapeRenderer
     PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/physics
     ${LUA_INCLUDE_DIR}
     ${glm_SOURCE_DIR}
     ${imgui_SOURCE_DIR}
