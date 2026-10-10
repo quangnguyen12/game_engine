@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <iostream>
+#include <filesystem>
 
 AssetManager::AssetManager()
 {
@@ -168,11 +169,45 @@ void AssetManager::createTextureFromRawPixels(const unsigned char* pixels, int t
 
 void AssetManager::loadTexture(const std::string& path, Texture& texture)
 {
+    std::string actualPath = path;
+    if (!std::filesystem::exists(actualPath))
+    {
+        std::filesystem::path p(path);
+        std::string filename = p.filename().string();
+        std::vector<std::string> searchPaths = {
+            path,
+            "assets/" + filename,
+            "assets/textures/" + filename,
+            "assets/Texture/" + filename,
+            "assets/models/Texture/" + filename,
+            "../" + path,
+            "../../" + path,
+            "../assets/" + filename,
+            "../../assets/" + filename,
+            "../assets/textures/" + filename,
+            "../../assets/textures/" + filename,
+            "../assets/Texture/" + filename,
+            "../../assets/Texture/" + filename,
+            "../assets/models/Texture/" + filename,
+            "../../assets/models/Texture/" + filename,
+            "build/Release/" + path,
+            "build/Release/assets/" + filename
+        };
+        for (const auto& sp : searchPaths)
+        {
+            if (std::filesystem::exists(sp))
+            {
+                actualPath = sp;
+                break;
+            }
+        }
+    }
+
     int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load(actualPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     if (!pixels)
     {
-        throw std::runtime_error("Failed to load texture image: " + path);
+        throw std::runtime_error("Failed to load texture image: " + path + " (resolved: " + actualPath + ")");
     }
     createTextureFromRawPixels(pixels, texWidth, texHeight, texture);
     stbi_image_free(pixels);
@@ -211,6 +246,7 @@ void AssetManager::createDefaultTexture()
 int AssetManager::createCubeMesh()
 {
     Mesh mesh = PrimitiveGenerator::generateCube();
+    mesh.sourcePath = "primitive://CUBE";
     createMeshBuffers(mesh);
     meshes.push_back(std::move(mesh));
     return static_cast<int>(meshes.size()) - 1;
@@ -219,6 +255,7 @@ int AssetManager::createCubeMesh()
 int AssetManager::createSphereMesh(int stacks, int slices)
 {
     Mesh mesh = PrimitiveGenerator::generateSphere(stacks, slices);
+    mesh.sourcePath = "primitive://SPHERE";
     createMeshBuffers(mesh);
     meshes.push_back(std::move(mesh));
     return static_cast<int>(meshes.size()) - 1;
@@ -227,6 +264,7 @@ int AssetManager::createSphereMesh(int stacks, int slices)
 int AssetManager::createPlaneMesh()
 {
     Mesh mesh = PrimitiveGenerator::generatePlane();
+    mesh.sourcePath = "primitive://PLANE";
     createMeshBuffers(mesh);
     meshes.push_back(std::move(mesh));
     return static_cast<int>(meshes.size()) - 1;
@@ -235,6 +273,7 @@ int AssetManager::createPlaneMesh()
 int AssetManager::createCylinderMesh(float radiusTop, float radiusBottom, float height, int slices)
 {
     Mesh mesh = PrimitiveGenerator::generateCylinder(radiusTop, radiusBottom, height, slices);
+    mesh.sourcePath = "primitive://CYLINDER";
     createMeshBuffers(mesh);
     meshes.push_back(std::move(mesh));
     return static_cast<int>(meshes.size()) - 1;
@@ -243,6 +282,7 @@ int AssetManager::createCylinderMesh(float radiusTop, float radiusBottom, float 
 int AssetManager::createConeMesh(float radius, float height, int slices)
 {
     Mesh mesh = PrimitiveGenerator::generateCone(radius, height, slices);
+    mesh.sourcePath = "primitive://CONE";
     createMeshBuffers(mesh);
     meshes.push_back(std::move(mesh));
     return static_cast<int>(meshes.size()) - 1;
@@ -251,6 +291,7 @@ int AssetManager::createConeMesh(float radius, float height, int slices)
 int AssetManager::createTerrainMesh(int gridW, int gridD, float cellSize, float heightScale, int seed, int biomeType)
 {
     Mesh mesh = PrimitiveGenerator::generateTerrain(gridW, gridD, cellSize, heightScale, seed, biomeType);
+    mesh.sourcePath = "terrain:" + std::to_string(gridW) + ":" + std::to_string(gridD) + ":" + std::to_string(cellSize) + ":" + std::to_string(heightScale) + ":" + std::to_string(seed) + ":" + std::to_string(biomeType);
     createMeshBuffers(mesh);
     meshes.push_back(std::move(mesh));
     return static_cast<int>(meshes.size()) - 1;
@@ -265,6 +306,7 @@ int AssetManager::getOrLoadModelAsset(const std::string& pathStr)
     try {
         Mesh m;
         ModelLoader::loadModel(pathStr, m, this);
+        m.sourcePath = pathStr;
         createMeshBuffers(m);
         meshes.push_back(std::move(m));
         int id = static_cast<int>(meshes.size()) - 1;
@@ -282,9 +324,19 @@ int AssetManager::getOrLoadTextureAsset(const std::string& pathStr)
     {
         return cachedTextureIds[pathStr];
     }
+    if (pathStr.find('#') != std::string::npos)
+    {
+        std::string modelPath = pathStr.substr(0, pathStr.find('#'));
+        getOrLoadModelAsset(modelPath);
+        if (cachedTextureIds.find(pathStr) != cachedTextureIds.end())
+        {
+            return cachedTextureIds[pathStr];
+        }
+    }
     try {
         Texture tex;
         loadTexture(pathStr, tex);
+        tex.sourcePath = pathStr;
         textures.push_back(tex);
         int id = static_cast<int>(textures.size()) - 1;
         cachedTextureIds[pathStr] = id;
@@ -297,12 +349,19 @@ int AssetManager::getOrLoadTextureAsset(const std::string& pathStr)
 
 int AssetManager::load3DModelAsset(const std::string& filePath)
 {
+    if (cachedModelMeshIds.find(filePath) != cachedModelMeshIds.end())
+    {
+        return cachedModelMeshIds[filePath];
+    }
     try {
         Mesh newMesh;
         ModelLoader::loadModel(filePath, newMesh, this);
+        newMesh.sourcePath = filePath;
         createMeshBuffers(newMesh);
         meshes.push_back(newMesh);
-        return static_cast<int>(meshes.size()) - 1;
+        int id = static_cast<int>(meshes.size()) - 1;
+        cachedModelMeshIds[filePath] = id;
+        return id;
     }
     catch (const std::exception& e) {
         printf("Error loading 3D Model Asset (%s): %s\n", filePath.c_str(), e.what());
@@ -312,11 +371,18 @@ int AssetManager::load3DModelAsset(const std::string& filePath)
 
 int AssetManager::loadTextureAsset(const std::string& filePath)
 {
+    if (cachedTextureIds.find(filePath) != cachedTextureIds.end())
+    {
+        return cachedTextureIds[filePath];
+    }
     try {
         Texture newTexture;
         loadTexture(filePath, newTexture);
+        newTexture.sourcePath = filePath;
         textures.push_back(newTexture);
-        return static_cast<int>(textures.size()) - 1;
+        int id = static_cast<int>(textures.size()) - 1;
+        cachedTextureIds[filePath] = id;
+        return id;
     }
     catch (const std::exception& e) {
         printf("Error loading Texture Asset (%s): %s\n", filePath.c_str(), e.what());
@@ -350,4 +416,22 @@ const Texture* AssetManager::getTexture(int id) const
     if (id >= 0 && id < static_cast<int>(textures.size()))
         return &textures[id];
     return nullptr;
+}
+
+std::string AssetManager::getModelPath(int meshId) const
+{
+    if (meshId >= 0 && meshId < static_cast<int>(meshes.size()))
+    {
+        return meshes[meshId].sourcePath;
+    }
+    return "";
+}
+
+std::string AssetManager::getTexturePath(int textureId) const
+{
+    if (textureId >= 0 && textureId < static_cast<int>(textures.size()))
+    {
+        return textures[textureId].sourcePath;
+    }
+    return "";
 }

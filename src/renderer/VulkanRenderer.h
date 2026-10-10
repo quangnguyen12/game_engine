@@ -84,6 +84,13 @@ public:
     glm::vec4& getBackgroundColor() { return backgroundColor; }
     const glm::vec4& getBackgroundColor() const { return backgroundColor; }
 
+    // Screenshot & Image Export
+    bool captureImagePixels(VkImage sourceImage, uint32_t srcWidth, uint32_t srcHeight, std::vector<uint8_t>& outRGBA);
+    bool captureGameViewPixels(std::vector<uint8_t>& outRGBA, uint32_t& outWidth, uint32_t& outHeight);
+    bool captureSceneViewPixels(std::vector<uint8_t>& outRGBA, uint32_t& outWidth, uint32_t& outHeight);
+    bool exportGameViewImage(const std::string& filepath, uint32_t targetWidth = 0, uint32_t targetHeight = 0);
+    bool exportSceneViewImage(const std::string& filepath, uint32_t targetWidth = 0, uint32_t targetHeight = 0);
+
 private:
     void createInstance();
     void createSurface();

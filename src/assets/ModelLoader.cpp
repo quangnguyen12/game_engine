@@ -24,6 +24,7 @@
 
 void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* assetManager)
 {
+    mesh.sourcePath = path;
     mesh.vertices.clear();
     mesh.indices.clear();
     mesh.submeshes.clear();
@@ -32,8 +33,26 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
     mesh.defaultRoughness = 0.5f;
     mesh.defaultMetallic = 0.0f;
 
-    std::string ext = path.substr(path.find_last_of('.') + 1);
+    std::string actualPath = path;
+    if (!std::filesystem::exists(actualPath)) {
+        if (std::filesystem::exists("build/Release/" + path)) actualPath = "build/Release/" + path;
+        else if (path.rfind("build/Release/", 0) == 0 && std::filesystem::exists(path.substr(14))) actualPath = path.substr(14);
+        else if (std::filesystem::exists("../" + path)) actualPath = "../" + path;
+        else if (std::filesystem::exists("../../" + path)) actualPath = "../../" + path;
+    }
+
+    std::string ext = actualPath.substr(actualPath.find_last_of('.') + 1);
     for (auto& c : ext) c = static_cast<char>(tolower(c));
+
+    if (ext == "fbx") {
+        std::filesystem::path fbxP(actualPath);
+        std::filesystem::path objP = fbxP.parent_path() / (fbxP.stem().string() + ".obj");
+        if (std::filesystem::exists(objP)) {
+            loadModel(objP.string(), mesh, assetManager);
+            mesh.sourcePath = path;
+            return;
+        }
+    }
 
     if (ext == "glb" || ext == "gltf") {
         tinygltf::Model gltfModel;
@@ -57,17 +76,42 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
         }, nullptr);
         
         if (ext == "glb") {
-            ret = loader.LoadBinaryFromFile(&gltfModel, &err, &warn, path);
+            ret = loader.LoadBinaryFromFile(&gltfModel, &err, &warn, actualPath);
         } else {
-            ret = loader.LoadASCIIFromFile(&gltfModel, &err, &warn, path);
+            ret = loader.LoadASCIIFromFile(&gltfModel, &err, &warn, actualPath);
         }
         
         if (!warn.empty()) printf("GLTF Warn: %s\n", warn.c_str());
         if (!err.empty()) printf("GLTF Err: %s\n", err.c_str());
-        if (!ret) throw std::runtime_error("Failed to parse glTF: " + path);
+        if (!ret) throw std::runtime_error("Failed to parse glTF: " + actualPath);
         
         const tinygltf::Scene& scene = gltfModel.scenes[gltfModel.defaultScene > -1 ? gltfModel.defaultScene : 0];
         
+        std::filesystem::path gltfP(actualPath);
+        std::string gltfStem = gltfP.stem().string();
+        std::string gltfDir = gltfP.parent_path().string();
+        std::string lowerGltfStem = gltfStem;
+        for (auto& c : lowerGltfStem) c = static_cast<char>(tolower(c));
+
+        // Check companion texture on disk for glTF/GLB models (e.g. warehouse.png / warehouse.jpg)
+        std::string companionTex = "";
+        std::vector<std::string> compCandidates = {
+            gltfDir + "/" + gltfStem + ".png",
+            gltfDir + "/" + gltfStem + ".jpg",
+            gltfDir + "/textures/" + gltfStem + ".png",
+            gltfDir + "/textures/" + gltfStem + ".jpg",
+            "assets/textures/" + gltfStem + ".png",
+            "assets/textures/" + gltfStem + ".jpg",
+            "assets/models/" + gltfStem + ".png",
+            "assets/models/" + gltfStem + ".jpg"
+        };
+        for (const auto& cand : compCandidates) {
+            if (std::filesystem::exists(cand)) {
+                companionTex = cand;
+                break;
+            }
+        }
+
         std::function<void(int, const glm::mat4&)> processNode = [&](int nodeIndex, const glm::mat4& parentMatrix) {
             const tinygltf::Node& node = gltfModel.nodes[nodeIndex];
             glm::mat4 matrix = parentMatrix;
@@ -93,6 +137,7 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
                     const tinygltf::Primitive& primitive = gmesh.primitives[i];
                     
                     uint32_t vertexStart = static_cast<uint32_t>(mesh.vertices.size());
+                    uint32_t subIndexOffset = static_cast<uint32_t>(mesh.indices.size());
                     
                     const unsigned char* positionDataBytes = nullptr;
                     size_t vertexCount = 0;
@@ -192,6 +237,95 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
                             mesh.indices.push_back(static_cast<uint32_t>(vertexStart + v));
                         }
                     }
+
+                    // Create SubMesh for this glTF primitive to support multi-material & distinct PBR
+                    uint32_t subIndexCount = static_cast<uint32_t>(mesh.indices.size()) - subIndexOffset;
+                    if (subIndexCount > 0) {
+                        SubMesh sub{};
+                        sub.indexOffset = subIndexOffset;
+                        sub.indexCount = subIndexCount;
+                        sub.twoSided = true;
+                        sub.roughness = 0.5f;
+                        sub.metallic = 0.0f;
+                        sub.textureId = -1;
+
+                        int matId = primitive.material;
+                        if (matId >= 0 && matId < static_cast<int>(gltfModel.materials.size())) {
+                            const auto& mat = gltfModel.materials[matId];
+                            if (mat.pbrMetallicRoughness.roughnessFactor >= 0.0)
+                                sub.roughness = static_cast<float>(mat.pbrMetallicRoughness.roughnessFactor);
+                            if (mat.pbrMetallicRoughness.metallicFactor >= 0.0)
+                                sub.metallic = static_cast<float>(mat.pbrMetallicRoughness.metallicFactor);
+                            if (mat.doubleSided) sub.twoSided = true;
+
+                            // Resolve material texture
+                            int texIndex = mat.pbrMetallicRoughness.baseColorTexture.index;
+                            int imgIndex = -1;
+                            if (texIndex >= 0 && texIndex < static_cast<int>(gltfModel.textures.size())) {
+                                imgIndex = gltfModel.textures[texIndex].source;
+                            }
+                            if (imgIndex >= 0 && imgIndex < static_cast<int>(gltfModel.images.size()) && assetManager) {
+                                std::string cacheKey = path + "#img" + std::to_string(imgIndex);
+                                auto& cache = assetManager->getCachedTextureIds();
+                                if (cache.find(cacheKey) != cache.end()) {
+                                    sub.textureId = cache[cacheKey];
+                                } else {
+                                    const auto& gltfImg = gltfModel.images[imgIndex];
+                                    if (!gltfImg.image.empty() && gltfImg.width > 0 && gltfImg.height > 0) {
+                                        try {
+                                            Texture newTex;
+                                            assetManager->createTextureFromRawPixels(gltfImg.image.data(), gltfImg.width, gltfImg.height, newTex);
+                                            newTex.sourcePath = cacheKey;
+                                            assetManager->getTextures().push_back(newTex);
+                                            int newTexId = static_cast<int>(assetManager->getTextures().size()) - 1;
+                                            cache[cacheKey] = newTexId;
+                                            sub.textureId = newTexId;
+                                        } catch (const std::exception& ex) {
+                                            printf("Failed to create Vulkan texture from glTF image %d: %s\n", imgIndex, ex.what());
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Material semantics detection
+                            std::string mName = mat.name;
+                            for (auto& c : mName) c = static_cast<char>(tolower(c));
+
+                            bool isEmissive = false;
+                            if (mat.emissiveFactor.size() == 3) {
+                                float emSum = static_cast<float>(mat.emissiveFactor[0] + mat.emissiveFactor[1] + mat.emissiveFactor[2]);
+                                if (emSum > 0.05f) isEmissive = true;
+                            }
+                            if (mName.find("emissive") != std::string::npos || mName.find("light") != std::string::npos || mName.find("lamp") != std::string::npos) {
+                                isEmissive = true;
+                            }
+
+                            if (isEmissive) {
+                                // Fluorescent ceiling lights glow brightly
+                                sub.roughness = 0.05f;
+                                sub.metallic = 0.0f;
+                                for (size_t vIdx = vertexStart; vIdx < mesh.vertices.size(); ++vIdx) {
+                                    mesh.vertices[vIdx].color = glm::vec3(2.5f, 2.7f, 3.0f);
+                                }
+                            } else if (mName.find("wet") != std::string::npos || mName.find("concrete") != std::string::npos) {
+                                // Wet concrete reflective ground puddles (Glossy Wet Surface)
+                                sub.roughness = 0.16f;
+                                sub.metallic = 0.35f;
+                            } else if (mName.find("metal") != std::string::npos) {
+                                // Corrugated steel siding & industrial trusses
+                                sub.roughness = 0.40f;
+                                sub.metallic = 0.70f;
+                                if (sub.textureId < 0 && !companionTex.empty() && assetManager) {
+                                    sub.textureId = assetManager->getOrLoadTextureAsset(companionTex);
+                                }
+                            }
+
+                            if (sub.textureId < 0 && !companionTex.empty() && assetManager && !isEmissive) {
+                                sub.textureId = assetManager->getOrLoadTextureAsset(companionTex);
+                            }
+                        }
+                        mesh.submeshes.push_back(sub);
+                    }
                 }
             }
             
@@ -204,60 +338,32 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
             processNode(nodeIdx, glm::mat4(1.0f));
         }
 
-        int primaryTexIndex = -1;
-        for (const auto& mat : gltfModel.materials) {
-            if (mat.pbrMetallicRoughness.baseColorTexture.index >= 0) {
-                primaryTexIndex = mat.pbrMetallicRoughness.baseColorTexture.index;
-                mesh.defaultRoughness = static_cast<float>(mat.pbrMetallicRoughness.roughnessFactor);
-                mesh.defaultMetallic = static_cast<float>(mat.pbrMetallicRoughness.metallicFactor);
+        // Set mesh default texture and PBR properties from submeshes
+        for (const auto& sub : mesh.submeshes) {
+            if (sub.textureId >= 0) {
+                mesh.defaultTextureId = sub.textureId;
+                mesh.defaultRoughness = sub.roughness;
+                mesh.defaultMetallic = sub.metallic;
                 break;
             }
         }
-
-        int imageIndex = -1;
-        if (primaryTexIndex >= 0 && primaryTexIndex < static_cast<int>(gltfModel.textures.size())) {
-            imageIndex = gltfModel.textures[primaryTexIndex].source;
-        } else if (!gltfModel.textures.empty() && gltfModel.textures[0].source >= 0) {
-            imageIndex = gltfModel.textures[0].source;
-        } else if (!gltfModel.images.empty()) {
-            imageIndex = 0;
+        if (mesh.defaultTextureId < 0 && !companionTex.empty() && assetManager) {
+            mesh.defaultTextureId = assetManager->getOrLoadTextureAsset(companionTex);
         }
 
-        if (assetManager && imageIndex >= 0 && imageIndex < static_cast<int>(gltfModel.images.size())) {
-            const auto& gltfImg = gltfModel.images[imageIndex];
-            if (!gltfImg.image.empty() && gltfImg.width > 0 && gltfImg.height > 0) {
-                std::string cacheKey = path + "#img" + std::to_string(imageIndex);
-                auto& cache = assetManager->getCachedTextureIds();
-                if (cache.find(cacheKey) != cache.end()) {
-                    mesh.defaultTextureId = cache[cacheKey];
-                } else {
-                    try {
-                        Texture newTex;
-                        assetManager->createTextureFromRawPixels(gltfImg.image.data(), gltfImg.width, gltfImg.height, newTex);
-                        assetManager->getTextures().push_back(newTex);
-                        int newTexId = static_cast<int>(assetManager->getTextures().size()) - 1;
-                        cache[cacheKey] = newTexId;
-                        mesh.defaultTextureId = newTexId;
-                    } catch (const std::exception& ex) {
-                        printf("Failed to create Vulkan texture from glTF image %d: %s\n", imageIndex, ex.what());
-                    }
-                }
-            } else if (!gltfImg.uri.empty()) {
-                std::filesystem::path p(path);
-                std::filesystem::path imgPath = p.parent_path() / gltfImg.uri;
-                int texId = assetManager->getOrLoadTextureAsset(imgPath.string());
-                if (texId >= 0) mesh.defaultTextureId = texId;
-            }
+        if (lowerGltfStem == "warehouse") {
+            mesh.defaultRoughness = 0.40f;
+            mesh.defaultMetallic = 0.60f;
         }
         
         std::string lowerGltf = path;
         std::transform(lowerGltf.begin(), lowerGltf.end(), lowerGltf.begin(), ::tolower);
-        if (lowerGltf.find("tree") != std::string::npos || lowerGltf.find("foliage") != std::string::npos || lowerGltf.find("plant") != std::string::npos) {
+        if (((lowerGltf.find("tree") != std::string::npos && lowerGltf.find("log") == std::string::npos) || lowerGltf.find("foliage") != std::string::npos || lowerGltf.find("plant") != std::string::npos)) {
             mesh.isFoliage = true;
         }
     } else {
         // Fallback to OBJ
-        std::filesystem::path objPath(path);
+        std::filesystem::path objPath(actualPath);
         std::string mtlBaseDir = objPath.parent_path().string();
         if (mtlBaseDir.empty()) mtlBaseDir = ".";
 
@@ -266,7 +372,7 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
         std::vector<tinyobj::material_t> materials;
         std::string warn, err;
 
-        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.c_str(), mtlBaseDir.c_str()))
+        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, actualPath.c_str(), mtlBaseDir.c_str()))
             throw std::runtime_error(warn + err);
         
         std::string lowerObjPath = path;
@@ -296,13 +402,16 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
                     std::string stem = tp.stem().string();
 
                     std::vector<std::string> candidates = {
-                        normTex,
-                        mtlBaseDir + "/" + normTex,
-                        mtlBaseDir + "/../" + normTex,
+                        mtlBaseDir + "/" + filename,
+                        mtlBaseDir + "/" + stem + ".png",
+                        mtlBaseDir + "/" + stem + ".jpg",
                         mtlBaseDir + "/textures/" + filename,
                         mtlBaseDir + "/../textures/" + filename,
                         mtlBaseDir + "/Texture/" + filename,
                         mtlBaseDir + "/../Texture/" + filename,
+                        normTex,
+                        mtlBaseDir + "/" + normTex,
+                        mtlBaseDir + "/../" + normTex,
                         "assets/" + normTex,
                         "assets/textures/" + filename,
                         "assets/Texture/" + filename,
@@ -526,11 +635,102 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
                 if (std::filesystem::exists("assets/Texture/Bark___0.jpg")) texName = "assets/Texture/Bark___0.jpg";
                 else if (std::filesystem::exists("assets/Texture/Oak_Leav.jpg")) texName = "assets/Texture/Oak_Leav.jpg";
             }
+            if (texName.empty() && std::filesystem::exists(parentDir)) {
+                for (const auto& entry : std::filesystem::directory_iterator(parentDir)) {
+                    if (entry.is_regular_file()) {
+                        std::string ext = entry.path().extension().string();
+                        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                        if (ext == ".png" || ext == ".jpg" || ext == ".jpeg") {
+                            texName = entry.path().string();
+                            break;
+                        }
+                    }
+                }
+            }
             if (!texName.empty()) {
                 mesh.defaultTextureId = assetManager->getOrLoadTextureAsset(texName);
             }
         }
     }
     
+    // Normalize model dimensions to 1:1 metric scale and ground bottom to Y = 0
+    if (!mesh.vertices.empty()) {
+        glm::vec3 minB(1e9f);
+        glm::vec3 maxB(-1e9f);
+        for (const auto& v : mesh.vertices) {
+            minB = glm::min(minB, v.pos);
+            maxB = glm::max(maxB, v.pos);
+        }
+        glm::vec3 size = maxB - minB;
+        float maxDim = std::max({ size.x, size.y, size.z });
+
+        std::filesystem::path p(path);
+        std::string stem = p.stem().string();
+        std::string lowerStem = stem;
+        for (auto& c : lowerStem) c = static_cast<char>(tolower(c));
+
+        float targetScale = 1.0f;
+        if (lowerStem == "fox") {
+            targetScale = 1.1f / std::max(maxDim, 0.001f);
+        } else if (lowerStem == "duck") {
+            targetScale = 0.5f / std::max(maxDim, 0.001f);
+        } else if (lowerStem == "lantern") {
+            targetScale = 0.5f / std::max(maxDim, 0.001f);
+        } else if (lowerStem == "rock" || lowerStem == "flatrock" || lowerStem == "boulder") {
+            targetScale = 1.6f / std::max(maxDim, 0.001f);
+        } else if (lowerStem == "stone") {
+            targetScale = 0.65f / std::max(maxDim, 0.001f);
+        } else if (lowerStem == "bush") {
+            targetScale = 1.1f / std::max(maxDim, 0.001f);
+        } else if (lowerStem == "tree_and_bush" || lowerStem == "trees_and_bush_pack") {
+            targetScale = 2.6f / std::max(maxDim, 0.001f);
+        } else if (lowerStem == "damagedhelmet") {
+            targetScale = 0.6f / std::max(maxDim, 0.001f);
+        } else if (lowerStem == "cesiumman") {
+            targetScale = 1.7f / std::max(maxDim, 0.001f);
+        } else if (lowerStem == "avocado") {
+            targetScale = 0.3f / std::max(maxDim, 0.001f);
+        } else if (lowerStem == "log_pile") {
+            // log_pile was exported in cm (X: ~310cm, Y: ~58cm, Z: ~111cm) -> 1:1 metric scale is 0.01 (3.1m x 0.58m x 1.1m)
+            targetScale = 0.01f;
+        } else if (lowerStem == "tree_log") {
+            // tree_log was modeled in meters (1.79m x 0.38m x 0.62m) -> 1:1 metric scale
+            targetScale = 1.0f;
+        } else if (lowerStem == "trees9") {
+            targetScale = 5.5f / std::max(maxDim, 0.001f);
+        } else if (lowerStem.find("tree") != std::string::npos) {
+            if (maxDim > 12.0f) targetScale = 5.5f / std::max(maxDim, 0.001f);
+            else if (maxDim < 1.0f) targetScale = 4.5f / std::max(maxDim, 0.001f);
+            else targetScale = 1.0f;
+        } else if (lowerStem == "box") {
+            targetScale = 1.0f;
+        } else if (lowerStem == "shootingtarget" || lowerStem == "shootingtarget_01") {
+            // shootingtarget was modeled in 1:1 metric scale (width 0.80m, depth 0.03m, height 1.75m)
+            targetScale = 1.0f;
+        } else if (lowerStem == "warehouse") {
+            // warehouse.glb is modeled in 1:1 metric architectural scale (22.5m width x 11.3m height x 31.6m length)
+            targetScale = 1.0f;
+        } else {
+            // General safeguard: if DCC unit was cm or mm (maxDim > 15m), normalize to 2.0m prop
+            if (maxDim > 15.0f) {
+                targetScale = 2.0f / maxDim;
+            } else {
+                targetScale = 1.0f;
+            }
+        }
+
+        glm::vec3 centerXZ = glm::vec3((minB.x + maxB.x) * 0.5f, (lowerStem == "box") ? ((minB.y + maxB.y) * 0.5f) : minB.y, (minB.z + maxB.z) * 0.5f);
+        for (auto& v : mesh.vertices) {
+            v.pos.x = (v.pos.x - centerXZ.x) * targetScale;
+            v.pos.y = (v.pos.y - centerXZ.y) * targetScale;
+            v.pos.z = (v.pos.z - centerXZ.z) * targetScale;
+        }
+
+        mesh.pivotOffset = centerXZ;
+        mesh.targetScale = targetScale;
+        mesh.originalMinB = minB;
+        mesh.originalMaxB = maxB;
+    }
+
     mesh.indexCount = static_cast<uint32_t>(mesh.indices.size());
 }

@@ -1,12 +1,27 @@
 #include "editor/GizmoSystem.h"
 #include "scene/Scene.h"
 #include "assets/AssetManager.h"
+#include "renderer/VulkanRenderer.h"
+#include "vendor/tinyfiledialogs.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/constants.hpp>
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <filesystem>
+#include <chrono>
+#include <ctime>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 GizmoSystem::GizmoSystem()
 {
@@ -1268,7 +1283,7 @@ void GizmoSystem::drawSceneView(Scene* scene, AssetManager* assetManager, VkDesc
                 sceneObjects.push_back(newObj);
                 scene->setSelectedObjectIndex(static_cast<int>(sceneObjects.size()) - 1);
             }
-            else if (ext == ".obj" || ext == ".glb" || ext == ".gltf")
+            else if (ext == ".obj" || ext == ".glb" || ext == ".gltf" || ext == ".fbx")
             {
                 int meshId = assetManager->load3DModelAsset(pathStr);
                 if (meshId >= 0)
@@ -1279,21 +1294,11 @@ void GizmoSystem::drawSceneView(Scene* scene, AssetManager* assetManager, VkDesc
                     newObj.name = sName;
                     newObj.type = ObjectType::CUBE;
                     newObj.position = dropPos;
-                    float sc = 1.0f;
-                    if (sName == "Fox") sc = 0.02f;
-                    else if (sName == "Lantern") sc = 0.2f;
-
-                    if (sName.find("rock") != std::string::npos || sName.find("Rock") != std::string::npos)
-                    {
-                        newObj.scale = glm::vec3(0.35f, 0.10f, 0.35f);
-                        newObj.rotation = glm::vec3(0.0f);
-                    }
-                    else
-                    {
-                        newObj.scale = glm::vec3(sc);
-                    }
+                    newObj.scale = glm::vec3(1.0f);
+                    newObj.rotation = glm::vec3(0.0f);
                     newObj.color = glm::vec4(1.0f);
                     newObj.meshId = meshId;
+                    newObj.modelPath = pathStr;
                     const auto& meshes = assetManager->getMeshes();
                     if (meshId < static_cast<int>(meshes.size())) {
                         newObj.textureId = meshes[meshId].defaultTextureId;
@@ -1311,6 +1316,7 @@ void GizmoSystem::drawSceneView(Scene* scene, AssetManager* assetManager, VkDesc
                 if (texId >= 0 && selectedObjectIndex >= 0 && selectedObjectIndex < static_cast<int>(sceneObjects.size()))
                 {
                     sceneObjects[selectedObjectIndex].textureId = texId;
+                    sceneObjects[selectedObjectIndex].texturePath = pathStr;
                     sceneObjects[selectedObjectIndex].syncComponents();
                 }
             }
@@ -1332,99 +1338,557 @@ void GizmoSystem::drawSceneView(Scene* scene, AssetManager* assetManager, VkDesc
     }
 }
 
+float GizmoSystem::getGameViewAspectRatio() const
+{
+    if (gameAspectRatioMode == GameViewAspectRatioMode::PHOTO_2M4_X_2M) return 2.4f / 2.0f; // 1.20f
+    if (gameAspectRatioMode == GameViewAspectRatioMode::RATIO_16_9) return 16.0f / 9.0f;
+    return 1280.0f / 720.0f;
+}
+
+void GizmoSystem::frameScenicPhotoView(const Scene& scene, int viewAngleType)
+{
+    const auto& objects = scene.getObjects();
+    if (objects.empty())
+    {
+        mainCameraTarget = glm::vec3(0.0f, 1.0f, 0.0f);
+        mainCameraPos = glm::vec3(0.0f, 3.5f, 9.5f);
+        mainCameraFov = 45.0f;
+        mainCameraNear = 0.1f;
+        mainCameraFar = 100.0f;
+        return;
+    }
+
+    glm::vec3 minB(1e9f);
+    glm::vec3 maxB(-1e9f);
+    int count = 0;
+
+    for (const auto& obj : objects)
+    {
+        // Bỏ qua đèn mặt trời đặt trên trời cao
+        if (obj.type == ObjectType::LIGHT && obj.position.y > 8.0f) continue;
+
+        glm::vec3 halfExtents = glm::abs(obj.scale) * 0.5f;
+        if (halfExtents.x < 0.2f) halfExtents = glm::vec3(0.5f);
+
+        minB = glm::min(minB, obj.position - halfExtents);
+        maxB = glm::max(maxB, obj.position + halfExtents);
+        count++;
+    }
+
+    if (count == 0 || minB.x > maxB.x)
+    {
+        minB = glm::vec3(-5.0f, 0.0f, -5.0f);
+        maxB = glm::vec3(5.0f, 3.0f, 5.0f);
+    }
+
+    glm::vec3 center = (minB + maxB) * 0.5f;
+    glm::vec3 size = maxB - minB;
+
+    // Tỉ lệ khung hình ảnh: 2.4m x 2.0m = 1.2f
+    float fitHeight = std::max({ size.y * 1.15f, (size.x / 1.2f) * 0.95f, (size.z / 1.2f) * 0.8f, 3.0f });
+    float fovRad = glm::radians(mainCameraFov);
+    float dist = (fitHeight * 0.5f) / std::tan(fovRad * 0.5f);
+    dist = std::clamp(dist * 1.15f, 5.5f, 75.0f);
+
+    mainCameraNear = 0.1f;
+    mainCameraFar = std::max(120.0f, dist * 3.5f);
+
+    if (viewAngleType == 0) // Frontal Scenic (Chính diện sinh cảnh như 1 bức tranh nghệ thuật 2.4m x 2.0m)
+    {
+        mainCameraPos = glm::vec3(0.0f, 3.2f, 14.5f);
+        mainCameraTarget = glm::vec3(0.0f, 1.2f, 0.0f);
+        mainCameraFov = 45.0f;
+        mainCameraNear = 0.1f;
+        mainCameraFar = 120.0f;
+        gameAspectRatioMode = GameViewAspectRatioMode::PHOTO_2M4_X_2M;
+    }
+    else if (viewAngleType == 1) // Isometric 45° (Góc nghiêng nghệ thuật)
+    {
+        mainCameraTarget = center + glm::vec3(0.0f, std::max(0.5f, size.y * 0.25f), 0.0f);
+        float diag = dist * 0.707f;
+        mainCameraPos = mainCameraTarget + glm::vec3(diag, std::max(2.8f, fitHeight * 0.45f), diag);
+    }
+    else if (viewAngleType == 2) // Eye Level (Góc tầm mắt ngắm cảnh)
+    {
+        mainCameraTarget = center + glm::vec3(0.0f, 1.2f, 0.0f);
+        mainCameraPos = mainCameraTarget + glm::vec3(0.0f, 1.6f, dist * 0.85f);
+    }
+    else if (viewAngleType == 3) // Bird's Eye View (Góc nhìn từ trên cao bao quát)
+    {
+        mainCameraTarget = center;
+        mainCameraPos = center + glm::vec3(0.0f, dist * 0.85f, dist * 0.55f);
+    }
+}
+
 void GizmoSystem::drawGameView(VkDescriptorSet gameViewTexture, const ImVec2& windowPos, const ImVec2& windowSize,
-                               int gameScore, int highScore, std::function<void()> onToggleFullscreen, AppMode mode)
+                               int gameScore, int highScore, std::function<void()> onToggleFullscreen,
+                               AppMode mode, const Scene* scene, VulkanRenderer* renderer)
 {
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    // 1. Draw Space Gradient Background
+    // 1. Sleek Studio Gallery Background (Vignette Charcoal)
     drawList->AddRectFilledMultiColor(
         windowPos, 
         ImVec2(windowPos.x + windowSize.x, windowPos.y + windowSize.y),
-        IM_COL32(6, 10, 20, 255),
-        IM_COL32(8, 12, 24, 255),
-        IM_COL32(16, 26, 46, 255),
-        IM_COL32(10, 18, 32, 255)
+        IM_COL32(12, 16, 24, 255),
+        IM_COL32(15, 20, 30, 255),
+        IM_COL32(22, 28, 40, 255),
+        IM_COL32(14, 18, 26, 255)
     );
 
-    // 2. Draw Planetary Nebula Glow
-    drawList->AddCircleFilled(ImVec2(windowPos.x + windowSize.x * 0.75f, windowPos.y + windowSize.y * 0.70f), 130.0f, IM_COL32(0, 120, 255, 12), 64);
-    drawList->AddCircleFilled(ImVec2(windowPos.x + windowSize.x * 0.75f, windowPos.y + windowSize.y * 0.70f), 80.0f, IM_COL32(100, 180, 255, 18), 64);
-    drawList->AddCircleFilled(ImVec2(windowPos.x + windowSize.x * 0.25f, windowPos.y + windowSize.y * 0.30f), 200.0f, IM_COL32(120, 80, 255, 8), 64);
+    // 2. Top Control Toolbar
+    float topBarH = 36.0f;
+    drawList->AddRectFilled(windowPos, ImVec2(windowPos.x + windowSize.x, windowPos.y + topBarH), IM_COL32(20, 24, 32, 230));
+    drawList->AddLine(ImVec2(windowPos.x, windowPos.y + topBarH), ImVec2(windowPos.x + windowSize.x, windowPos.y + topBarH), IM_COL32(50, 60, 75, 255), 1.0f);
 
-    // 3. Draw Stars
-    for (int i = 0; i < 40; ++i)
+    ImGui::SetCursorScreenPos(ImVec2(windowPos.x + 10.0f, windowPos.y + 5.0f));
+    ImGui::TextColored(ImVec4(1.0f, 0.82f, 0.2f, 1.0f), "🖼️ KHUNG ẢNH:");
+    ImGui::SameLine();
+
+    // Ratio Toggle Buttons
+    bool is2m4 = (gameAspectRatioMode == GameViewAspectRatioMode::PHOTO_2M4_X_2M);
+    if (is2m4) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.65f, 0.1f, 0.85f));
+    if (ImGui::Button(" 2.4m × 2.0m (6:5) ", ImVec2(130, 26)))
     {
-        float sx = static_cast<float>((i * 13579) % static_cast<int>(windowSize.x > 20.0f ? windowSize.x - 20 : 1) + 10);
-        float sy = static_cast<float>((i * 24680) % static_cast<int>(windowSize.y > 20.0f ? windowSize.y - 20 : 1) + 10);
-        float radius = (i % 4 == 0) ? 1.5f : (i % 7 == 0 ? 2.0f : 1.0f);
-        ImU32 starCol = (i % 6 == 0) ? IM_COL32(200, 230, 255, 230) : IM_COL32(255, 255, 255, 160);
-        if (i % 12 == 0) {
-            drawList->AddLine(ImVec2(windowPos.x + sx - 3, windowPos.y + sy), ImVec2(windowPos.x + sx + 3, windowPos.y + sy), IM_COL32(255, 255, 255, 150));
-            drawList->AddLine(ImVec2(windowPos.x + sx, windowPos.y + sy - 3), ImVec2(windowPos.x + sx, windowPos.y + sy + 3), IM_COL32(255, 255, 255, 150));
+        gameAspectRatioMode = GameViewAspectRatioMode::PHOTO_2M4_X_2M;
+    }
+    if (is2m4) ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+    bool is16_9 = (gameAspectRatioMode == GameViewAspectRatioMode::RATIO_16_9);
+    if (is16_9) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.6f, 0.85f, 0.85f));
+    if (ImGui::Button(" 16:9 ", ImVec2(60, 26)))
+    {
+        gameAspectRatioMode = GameViewAspectRatioMode::RATIO_16_9;
+    }
+    if (is16_9) ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+    bool isFree = (gameAspectRatioMode == GameViewAspectRatioMode::FREE_FILL);
+    if (isFree) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.7f, 0.4f, 0.85f));
+    if (ImGui::Button(" Tự Do ", ImVec2(65, 26)))
+    {
+        gameAspectRatioMode = GameViewAspectRatioMode::FREE_FILL;
+    }
+    if (isFree) ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+
+    // Scenic framing action button
+    if (ImGui::Button("📷 Căn Cam Chiếu Cảnh", ImVec2(160, 26)))
+    {
+        if (scene) frameScenicPhotoView(*scene, 0);
+    }
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("Tự động tính góc máy và khoảng cách để khung 2.4m x 2.0m bao trọn vẻ đẹp sinh cảnh!");
+    }
+
+    ImGui::SameLine();
+    if (is2m4)
+    {
+        // Toggle photo grid & rulers
+        if (showPhotoGrid) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.25f, 0.55f, 0.75f, 0.9f));
+        if (ImGui::Button("📐 Lưới 1/3", ImVec2(80, 26)))
+        {
+            showPhotoGrid = !showPhotoGrid;
         }
-        drawList->AddCircleFilled(ImVec2(windowPos.x + sx, windowPos.y + sy), radius, starCol);
+        if (showPhotoGrid) ImGui::PopStyleColor();
+
+        ImGui::SameLine();
+        if (showPhotoFrameRulers) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.25f, 0.55f, 0.75f, 0.9f));
+        if (ImGui::Button("📏 Thước 2m4×2m", ImVec2(115, 26)))
+        {
+            showPhotoFrameRulers = !showPhotoFrameRulers;
+        }
+        if (showPhotoFrameRulers) ImGui::PopStyleColor();
+        ImGui::SameLine();
     }
 
-    // Camera Matrices for Game view
-    glm::mat4 gameProj = glm::perspective(glm::radians(mainCameraFov), windowSize.x / (windowSize.y > 0.0f ? windowSize.y : 1.0f), mainCameraNear, mainCameraFar);
-    glm::mat4 gameView = glm::lookAt(mainCameraPos, mainCameraTarget, glm::vec3(0.0f, 1.0f, 0.0f));
+    ImGui::SameLine();
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
 
-    // 4. Draw Ground Platform in Game View
-    float gridY = -1.5f;
-    for (int i = -4; i <= 4; ++i)
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.65f, 0.32f, 0.95f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.80f, 0.40f, 1.0f));
+    if (ImGui::Button("💾 Xuất Ảnh (F12)", ImVec2(130, 26)))
     {
-        glm::vec3 p1((float)i, gridY, -4.0f);
-        glm::vec3 p2((float)i, gridY, 4.0f);
-        ImVec2 sp1 = projectPoint(p1, gameView, gameProj, windowPos, windowSize);
-        ImVec2 sp2 = projectPoint(p2, gameView, gameProj, windowPos, windowSize);
-        if (sp1.x > -90000.0f && sp2.x > -90000.0f)
-            drawList->AddLine(sp1, sp2, IM_COL32(50, 80, 100, 180), 1.0f);
-
-        glm::vec3 p3(-4.0f, gridY, (float)i);
-        glm::vec3 p4(4.0f, gridY, (float)i);
-        ImVec2 sp3 = projectPoint(p3, gameView, gameProj, windowPos, windowSize);
-        ImVec2 sp4 = projectPoint(p4, gameView, gameProj, windowPos, windowSize);
-        if (sp3.x > -90000.0f && sp4.x > -90000.0f)
-            drawList->AddLine(sp3, sp4, IM_COL32(50, 80, 100, 180), 1.0f);
+        ImGui::OpenPopup("ExportCamImagePopup");
     }
-
-    // 5. Draw 3D offscreen game view texture
-    ImGui::SetCursorScreenPos(windowPos);
-    if (gameViewTexture) {
-        ImGui::Image((ImTextureID)gameViewTexture, windowSize);
-    }
-
-    // 6. Draw Game HUD (Score Overlay)
-    drawList->AddRectFilled(ImVec2(windowPos.x + 10, windowPos.y + 10), ImVec2(windowPos.x + 220, windowPos.y + 85), IM_COL32(15, 20, 30, 200), 4.0f);
-    drawList->AddRect(ImVec2(windowPos.x + 10, windowPos.y + 10), ImVec2(windowPos.x + 220, windowPos.y + 85), IM_COL32(0, 180, 255, 150), 4.0f);
-
-    drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 15), IM_COL32(0, 240, 255, 255), "ANTIGRAVITY mini-game");
-    char scoreText[64];
-    snprintf(scoreText, sizeof(scoreText), "Score: %d", gameScore);
-    drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 35), IM_COL32(50, 255, 100, 255), scoreText);
-    char hiText[64];
-    snprintf(hiText, sizeof(hiText), "High Score: %d", highScore);
-    drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 50), IM_COL32(255, 215, 0, 255), hiText);
-    
-    if (mode == AppMode::PLAY)
+    ImGui::PopStyleColor(2);
+    if (ImGui::IsItemHovered())
     {
-        drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 65), IM_COL32(200, 200, 200, 255), "Keys: WASD + Space (Jump)");
-    }
-    else
-    {
-        drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 65), IM_COL32(255, 150, 0, 255), "EDIT MODE: Click PLAY above");
+        ImGui::SetTooltip("Xuất khung ảnh camera ra file PNG / JPG chất lượng cao (Phím tắt F12)!");
     }
 
-    // Fullscreen Toggle Button in Top-Right corner of Game View
-    ImGui::SetCursorScreenPos(ImVec2(windowPos.x + windowSize.x - 205.0f, windowPos.y + 10.0f));
+    if (ImGui::BeginPopup("ExportCamImagePopup"))
+    {
+        ImGui::TextColored(ImVec4(0.2f, 0.85f, 1.0f, 1.0f), "🖼️ XUẤT ẢNH TỪ MÁY ẢNH (CAMERA EXPORT)");
+        ImGui::Separator();
+
+        uint32_t expW = 2400, expH = 2000;
+        if (is2m4)
+        {
+            ImGui::Text("Độ phân giải (Tỉ lệ 2.4m × 2.0m / 6:5):");
+            ImGui::RadioButton("2400 × 2000 px (Ultra HD Cực Nét)", &exportResolutionPreset, 0);
+            ImGui::RadioButton("1200 × 1000 px (Tiêu Chuẩn)", &exportResolutionPreset, 1);
+            ImGui::RadioButton("1280 × 720 px (Gốc Viewport)", &exportResolutionPreset, 2);
+
+            if (exportResolutionPreset == 0) { expW = 2400; expH = 2000; }
+            else if (exportResolutionPreset == 1) { expW = 1200; expH = 1000; }
+            else { expW = 1280; expH = 720; }
+        }
+        else if (is16_9)
+        {
+            ImGui::Text("Độ phân giải (Tỉ lệ 16:9):");
+            ImGui::RadioButton("1920 × 1080 px (Full HD 1080p)", &exportResolutionPreset, 0);
+            ImGui::RadioButton("1280 × 720 px (HD 720p)", &exportResolutionPreset, 1);
+
+            if (exportResolutionPreset == 0) { expW = 1920; expH = 1080; }
+            else { expW = 1280; expH = 720; }
+        }
+        else
+        {
+            ImGui::Text("Độ phân giải (Tỉ lệ Tự Do):");
+            expW = 1280; expH = 720;
+        }
+
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        auto getTimestampPath = [&](const std::string& extension) -> std::string {
+            auto now = std::chrono::system_clock::now();
+            auto in_time_t = std::chrono::system_clock::to_time_t(now);
+            struct tm buf;
+            localtime_s(&buf, &in_time_t);
+            char timeStr[64];
+            strftime(timeStr, sizeof(timeStr), "%Y%m%d_%H%M%S", &buf);
+            std::string folder = "screenshots/";
+            std::filesystem::create_directories(folder);
+            std::string fname = folder + "Cam_Export_" + std::string(timeStr);
+            if (is2m4) fname += "_2m4x2m";
+            fname += extension;
+            return fname;
+        };
+
+        if (ImGui::Button("⚡ Chụp Nhanh PNG (Vào thư mục screenshots)", ImVec2(320, 30)))
+        {
+            if (renderer)
+            {
+                std::string path = getTimestampPath(".png");
+                if (renderer->exportGameViewImage(path, expW, expH))
+                {
+                    lastExportedImagePath = path;
+                    exportNotificationTimer = 7.0f;
+                }
+            }
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::Button("⚡ Chụp Nhanh JPG (Dung lượng nhẹ)", ImVec2(320, 26)))
+        {
+            if (renderer)
+            {
+                std::string path = getTimestampPath(".jpg");
+                if (renderer->exportGameViewImage(path, expW, expH))
+                {
+                    lastExportedImagePath = path;
+                    exportNotificationTimer = 7.0f;
+                }
+            }
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::Spacing();
+        if (ImGui::Button("📁 Lưu Dưới Dạng... (Chọn nơi lưu & định dạng)", ImVec2(320, 30)))
+        {
+            if (renderer)
+            {
+                const char* filterPatterns[] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
+                std::string defaultName = is2m4 ? "Cam_View_2m4x2m.png" : "Cam_View.png";
+                const char* savePath = tinyfd_saveFileDialog(
+                    "Lưu Ảnh Khung Cam (Export Camera View Image)",
+                    defaultName.c_str(),
+                    4,
+                    filterPatterns,
+                    "Image Files (*.png, *.jpg, *.bmp)"
+                );
+                if (savePath)
+                {
+                    if (renderer->exportGameViewImage(savePath, expW, expH))
+                    {
+                        lastExportedImagePath = savePath;
+                        exportNotificationTimer = 7.0f;
+                    }
+                }
+            }
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
+    // Global hotkey F12: quick capture
+    if (ImGui::IsKeyPressed(ImGuiKey_F12))
+    {
+        if (renderer)
+        {
+            auto now = std::chrono::system_clock::now();
+            auto in_time_t = std::chrono::system_clock::to_time_t(now);
+            struct tm buf;
+            localtime_s(&buf, &in_time_t);
+            char timeStr[64];
+            strftime(timeStr, sizeof(timeStr), "%Y%m%d_%H%M%S", &buf);
+            std::string folder = "screenshots/";
+            std::filesystem::create_directories(folder);
+            std::string path = folder + "Cam_Export_" + std::string(timeStr);
+            if (is2m4) path += "_2m4x2m";
+            path += ".png";
+
+            uint32_t expW = is2m4 ? 2400 : 1920;
+            uint32_t expH = is2m4 ? 2000 : 1080;
+            if (renderer->exportGameViewImage(path, expW, expH))
+            {
+                lastExportedImagePath = path;
+                exportNotificationTimer = 7.0f;
+            }
+        }
+    }
+
+    // Fullscreen Toggle Button in Top-Right
+    float fsBtnWidth = 160.0f;
+    ImGui::SetCursorScreenPos(ImVec2(windowPos.x + windowSize.x - fsBtnWidth - 10.0f, windowPos.y + 5.0f));
     ImGui::PushStyleColor(ImGuiCol_Button, isGameFullscreen ? ImVec4(0.7f, 0.2f, 0.2f, 0.9f) : ImVec4(0.12f, 0.45f, 0.75f, 0.9f));
-    std::string fsBtnLabel = isGameFullscreen ? "Exit Fullscreen (ESC)" : "Fullscreen (Monitor 2)";
-    if (ImGui::Button(fsBtnLabel.c_str(), ImVec2(195, 30)))
+    std::string fsBtnLabel = isGameFullscreen ? "Thoát Toàn Màn Hình" : "🖥️ Màn Hình Phụ (F11)";
+    if (ImGui::Button(fsBtnLabel.c_str(), ImVec2(fsBtnWidth, 26)))
     {
         if (onToggleFullscreen) onToggleFullscreen();
     }
     ImGui::PopStyleColor();
+
+    // 3. Compute Frame Size & Position
+    float bottomBannerH = (is2m4) ? 30.0f : 0.0f;
+    float rulerPadding = (is2m4 && showPhotoFrameRulers) ? 24.0f : 8.0f;
+
+    float availW = windowSize.x - rulerPadding * 2.0f - 16.0f;
+    float availH = windowSize.y - topBarH - bottomBannerH - rulerPadding - 16.0f;
+    if (availW < 60.0f) availW = 60.0f;
+    if (availH < 60.0f) availH = 60.0f;
+
+    float targetAspect = 2.4f / 2.0f; // 1.20f
+    if (gameAspectRatioMode == GameViewAspectRatioMode::RATIO_16_9) targetAspect = 16.0f / 9.0f;
+    else if (gameAspectRatioMode == GameViewAspectRatioMode::FREE_FILL) targetAspect = availW / availH;
+
+    ImVec2 frameSize;
+    if (gameAspectRatioMode == GameViewAspectRatioMode::FREE_FILL)
+    {
+        frameSize = ImVec2(windowSize.x, windowSize.y - topBarH);
+    }
+    else
+    {
+        if (availW / availH > targetAspect)
+        {
+            frameSize.y = availH;
+            frameSize.x = frameSize.y * targetAspect;
+        }
+        else
+        {
+            frameSize.x = availW;
+            frameSize.y = frameSize.x / targetAspect;
+        }
+    }
+
+    ImVec2 framePos;
+    if (gameAspectRatioMode == GameViewAspectRatioMode::FREE_FILL)
+    {
+        framePos = ImVec2(windowPos.x, windowPos.y + topBarH);
+    }
+    else
+    {
+        framePos = ImVec2(
+            windowPos.x + rulerPadding + (availW - frameSize.x) * 0.5f + 8.0f,
+            windowPos.y + topBarH + (availH - frameSize.y) * 0.5f + 8.0f
+        );
+    }
+
+    // 4. Photo Frame Drop Shadow & Framing Borders
+    if (gameAspectRatioMode != GameViewAspectRatioMode::FREE_FILL)
+    {
+        // Outer soft drop shadow
+        drawList->AddRectFilled(
+            ImVec2(framePos.x - 6.0f, framePos.y - 6.0f),
+            ImVec2(framePos.x + frameSize.x + 8.0f, framePos.y + frameSize.y + 8.0f),
+            IM_COL32(0, 0, 0, 160),
+            6.0f
+        );
+
+        // Frame Bezel (Viền khung ảnh mạ cao cấp)
+        drawList->AddRectFilled(
+            ImVec2(framePos.x - 4.0f, framePos.y - 4.0f),
+            ImVec2(framePos.x + frameSize.x + 4.0f, framePos.y + frameSize.y + 4.0f),
+            IM_COL32(35, 40, 52, 255),
+            4.0f
+        );
+
+        // Gold / Tech accent border
+        ImU32 borderCol = is2m4 ? IM_COL32(230, 180, 50, 240) : IM_COL32(0, 180, 240, 240);
+        drawList->AddRect(
+            ImVec2(framePos.x - 2.0f, framePos.y - 2.0f),
+            ImVec2(framePos.x + frameSize.x + 2.0f, framePos.y + frameSize.y + 2.0f),
+            borderCol,
+            2.0f,
+            0,
+            2.0f
+        );
+
+        // Corner crop marks (4 vạch góc chụp ảnh chuẩn studio)
+        float markLen = std::min(22.0f, frameSize.y * 0.1f);
+        ImU32 markCol = IM_COL32(255, 230, 120, 255);
+        // Top-left
+        drawList->AddLine(ImVec2(framePos.x, framePos.y), ImVec2(framePos.x + markLen, framePos.y), markCol, 3.0f);
+        drawList->AddLine(ImVec2(framePos.x, framePos.y), ImVec2(framePos.x, framePos.y + markLen), markCol, 3.0f);
+        // Top-right
+        drawList->AddLine(ImVec2(framePos.x + frameSize.x, framePos.y), ImVec2(framePos.x + frameSize.x - markLen, framePos.y), markCol, 3.0f);
+        drawList->AddLine(ImVec2(framePos.x + frameSize.x, framePos.y), ImVec2(framePos.x + frameSize.x, framePos.y + markLen), markCol, 3.0f);
+        // Bottom-left
+        drawList->AddLine(ImVec2(framePos.x, framePos.y + frameSize.y), ImVec2(framePos.x + markLen, framePos.y + frameSize.y), markCol, 3.0f);
+        drawList->AddLine(ImVec2(framePos.x, framePos.y + frameSize.y), ImVec2(framePos.x, framePos.y + frameSize.y - markLen), markCol, 3.0f);
+        // Bottom-right
+        drawList->AddLine(ImVec2(framePos.x + frameSize.x, framePos.y + frameSize.y), ImVec2(framePos.x + frameSize.x - markLen, framePos.y + frameSize.y), markCol, 3.0f);
+        drawList->AddLine(ImVec2(framePos.x + frameSize.x, framePos.y + frameSize.y), ImVec2(framePos.x + frameSize.x, framePos.y + markLen), markCol, 3.0f);
+    }
+
+    // 5. Draw 3D Offscreen Game View Texture
+    ImGui::SetCursorScreenPos(framePos);
+    if (gameViewTexture)
+    {
+        ImGui::Image((ImTextureID)gameViewTexture, frameSize);
+    }
+
+    // 6. Rule of Thirds Grid (Lưới bố cục 1/3)
+    if (showPhotoGrid && is2m4 && frameSize.x > 80.0f)
+    {
+        ImU32 gridCol = IM_COL32(255, 255, 255, 75);
+        ImU32 dotCol = IM_COL32(255, 215, 0, 180);
+
+        float x1 = framePos.x + frameSize.x / 3.0f;
+        float x2 = framePos.x + frameSize.x * 2.0f / 3.0f;
+        float y1 = framePos.y + frameSize.y / 3.0f;
+        float y2 = framePos.y + frameSize.y * 2.0f / 3.0f;
+
+        drawList->AddLine(ImVec2(x1, framePos.y), ImVec2(x1, framePos.y + frameSize.y), gridCol, 1.0f);
+        drawList->AddLine(ImVec2(x2, framePos.y), ImVec2(x2, framePos.y + frameSize.y), gridCol, 1.0f);
+        drawList->AddLine(ImVec2(framePos.x, y1), ImVec2(framePos.x + frameSize.x, y1), gridCol, 1.0f);
+        drawList->AddLine(ImVec2(framePos.x, y2), ImVec2(framePos.x + frameSize.x, y2), gridCol, 1.0f);
+
+        // 4 Golden ratio focal dots
+        drawList->AddCircleFilled(ImVec2(x1, y1), 3.5f, dotCol);
+        drawList->AddCircleFilled(ImVec2(x2, y1), 3.5f, dotCol);
+        drawList->AddCircleFilled(ImVec2(x1, y2), 3.5f, dotCol);
+        drawList->AddCircleFilled(ImVec2(x2, y2), 3.5f, dotCol);
+    }
+
+    // 7. Rulers & Dimension Labels (Thước đo 2.4m x 2.0m)
+    if (showPhotoFrameRulers && is2m4 && frameSize.x > 120.0f)
+    {
+        ImU32 rulerCol = IM_COL32(220, 190, 80, 220);
+        // Top Horizontal Ruler: 2.4 m
+        float rTopY = framePos.y - 12.0f;
+        drawList->AddLine(ImVec2(framePos.x, rTopY), ImVec2(framePos.x + frameSize.x, rTopY), rulerCol, 1.5f);
+        drawList->AddLine(ImVec2(framePos.x, rTopY - 4.0f), ImVec2(framePos.x, rTopY + 4.0f), rulerCol, 1.5f);
+        drawList->AddLine(ImVec2(framePos.x + frameSize.x, rTopY - 4.0f), ImVec2(framePos.x + frameSize.x, rTopY + 4.0f), rulerCol, 1.5f);
+
+        char topText[64];
+        snprintf(topText, sizeof(topText), "⟵  2.4 m (Rộng)  ⟶");
+        ImVec2 tSize = ImGui::CalcTextSize(topText);
+        drawList->AddRectFilled(ImVec2(framePos.x + (frameSize.x - tSize.x) * 0.5f - 6.0f, rTopY - tSize.y * 0.5f - 2.0f),
+                                ImVec2(framePos.x + (frameSize.x + tSize.x) * 0.5f + 6.0f, rTopY + tSize.y * 0.5f + 2.0f),
+                                IM_COL32(18, 22, 30, 230));
+        drawList->AddText(ImVec2(framePos.x + (frameSize.x - tSize.x) * 0.5f, rTopY - tSize.y * 0.5f), rulerCol, topText);
+
+        // Left Vertical Ruler: 2.0 m
+        float rLeftX = framePos.x - 12.0f;
+        drawList->AddLine(ImVec2(rLeftX, framePos.y), ImVec2(rLeftX, framePos.y + frameSize.y), rulerCol, 1.5f);
+        drawList->AddLine(ImVec2(rLeftX - 4.0f, framePos.y), ImVec2(rLeftX + 4.0f, framePos.y), rulerCol, 1.5f);
+        drawList->AddLine(ImVec2(rLeftX - 4.0f, framePos.y + frameSize.y), ImVec2(rLeftX + 4.0f, framePos.y + frameSize.y), rulerCol, 1.5f);
+
+        char leftText[32] = "2.0 m";
+        ImVec2 lSize = ImGui::CalcTextSize(leftText);
+        drawList->AddRectFilled(ImVec2(rLeftX - lSize.x * 0.5f - 4.0f, framePos.y + (frameSize.y - lSize.y) * 0.5f - 2.0f),
+                                ImVec2(rLeftX + lSize.x * 0.5f + 4.0f, framePos.y + (frameSize.y + lSize.y) * 0.5f + 2.0f),
+                                IM_COL32(18, 22, 30, 230));
+        drawList->AddText(ImVec2(rLeftX - lSize.x * 0.5f, framePos.y + (frameSize.y - lSize.y) * 0.5f), rulerCol, leftText);
+    }
+
+    // 8. Bottom Information Badge
+    if (is2m4)
+    {
+        char badgeStr[256];
+        snprintf(badgeStr, sizeof(badgeStr),
+                 "🖼️ KHUNG ẢNH NGHỆ THUẬT: 2.4m × 2.0m  |  TỈ LỆ 6:5 (1.20 : 1)  |  CAM: (%.1f, %.1f, %.1f) ➔ (%.1f, %.1f, %.1f)  |  FOV: %.0f°",
+                 mainCameraPos.x, mainCameraPos.y, mainCameraPos.z,
+                 mainCameraTarget.x, mainCameraTarget.y, mainCameraTarget.z,
+                 mainCameraFov);
+
+        ImVec2 bSize = ImGui::CalcTextSize(badgeStr);
+        float badgeY = framePos.y + frameSize.y + 8.0f;
+        drawList->AddRectFilled(
+            ImVec2(framePos.x + (frameSize.x - bSize.x) * 0.5f - 10.0f, badgeY - 2.0f),
+            ImVec2(framePos.x + (frameSize.x + bSize.x) * 0.5f + 10.0f, badgeY + bSize.y + 4.0f),
+            IM_COL32(16, 20, 28, 220),
+            4.0f
+        );
+        drawList->AddRect(
+            ImVec2(framePos.x + (frameSize.x - bSize.x) * 0.5f - 10.0f, badgeY - 2.0f),
+            ImVec2(framePos.x + (frameSize.x + bSize.x) * 0.5f + 10.0f, badgeY + bSize.y + 4.0f),
+            IM_COL32(80, 95, 120, 180),
+            4.0f
+        );
+        drawList->AddText(ImVec2(framePos.x + (frameSize.x - bSize.x) * 0.5f, badgeY), IM_COL32(230, 200, 100, 255), badgeStr);
+    }
+
+    // 9. Game HUD (Score Overlay) in PLAY Mode
+    if (mode == AppMode::PLAY)
+    {
+        ImVec2 hudPos = ImVec2(framePos.x + 10.0f, framePos.y + 10.0f);
+        drawList->AddRectFilled(hudPos, ImVec2(hudPos.x + 220.0f, hudPos.y + 75.0f), IM_COL32(15, 20, 30, 210), 4.0f);
+        drawList->AddRect(hudPos, ImVec2(hudPos.x + 220.0f, hudPos.y + 75.0f), IM_COL32(0, 180, 255, 160), 4.0f);
+
+        drawList->AddText(ImVec2(hudPos.x + 12.0f, hudPos.y + 8.0f), IM_COL32(0, 240, 255, 255), "🎮 MINI-GAME RUNNING");
+        char scoreText[64];
+        snprintf(scoreText, sizeof(scoreText), "Score: %d  |  High: %d", gameScore, highScore);
+        drawList->AddText(ImVec2(hudPos.x + 12.0f, hudPos.y + 28.0f), IM_COL32(50, 255, 100, 255), scoreText);
+        drawList->AddText(ImVec2(hudPos.x + 12.0f, hudPos.y + 48.0f), IM_COL32(200, 200, 200, 255), "Keys: WASD + Space (Jump)");
+    }
+
+    // 8. Screenshot Notification Toast
+    if (exportNotificationTimer > 0.0f && !lastExportedImagePath.empty())
+    {
+        exportNotificationTimer -= ImGui::GetIO().DeltaTime;
+        float bannerW = std::min(windowSize.x - 40.0f, 640.0f);
+        float bannerH = 44.0f;
+        ImVec2 bannerPos(windowPos.x + (windowSize.x - bannerW) * 0.5f, windowPos.y + windowSize.y - bannerH - 12.0f);
+
+        drawList->AddRectFilled(bannerPos, ImVec2(bannerPos.x + bannerW, bannerPos.y + bannerH), IM_COL32(18, 48, 28, 245), 6.0f);
+        drawList->AddRect(bannerPos, ImVec2(bannerPos.x + bannerW, bannerPos.y + bannerH), IM_COL32(60, 220, 100, 255), 6.0f, 0, 1.5f);
+
+        ImGui::SetCursorScreenPos(ImVec2(bannerPos.x + 14.0f, bannerPos.y + 12.0f));
+        std::filesystem::path p(lastExportedImagePath);
+        std::string label = "✅ ĐÃ LƯU ẢNH: " + p.filename().string();
+        ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.5f, 1.0f), "%s", label.c_str());
+
+        ImGui::SameLine();
+        ImGui::SetCursorScreenPos(ImVec2(bannerPos.x + bannerW - 135.0f, bannerPos.y + 8.0f));
+        if (ImGui::Button("📂 Mở Thư Mục", ImVec2(125, 28)))
+        {
+#ifdef _WIN32
+            std::string absPath = std::filesystem::absolute(lastExportedImagePath).string();
+            ShellExecuteA(NULL, "open", "explorer.exe", ("/select,\"" + absPath + "\"").c_str(), NULL, SW_SHOWNORMAL);
+#endif
+        }
+    }
 }
 
 void GizmoSystem::focusOnObject(int objIndex, const Scene& scene)

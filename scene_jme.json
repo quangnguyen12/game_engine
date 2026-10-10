@@ -1,0 +1,5366 @@
+{
+  "format": "jMonkeyEngine Scene Descriptor",
+  "version": "1.0",
+  "engine": "Unity Hub 3D Vulkan Engine",
+  "environment": "Forest Clearing",
+  "camera": {
+    "position": [0, 3.2, 14.5],
+    "target": [0, 1.2, 0],
+    "fov": 45,
+    "near": 0.1,
+    "far": 120
+  },
+  "sunLight": {
+    "direction": [-0.267261, -0.801784, -0.534523],
+    "color": [1, 0.95, 0.85, 1],
+    "intensity": 1.6
+  },
+  "terrain": {
+    "name": "🌲 Forest_Clearing_Terrain",
+    "modelPath": "models/terrain.obj",
+    "heightmapPath": "textures/terrain_heightmap.png",
+    "texturePath": "grass.jpg",
+    "gridW": 35,
+    "gridD": 35,
+    "cellSize": 1,
+    "heightScale": 2.5,
+    "seed": 42,
+    "biome": 5
+  },
+  "objects": [
+    {
+      "id": 1,
+      "parentId": -1,
+      "name": "🌲 Forest_Clearing_Terrain",
+      "type": "terrain",
+      "modelPath": "models/terrain.obj",
+      "rawModelPath": "terrain:35:35:1.000000:2.500000:42:5",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [0, 0, 0],
+      "rotationEuler": [0, 0, 0],
+      "rotationQuat": [0, 0, 0, 1],
+      "scale": [1, 1, 1],
+      "color": [0.92, 1, 0.9, 1],
+      "material": {
+        "texturePath": "grass.jpg",
+        "pbr": true,
+        "roughness": 0.85,
+        "metallic": 0.02,
+        "ambientOcclusion": 1
+      },
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 2,
+      "parentId": -1,
+      "name": "🪵 Forest_Log_Pile_1",
+      "type": "model",
+      "modelPath": "models/log_pile.glb",
+      "rawModelPath": "assets/models/log_pile.glb",
+      "modelOffset": [-0.0159293, -0.00354064, -0.00364155],
+      "modelScale": 0.01,
+      "position": [-3.6, 0.186413, 7.2],
+      "rotationEuler": [0, 18, 0],
+      "rotationQuat": [0, 0.156434, 0, 0.987688],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/log_pile.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 1,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/log_pile.glb#img0",
+          "roughness": 1,
+          "metallic": 1,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 3,
+      "parentId": -1,
+      "name": "🪵 Clearing_Log_Pile_2",
+      "type": "model",
+      "modelPath": "models/log_pile.glb",
+      "rawModelPath": "assets/models/log_pile.glb",
+      "modelOffset": [-0.0159293, -0.00354064, -0.00364155],
+      "modelScale": 0.01,
+      "position": [4.2, 0.461681, 5.8],
+      "rotationEuler": [0, -28, 0],
+      "rotationQuat": [0, -0.241922, 0, 0.970296],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/log_pile.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 1,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/log_pile.glb#img0",
+          "roughness": 1,
+          "metallic": 1,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 4,
+      "parentId": -1,
+      "name": "🪵 Woodcutter_Log_Pile_3",
+      "type": "model",
+      "modelPath": "models/log_pile.glb",
+      "rawModelPath": "assets/models/log_pile.glb",
+      "modelOffset": [-0.0159293, -0.00354064, -0.00364155],
+      "modelScale": 0.01,
+      "position": [-1.8, -0.158684, 0.8],
+      "rotationEuler": [0, 75, 0],
+      "rotationQuat": [0, 0.608761, 0, 0.793353],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/log_pile.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 1,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/log_pile.glb#img0",
+          "roughness": 1,
+          "metallic": 1,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 5,
+      "parentId": -1,
+      "name": "🪵 Reserve_Log_Pile_4",
+      "type": "model",
+      "modelPath": "models/log_pile.glb",
+      "rawModelPath": "assets/models/log_pile.glb",
+      "modelOffset": [-0.0159293, -0.00354064, -0.00364155],
+      "modelScale": 0.01,
+      "position": [5.5, 1.15739, 9.6],
+      "rotationEuler": [0, -10, 0],
+      "rotationQuat": [0, -0.0871557, 0, 0.996195],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/log_pile.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 1,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/log_pile.glb#img0",
+          "roughness": 1,
+          "metallic": 1,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 6,
+      "parentId": -1,
+      "name": "🪵 Fallen_Tree_Log_1",
+      "type": "model",
+      "modelPath": "models/tree_log.glb",
+      "rawModelPath": "assets/models/tree_log.glb",
+      "modelOffset": [0.0577781, 0.025547, 0.00524357],
+      "modelScale": 1,
+      "position": [-0.8, -0.134327, 2.2],
+      "rotationEuler": [0, 62, 0],
+      "rotationQuat": [0, 0.515038, 0, 0.857167],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_log.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_log.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 7,
+      "parentId": -1,
+      "name": "🪵 Fallen_Tree_Log_2",
+      "type": "model",
+      "modelPath": "models/tree_log.glb",
+      "rawModelPath": "assets/models/tree_log.glb",
+      "modelOffset": [0.0577781, 0.025547, 0.00524357],
+      "modelScale": 1,
+      "position": [2.5, 0.129864, 3.8],
+      "rotationEuler": [0, -32, 0],
+      "rotationQuat": [0, -0.275637, 0, 0.961262],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_log.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_log.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 8,
+      "parentId": -1,
+      "name": "🪵 Tactical_Fallen_Log_3",
+      "type": "model",
+      "modelPath": "models/tree_log.glb",
+      "rawModelPath": "assets/models/tree_log.glb",
+      "modelOffset": [0.0577781, 0.025547, 0.00524357],
+      "modelScale": 1,
+      "position": [-2.2, 0.0266295, 4.6],
+      "rotationEuler": [0, 45, 0],
+      "rotationQuat": [0, 0.382683, 0, 0.92388],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_log.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_log.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 9,
+      "parentId": -1,
+      "name": "🪵 Mossy_Tree_Log_4",
+      "type": "model",
+      "modelPath": "models/tree_log.glb",
+      "rawModelPath": "assets/models/tree_log.glb",
+      "modelOffset": [0.0577781, 0.025547, 0.00524357],
+      "modelScale": 1,
+      "position": [-4.2, -0.177231, 3.2],
+      "rotationEuler": [0, -15, 0],
+      "rotationQuat": [0, -0.130526, 0, 0.991445],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_log.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_log.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 10,
+      "parentId": -1,
+      "name": "🪵 Forest_Tree_Log_5",
+      "type": "model",
+      "modelPath": "models/tree_log.glb",
+      "rawModelPath": "assets/models/tree_log.glb",
+      "modelOffset": [0.0577781, 0.025547, 0.00524357],
+      "modelScale": 1,
+      "position": [4.5, 0.822319, 8.2],
+      "rotationEuler": [0, -70, 0],
+      "rotationQuat": [0, -0.573576, 0, 0.819152],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_log.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_log.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 11,
+      "parentId": -1,
+      "name": "🪵 Ridge_Tree_Log_6",
+      "type": "model",
+      "modelPath": "models/tree_log.glb",
+      "rawModelPath": "assets/models/tree_log.glb",
+      "modelOffset": [0.0577781, 0.025547, 0.00524357],
+      "modelScale": 1,
+      "position": [1.2, -0.199803, -1],
+      "rotationEuler": [0, 10, 0],
+      "rotationQuat": [0, 0.0871557, 0, 0.996195],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_log.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_log.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 12,
+      "parentId": -1,
+      "name": "🎯 Forest_ShootingTarget_Center",
+      "type": "model",
+      "modelPath": "models/ShootingTarget.obj",
+      "rawModelPath": "assets/models/ShootingTarget.obj",
+      "modelOffset": [0, -0.003948, 0],
+      "modelScale": 1,
+      "position": [0, 0.0235683, 3.5],
+      "rotationEuler": [0, 180, 0],
+      "rotationQuat": [0, 1, 0, -4.37114e-08],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/ShootingTarget.png",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/ShootingTarget.png",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 13,
+      "parentId": -1,
+      "name": "🎯 Forest_ShootingTarget_LeftFlank",
+      "type": "model",
+      "modelPath": "models/ShootingTarget.obj",
+      "rawModelPath": "assets/models/ShootingTarget.obj",
+      "modelOffset": [0, -0.003948, 0],
+      "modelScale": 1,
+      "position": [-2.8, 0.0279793, 5],
+      "rotationEuler": [0, 168, 0],
+      "rotationQuat": [0, 0.994522, 0, 0.104528],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/ShootingTarget.png",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/ShootingTarget.png",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 14,
+      "parentId": -1,
+      "name": "🎯 Forest_ShootingTarget_RightFlank",
+      "type": "model",
+      "modelPath": "models/ShootingTarget.obj",
+      "rawModelPath": "assets/models/ShootingTarget.obj",
+      "modelOffset": [0, -0.003948, 0],
+      "modelScale": 1,
+      "position": [2.8, 0.235133, 4.5],
+      "rotationEuler": [0, 192, 0],
+      "rotationQuat": [0, 0.994522, 0, -0.104529],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/ShootingTarget.png",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/ShootingTarget.png",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 15,
+      "parentId": -1,
+      "name": "🎯 Forest_IPSC_Target_NearLeft",
+      "type": "model",
+      "modelPath": "models/IPSC_Metric_Target.obj",
+      "rawModelPath": "assets/models/IPSC_Metric_Target.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [-1.6, 0.241609, 6.5],
+      "rotationEuler": [0, 175, 0],
+      "rotationQuat": [0, 0.999048, 0, 0.0436195],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bark___0.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        },
+        {
+          "index": 2,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 16,
+      "parentId": -1,
+      "name": "🎯 Forest_IPSC_Target_NearRight",
+      "type": "model",
+      "modelPath": "models/IPSC_Metric_Target.obj",
+      "rawModelPath": "assets/models/IPSC_Metric_Target.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [1.8, 0.497896, 6.8],
+      "rotationEuler": [0, 185, 0],
+      "rotationQuat": [0, 0.999048, 0, -0.0436194],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bark___0.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        },
+        {
+          "index": 2,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 17,
+      "parentId": -1,
+      "name": "🔘 Steel_Pepper_Popper_Left",
+      "type": "model",
+      "modelPath": "models/Pepper_Popper.obj",
+      "rawModelPath": "assets/models/Pepper_Popper.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [-3.6, -0.233231, 2],
+      "rotationEuler": [0, 165, 0],
+      "rotationQuat": [0, 0.991445, 0, 0.130526],
+      "scale": [1, 1, 1],
+      "color": [0.92, 0.95, 0.98, 1],
+      "material": {
+        "texturePath": "models/Bark___0.jpg",
+        "pbr": true,
+        "roughness": 0.35,
+        "metallic": 0.85,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 18,
+      "parentId": -1,
+      "name": "🔘 Steel_Pepper_Popper_Right",
+      "type": "model",
+      "modelPath": "models/Pepper_Popper.obj",
+      "rawModelPath": "assets/models/Pepper_Popper.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [3.5, -0.140831, 1.8],
+      "rotationEuler": [0, 195, 0],
+      "rotationQuat": [0, 0.991445, 0, -0.130526],
+      "scale": [1, 1, 1],
+      "color": [0.92, 0.95, 0.98, 1],
+      "material": {
+        "texturePath": "models/Bark___0.jpg",
+        "pbr": true,
+        "roughness": 0.35,
+        "metallic": 0.85,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 19,
+      "parentId": -1,
+      "name": "🔘 Steel_Plate_Target_MidLeft",
+      "type": "model",
+      "modelPath": "models/Plate_A.obj",
+      "rawModelPath": "assets/models/Plate_A.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [-0.9, -0.152838, 1.2],
+      "rotationEuler": [0, 180, 0],
+      "rotationQuat": [0, 1, 0, -4.37114e-08],
+      "scale": [1, 1, 1],
+      "color": [0.95, 0.95, 0.95, 1],
+      "material": {
+        "texturePath": "models/Bark___0.jpg",
+        "pbr": true,
+        "roughness": 0.35,
+        "metallic": 0.85,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 20,
+      "parentId": -1,
+      "name": "🔘 Steel_Plate_Target_MidRight",
+      "type": "model",
+      "modelPath": "models/Plate_A.obj",
+      "rawModelPath": "assets/models/Plate_A.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [0.9, -0.145468, 1.2],
+      "rotationEuler": [0, 180, 0],
+      "rotationQuat": [0, 1, 0, -4.37114e-08],
+      "scale": [1, 1, 1],
+      "color": [0.95, 0.95, 0.95, 1],
+      "material": {
+        "texturePath": "models/Bark___0.jpg",
+        "pbr": true,
+        "roughness": 0.35,
+        "metallic": 0.85,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 21,
+      "parentId": -1,
+      "name": "🛡️ Tactical_Shooting_Barricade",
+      "type": "model",
+      "modelPath": "models/Wall_Barricade.obj",
+      "rawModelPath": "assets/models/Wall_Barricade.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [-1.8, 0.515602, 9.2],
+      "rotationEuler": [0, 15, 0],
+      "rotationQuat": [0, 0.130526, 0, 0.991445],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bark___0.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 22,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_0",
+      "type": "model",
+      "modelPath": "models/tree_redwood.obj",
+      "rawModelPath": "assets/models/tree_redwood.obj",
+      "modelOffset": [8.59499e-05, -0.000159, 0.000396013],
+      "modelScale": 1,
+      "position": [-7.68359, 0.660546, 7.74469],
+      "rotationEuler": [0, 66.0365, 0],
+      "rotationQuat": [0, 0.544906, 0, 0.838497],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bottom_T.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bottom_T.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 23,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_1",
+      "type": "model",
+      "modelPath": "models/tree_redwood.obj",
+      "rawModelPath": "assets/models/tree_redwood.obj",
+      "modelOffset": [8.59499e-05, -0.000159, 0.000396013],
+      "modelScale": 1,
+      "position": [-10.7219, 1.51789, 7.47506],
+      "rotationEuler": [0, 214.866, 0],
+      "rotationQuat": [0, 0.954068, 0, -0.299591],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bottom_T.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bottom_T.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 24,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_2",
+      "type": "model",
+      "modelPath": "models/tree_mossy.obj",
+      "rawModelPath": "assets/models/tree_mossy.obj",
+      "modelOffset": [-0.000350952, 0.000448, -6.60419e-05],
+      "modelScale": 1,
+      "position": [-5.82616, -0.142808, 2.13332],
+      "rotationEuler": [0, 35.991, 0],
+      "rotationQuat": [0, 0.308942, 0, 0.951081],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Mossy_Tr.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Mossy_Tr.jpg",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 25,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_3",
+      "type": "model",
+      "modelPath": "models/trees_and_bush_pack.glb",
+      "rawModelPath": "assets/models/trees_and_bush_pack.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [-4.99371, -0.22054, 2.34798],
+      "rotationEuler": [0, 120.135, 0],
+      "rotationQuat": [0, 0.866614, 0, 0.498979],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/trees_and_bush_pack.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/trees_and_bush_pack.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/trees_and_bush_pack.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/trees_and_bush_pack.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/trees_and_bush_pack.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 26,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_4",
+      "type": "model",
+      "modelPath": "models/trees_and_bush_pack.glb",
+      "rawModelPath": "assets/models/trees_and_bush_pack.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [-9.60948, 1.88829, -2.71413],
+      "rotationEuler": [0, 234.32, 0],
+      "rotationQuat": [0, 0.889736, 0, -0.456476],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/trees_and_bush_pack.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/trees_and_bush_pack.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/trees_and_bush_pack.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/trees_and_bush_pack.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/trees_and_bush_pack.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 27,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_5",
+      "type": "model",
+      "modelPath": "models/tree_cedar.obj",
+      "rawModelPath": "assets/models/tree_cedar.obj",
+      "modelOffset": [0.00106549, -0.001036, 6.25253e-05],
+      "modelScale": 1,
+      "position": [-4.67497, 1.56137, -4.09741],
+      "rotationEuler": [0, 259.92, 0],
+      "rotationQuat": [0, 0.766496, 0, -0.64225],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bark___S.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bark___S.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 28,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_6",
+      "type": "model",
+      "modelPath": "models/tree9.obj",
+      "rawModelPath": "assets/models/tree9.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [-11.5758, 2.1435, 10.0168],
+      "rotationEuler": [0, 0.280344, 0],
+      "rotationQuat": [0, 0.00244646, 0, 0.999997],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Walnut_Bark.png",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Walnut_Bark.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/Tree_Leaves_Green.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 29,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_7",
+      "type": "model",
+      "modelPath": "models/tree_redwood.obj",
+      "rawModelPath": "assets/models/tree_redwood.obj",
+      "modelOffset": [8.59499e-05, -0.000159, 0.000396013],
+      "modelScale": 1,
+      "position": [-6.04551, 0.758975, 10.8754],
+      "rotationEuler": [0, 222.293, 0],
+      "rotationQuat": [0, 0.93266, 0, -0.360757],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bottom_T.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bottom_T.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 30,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_8",
+      "type": "model",
+      "modelPath": "models/tree9.obj",
+      "rawModelPath": "assets/models/tree9.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [-7.08606, 0.235336, 4.78645],
+      "rotationEuler": [0, 2.54385, 0],
+      "rotationQuat": [0, 0.0221975, 0, 0.999754],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Walnut_Bark.png",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Walnut_Bark.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/Tree_Leaves_Green.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 31,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_9",
+      "type": "model",
+      "modelPath": "models/tree_pine.obj",
+      "rawModelPath": "assets/models/tree_pine.obj",
+      "modelOffset": [0.000584006, 0.000542, -0.000444472],
+      "modelScale": 1,
+      "position": [-8.17153, 2.17724, -4.631],
+      "rotationEuler": [0, 188.919, 0],
+      "rotationQuat": [0, 0.996973, 0, -0.0777531],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bark___1.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bark___1.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 32,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_10",
+      "type": "model",
+      "modelPath": "models/tree_cedar.obj",
+      "rawModelPath": "assets/models/tree_cedar.obj",
+      "modelOffset": [0.00106549, -0.001036, 6.25253e-05],
+      "modelScale": 1,
+      "position": [-9.70075, 0.727756, 1.39777],
+      "rotationEuler": [0, 16.7996, 0],
+      "rotationQuat": [0, 0.14608, 0, 0.989273],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bark___S.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bark___S.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 33,
+      "parentId": -1,
+      "name": "🌲 Left_Forest_Tree_11",
+      "type": "model",
+      "modelPath": "models/trees_and_bush_pack.glb",
+      "rawModelPath": "assets/models/trees_and_bush_pack.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [-6.98323, 0.891498, 10.5801],
+      "rotationEuler": [0, 83.7977, 0],
+      "rotationQuat": [0, 0.667818, 0, 0.744325],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/trees_and_bush_pack.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/trees_and_bush_pack.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/trees_and_bush_pack.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/trees_and_bush_pack.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/trees_and_bush_pack.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 34,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_0",
+      "type": "model",
+      "modelPath": "models/tree_and_bush.glb",
+      "rawModelPath": "assets/models/tree_and_bush.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [8.37659, 1.19144, -3.5503],
+      "rotationEuler": [0, 222.619, 0],
+      "rotationQuat": [0, 0.931631, 0, -0.363405],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_and_bush.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/tree_and_bush.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/tree_and_bush.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/tree_and_bush.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/tree_and_bush.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 35,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_1",
+      "type": "model",
+      "modelPath": "models/tree_and_bush.glb",
+      "rawModelPath": "assets/models/tree_and_bush.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [6.19723, -0.00538826, 1.11939],
+      "rotationEuler": [0, 353.963, 0],
+      "rotationQuat": [0, 0.0526575, 0, -0.998613],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_and_bush.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/tree_and_bush.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/tree_and_bush.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/tree_and_bush.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/tree_and_bush.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 36,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_2",
+      "type": "model",
+      "modelPath": "models/tree_mossy.obj",
+      "rawModelPath": "assets/models/tree_mossy.obj",
+      "modelOffset": [-0.000350952, 0.000448, -6.60419e-05],
+      "modelScale": 1,
+      "position": [9.53552, 0.897782, 2.46821],
+      "rotationEuler": [0, 309.579, 0],
+      "rotationQuat": [0, 0.425949, 0, -0.904747],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Mossy_Tr.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Mossy_Tr.jpg",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 37,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_3",
+      "type": "model",
+      "modelPath": "models/tree_redwood.obj",
+      "rawModelPath": "assets/models/tree_redwood.obj",
+      "modelOffset": [8.59499e-05, -0.000159, 0.000396013],
+      "modelScale": 1,
+      "position": [9.66413, 1.51496, 5.88492],
+      "rotationEuler": [0, 162.18, 0],
+      "rotationQuat": [0, 0.987932, 0, 0.154885],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bottom_T.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bottom_T.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 38,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_4",
+      "type": "model",
+      "modelPath": "models/tree_oak.obj",
+      "rawModelPath": "assets/models/tree_oak.obj",
+      "modelOffset": [-0.000237018, -0.00068, 0.00351149],
+      "modelScale": 1,
+      "position": [5.05294, 0.591154, -4.78776],
+      "rotationEuler": [0, 339.193, 0],
+      "rotationQuat": [0, 0.180582, 0, -0.98356],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Oak_Leav.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Oak_Leav.jpg",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 39,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_5",
+      "type": "model",
+      "modelPath": "models/tree_cedar.obj",
+      "rawModelPath": "assets/models/tree_cedar.obj",
+      "modelOffset": [0.00106549, -0.001036, 6.25253e-05],
+      "modelScale": 1,
+      "position": [12.7079, 2.16459, 4.01261],
+      "rotationEuler": [0, 138.75, 0],
+      "rotationQuat": [0, 0.935906, 0, 0.352251],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bark___S.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bark___S.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 40,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_6",
+      "type": "model",
+      "modelPath": "models/tree_redwood.obj",
+      "rawModelPath": "assets/models/tree_redwood.obj",
+      "modelOffset": [8.59499e-05, -0.000159, 0.000396013],
+      "modelScale": 1,
+      "position": [7.08922, 0.988066, -4.74454],
+      "rotationEuler": [0, 83.1218, 0],
+      "rotationQuat": [0, 0.663415, 0, 0.748251],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bottom_T.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bottom_T.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 41,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_7",
+      "type": "model",
+      "modelPath": "models/tree_and_bush.glb",
+      "rawModelPath": "assets/models/tree_and_bush.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [10.316, 0.915318, -1.14359],
+      "rotationEuler": [0, 245.975, 0],
+      "rotationQuat": [0, 0.83879, 0, -0.544455],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_and_bush.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/tree_and_bush.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/tree_and_bush.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/tree_and_bush.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/tree_and_bush.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 42,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_8",
+      "type": "model",
+      "modelPath": "models/tree_redwood.obj",
+      "rawModelPath": "assets/models/tree_redwood.obj",
+      "modelOffset": [8.59499e-05, -0.000159, 0.000396013],
+      "modelScale": 1,
+      "position": [5.53732, 0.421485, 4.75995],
+      "rotationEuler": [0, 299.95, 0],
+      "rotationQuat": [0, 0.500377, 0, -0.865808],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bottom_T.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bottom_T.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 43,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_9",
+      "type": "model",
+      "modelPath": "models/tree9.obj",
+      "rawModelPath": "assets/models/tree9.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [4.7923, 0.353771, -2.22617],
+      "rotationEuler": [0, 140.782, 0],
+      "rotationQuat": [0, 0.942004, 0, 0.335601],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Walnut_Bark.png",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Walnut_Bark.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/Tree_Leaves_Green.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 44,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_10",
+      "type": "model",
+      "modelPath": "models/trees_and_bush_pack.glb",
+      "rawModelPath": "assets/models/trees_and_bush_pack.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [6.69963, 0.676749, -2.08422],
+      "rotationEuler": [0, 271.93, 0],
+      "rotationQuat": [0, 0.695097, 0, -0.718916],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/trees_and_bush_pack.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/trees_and_bush_pack.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/trees_and_bush_pack.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/trees_and_bush_pack.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/trees_and_bush_pack.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 45,
+      "parentId": -1,
+      "name": "🌲 Right_Forest_Tree_11",
+      "type": "model",
+      "modelPath": "models/tree9.obj",
+      "rawModelPath": "assets/models/tree9.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [7.14954, 0.218162, 1.80249],
+      "rotationEuler": [0, 74.859, 0],
+      "rotationQuat": [0, 0.607785, 0, 0.794102],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Walnut_Bark.png",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Walnut_Bark.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/Tree_Leaves_Green.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 46,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_0",
+      "type": "model",
+      "modelPath": "models/tree9.obj",
+      "rawModelPath": "assets/models/tree9.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [1.12105, 2.27439, -8.89315],
+      "rotationEuler": [0, 11.2728, 0],
+      "rotationQuat": [0, 0.0982149, 0, 0.995165],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Walnut_Bark.png",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Walnut_Bark.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/Tree_Leaves_Green.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 47,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_1",
+      "type": "model",
+      "modelPath": "models/tree_cedar.obj",
+      "rawModelPath": "assets/models/tree_cedar.obj",
+      "modelOffset": [0.00106549, -0.001036, 6.25253e-05],
+      "modelScale": 1,
+      "position": [11.27, 5.38806, -11.5017],
+      "rotationEuler": [0, 161.911, 0],
+      "rotationQuat": [0, 0.987567, 0, 0.157197],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bark___S.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bark___S.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 48,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_2",
+      "type": "model",
+      "modelPath": "models/tree9.obj",
+      "rawModelPath": "assets/models/tree9.obj",
+      "modelOffset": [0, 0, 0],
+      "modelScale": 1,
+      "position": [10.548, 2.83587, -7.25393],
+      "rotationEuler": [0, 333.597, 0],
+      "rotationQuat": [0, 0.228375, 0, -0.973573],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Walnut_Bark.png",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Walnut_Bark.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/Tree_Leaves_Green.png",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 49,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_3",
+      "type": "model",
+      "modelPath": "models/trees_and_bush_pack.glb",
+      "rawModelPath": "assets/models/trees_and_bush_pack.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [2.3496, 3.00071, -10.4091],
+      "rotationEuler": [0, 117.555, 0],
+      "rotationQuat": [0, 0.855159, 0, 0.518365],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/trees_and_bush_pack.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/trees_and_bush_pack.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/trees_and_bush_pack.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/trees_and_bush_pack.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/trees_and_bush_pack.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 50,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_4",
+      "type": "model",
+      "modelPath": "models/tree_and_bush.glb",
+      "rawModelPath": "assets/models/tree_and_bush.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [-9.87618, 3.97041, -8.91922],
+      "rotationEuler": [0, 187.5, 0],
+      "rotationQuat": [0, 0.997859, 0, -0.0654059],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_and_bush.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/tree_and_bush.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/tree_and_bush.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/tree_and_bush.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/tree_and_bush.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 51,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_5",
+      "type": "model",
+      "modelPath": "models/trees_and_bush_pack.glb",
+      "rawModelPath": "assets/models/trees_and_bush_pack.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [-10.9145, 6.34563, -12.6311],
+      "rotationEuler": [0, 304.032, 0],
+      "rotationQuat": [0, 0.469224, 0, -0.883079],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/trees_and_bush_pack.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/trees_and_bush_pack.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/trees_and_bush_pack.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/trees_and_bush_pack.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/trees_and_bush_pack.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/trees_and_bush_pack.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/trees_and_bush_pack.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/trees_and_bush_pack.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 52,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_6",
+      "type": "model",
+      "modelPath": "models/tree_cedar.obj",
+      "rawModelPath": "assets/models/tree_cedar.obj",
+      "modelOffset": [0.00106549, -0.001036, 6.25253e-05],
+      "modelScale": 1,
+      "position": [-2.67175, 3.89051, -10.5995],
+      "rotationEuler": [0, 194.289, 0],
+      "rotationQuat": [0, 0.992235, 0, -0.124374],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bark___S.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bark___S.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 53,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_7",
+      "type": "model",
+      "modelPath": "models/tree_cedar.obj",
+      "rawModelPath": "assets/models/tree_cedar.obj",
+      "modelOffset": [0.00106549, -0.001036, 6.25253e-05],
+      "modelScale": 1,
+      "position": [7.8897, 2.82811, -9.07414],
+      "rotationEuler": [0, 347.492, 0],
+      "rotationQuat": [0, 0.108937, 0, -0.994049],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Bark___S.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Bark___S.jpg",
+          "roughness": 0.88,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 54,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_8",
+      "type": "model",
+      "modelPath": "models/tree_oak.obj",
+      "rawModelPath": "assets/models/tree_oak.obj",
+      "modelOffset": [-0.000237018, -0.00068, 0.00351149],
+      "modelScale": 1,
+      "position": [-5.25757, 3.5476, -9.26682],
+      "rotationEuler": [0, 99.3597, 0],
+      "rotationQuat": [0, 0.762441, 0, 0.647058],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Oak_Leav.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Oak_Leav.jpg",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 55,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_9",
+      "type": "model",
+      "modelPath": "models/tree_and_bush.glb",
+      "rawModelPath": "assets/models/tree_and_bush.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [-8.61782, 2.73951, -6.3146],
+      "rotationEuler": [0, 59.4961, 0],
+      "rotationQuat": [0, 0.496187, 0, 0.868216],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_and_bush.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/tree_and_bush.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/tree_and_bush.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/tree_and_bush.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/tree_and_bush.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 56,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_10",
+      "type": "model",
+      "modelPath": "models/tree_and_bush.glb",
+      "rawModelPath": "assets/models/tree_and_bush.glb",
+      "modelOffset": [-1.04589, -6.81035, -27.0598],
+      "modelScale": 0.0382116,
+      "position": [-10.2108, 2.04647, -3.64855],
+      "rotationEuler": [0, 152.425, 0],
+      "rotationQuat": [0, 0.971185, 0, 0.238326],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/tree_and_bush.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/tree_and_bush.glb#img1",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 5,
+          "texturePath": "models/tree_and_bush.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 6,
+          "texturePath": "models/tree_and_bush.glb#img2",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 7,
+          "texturePath": "models/tree_and_bush.glb#img3",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 8,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 9,
+          "texturePath": "models/tree_and_bush.glb#img4",
+          "roughness": 0.821115,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 10,
+          "texturePath": "models/tree_and_bush.glb#img5",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 11,
+          "texturePath": "models/tree_and_bush.glb#img6",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 57,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_11",
+      "type": "model",
+      "modelPath": "models/tree_oak.obj",
+      "rawModelPath": "assets/models/tree_oak.obj",
+      "modelOffset": [-0.000237018, -0.00068, 0.00351149],
+      "modelScale": 1,
+      "position": [6.53387, 1.58781, -7.25137],
+      "rotationEuler": [0, 105.656, 0],
+      "rotationQuat": [0, 0.796824, 0, 0.604212],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Oak_Leav.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Oak_Leav.jpg",
+          "roughness": 0.55,
+          "metallic": 0,
+          "isFoliage": true,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 58,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_12",
+      "type": "model",
+      "modelPath": "models/tree_mossy.obj",
+      "rawModelPath": "assets/models/tree_mossy.obj",
+      "modelOffset": [-0.000350952, 0.000448, -6.60419e-05],
+      "modelScale": 1,
+      "position": [-11.8675, 2.01429, -3.63376],
+      "rotationEuler": [0, 71.5832, 0],
+      "rotationQuat": [0, 0.584839, 0, 0.811149],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Mossy_Tr.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Mossy_Tr.jpg",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 59,
+      "parentId": -1,
+      "name": "🌲 Mountain_Ridge_Tree_13",
+      "type": "model",
+      "modelPath": "models/tree_mossy.obj",
+      "rawModelPath": "assets/models/tree_mossy.obj",
+      "modelOffset": [-0.000350952, 0.000448, -6.60419e-05],
+      "modelScale": 1,
+      "position": [4.96458, 2.85333, -10.2577],
+      "rotationEuler": [0, 284.463, 0],
+      "rotationQuat": [0, 0.612471, 0, -0.790493],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/Mossy_Tr.jpg",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/Mossy_Tr.jpg",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": false
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 60,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_0",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [5.96795, 0.67842, 5.87748],
+      "rotationEuler": [0, 26.6561, 0],
+      "rotationQuat": [0, 0.230526, 0, 0.973066],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 61,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_1",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [9.37862, 0.885614, 2.66005],
+      "rotationEuler": [0, 234.388, 0],
+      "rotationQuat": [0, 0.889465, 0, -0.457003],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 62,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_2",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [-8.45088, 1.14326, 9.89448],
+      "rotationEuler": [0, 310.717, 0],
+      "rotationQuat": [0, 0.416938, 0, -0.908935],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 63,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_3",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [7.70085, 1.0677, 6.10288],
+      "rotationEuler": [0, 161.802, 0],
+      "rotationQuat": [0, 0.987417, 0, 0.158139],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 64,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_4",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [-3.72024, -0.126612, -0.759669],
+      "rotationEuler": [0, 22.881, 0],
+      "rotationQuat": [0, 0.19835, 0, 0.980131],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 65,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_5",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [-2.842, -0.205741, 2.04277],
+      "rotationEuler": [0, 240.783, 0],
+      "rotationQuat": [0, 0.862589, 0, -0.505905],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 66,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_6",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [-3.84597, 0.119459, 6.65699],
+      "rotationEuler": [0, 262.658, 0],
+      "rotationQuat": [0, 0.750929, 0, -0.660383],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 67,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_7",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [2.00855, 0.445221, 6.28825],
+      "rotationEuler": [0, 98.8998, 0],
+      "rotationQuat": [0, 0.759838, 0, 0.650113],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 68,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_8",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [8.51868, 1.11876, 5.29616],
+      "rotationEuler": [0, 169.997, 0],
+      "rotationQuat": [0, 0.996193, 0, 0.0871787],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 69,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_9",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [-2.57561, -0.135445, -0.445275],
+      "rotationEuler": [0, 349.816, 0],
+      "rotationQuat": [0, 0.0887523, 0, -0.996054],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 70,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_10",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [4.69138, 0.954917, 9.03588],
+      "rotationEuler": [0, 273.883, 0],
+      "rotationQuat": [0, 0.682747, 0, -0.730655],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 71,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_11",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [4.87805, 0.422197, 5.2966],
+      "rotationEuler": [0, 84.9546, 0],
+      "rotationQuat": [0, 0.675298, 0, 0.737545],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 72,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_12",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [5.96128, -0.0291404, 1.32889],
+      "rotationEuler": [0, 177.766, 0],
+      "rotationQuat": [0, 0.99981, 0, 0.0194906],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 73,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_13",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [-10.1105, 1.02924, 4.79553],
+      "rotationEuler": [0, 255.839, 0],
+      "rotationQuat": [0, 0.788877, 0, -0.614551],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 74,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_14",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [-1.5941, -0.137409, -0.558419],
+      "rotationEuler": [0, 9.15088, 0],
+      "rotationQuat": [0, 0.0797717, 0, 0.996813],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 75,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_15",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [-1.3346, -0.139565, -0.597412],
+      "rotationEuler": [0, 72.6189, 0],
+      "rotationQuat": [0, 0.592146, 0, 0.805831],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 76,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_16",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [-10.3086, 1.66254, 9.64493],
+      "rotationEuler": [0, 229.108, 0],
+      "rotationQuat": [0, 0.909571, 0, -0.415549],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 77,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_17",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [-0.541856, -0.139874, 2.08663],
+      "rotationEuler": [0, 202.779, 0],
+      "rotationQuat": [0, 0.980307, 0, -0.197479],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 78,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_18",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [0.188555, 0.421798, 7.04171],
+      "rotationEuler": [0, 326.724, 0],
+      "rotationQuat": [0, 0.286325, 0, -0.958133],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 79,
+      "parentId": -1,
+      "name": "🌿 Meadow_Bush_19",
+      "type": "model",
+      "modelPath": "models/bush.glb",
+      "rawModelPath": "assets/models/bush.glb",
+      "modelOffset": [-0.001095, -0.0581285, -0.0392911],
+      "modelScale": 1.00373,
+      "position": [-7.93471, 0.278739, 1.2408],
+      "rotationEuler": [0, 217.59, 0],
+      "rotationQuat": [0, 0.946677, 0, -0.322185],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/bush.glb#img0",
+        "pbr": true,
+        "roughness": 0.5,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/bush.glb#img0",
+          "roughness": 0.5,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 80,
+      "parentId": -1,
+      "name": "🪨 Meadow_Boulder_0",
+      "type": "model",
+      "modelPath": "models/rock.glb",
+      "rawModelPath": "assets/models/rock.glb",
+      "modelOffset": [-0.382866, 0.05786, -0.364044],
+      "modelScale": 0.128834,
+      "position": [-2.06119, 0.0304789, 4.55777],
+      "rotationEuler": [0, 271.998, 0],
+      "rotationQuat": [0, 0.694669, 0, -0.71933],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/rock.glb#img0",
+        "pbr": true,
+        "roughness": 0.05,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.806351,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.806351,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 81,
+      "parentId": -1,
+      "name": "🪨 Meadow_Stone_1",
+      "type": "model",
+      "modelPath": "models/stone.glb",
+      "rawModelPath": "assets/models/stone.glb",
+      "modelOffset": [0.0624479, -0.0430574, -0.00400059],
+      "modelScale": 2.23122,
+      "position": [-6.82959, 0.114538, 0.203174],
+      "rotationEuler": [-5.07624, 339.427, 1.18639],
+      "rotationQuat": [0.0417231, 0.178834, -0.00226929, -0.982991],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/stone.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 82,
+      "parentId": -1,
+      "name": "🪨 Meadow_Stone_2",
+      "type": "model",
+      "modelPath": "models/stone.glb",
+      "rawModelPath": "assets/models/stone.glb",
+      "modelOffset": [0.0624479, -0.0430574, -0.00400059],
+      "modelScale": 2.23122,
+      "position": [-4.83572, 0.102426, 6.72699],
+      "rotationEuler": [4.56561, 58.0397, 5.15637],
+      "rotationQuat": [0.0129916, 0.485803, 0.0200005, 0.873743],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/stone.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 83,
+      "parentId": -1,
+      "name": "🪨 Meadow_Boulder_3",
+      "type": "model",
+      "modelPath": "models/rock.glb",
+      "rawModelPath": "assets/models/rock.glb",
+      "modelOffset": [-0.382866, 0.05786, -0.364044],
+      "modelScale": 0.128834,
+      "position": [2.86014, 0.751501, 8.31369],
+      "rotationEuler": [0, 106.428, 0],
+      "rotationQuat": [0, 0.800878, 0, 0.598827],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/rock.glb#img0",
+        "pbr": true,
+        "roughness": 0.05,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.806351,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.806351,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 84,
+      "parentId": -1,
+      "name": "🪨 Meadow_Stone_4",
+      "type": "model",
+      "modelPath": "models/stone.glb",
+      "rawModelPath": "assets/models/stone.glb",
+      "modelOffset": [0.0624479, -0.0430574, -0.00400059],
+      "modelScale": 2.23122,
+      "position": [3.06829, -0.283083, -1.52308],
+      "rotationEuler": [-0.521585, 313.726, 3.64406],
+      "rotationQuat": [-0.00830975, 0.392863, -0.0274498, -0.91915],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/stone.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 85,
+      "parentId": -1,
+      "name": "🪨 Meadow_Stone_5",
+      "type": "model",
+      "modelPath": "models/stone.glb",
+      "rawModelPath": "assets/models/stone.glb",
+      "modelOffset": [0.0624479, -0.0430574, -0.00400059],
+      "modelScale": 2.23122,
+      "position": [-6.47587, 0.0890207, -0.388019],
+      "rotationEuler": [4.71071, 149.944, 4.59936],
+      "rotationQuat": [-0.0280734, 0.964633, -0.0292638, 0.26046],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/stone.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 86,
+      "parentId": -1,
+      "name": "🪨 Meadow_Boulder_6",
+      "type": "model",
+      "modelPath": "models/rock.glb",
+      "rawModelPath": "assets/models/rock.glb",
+      "modelOffset": [-0.382866, 0.05786, -0.364044],
+      "modelScale": 0.128834,
+      "position": [0.904871, -0.138232, 1.54083],
+      "rotationEuler": [0, 290.678, 0],
+      "rotationQuat": [0, 0.568717, 0, -0.822533],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/rock.glb#img0",
+        "pbr": true,
+        "roughness": 0.05,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.806351,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.806351,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 87,
+      "parentId": -1,
+      "name": "🪨 Meadow_Stone_7",
+      "type": "model",
+      "modelPath": "models/stone.glb",
+      "rawModelPath": "assets/models/stone.glb",
+      "modelOffset": [0.0624479, -0.0430574, -0.00400059],
+      "modelScale": 2.23122,
+      "position": [-8.69198, 1.15865, 9.54528],
+      "rotationEuler": [-2.18396, 128.267, 4.88194],
+      "rotationQuat": [-0.0466229, 0.89848, 0.0357102, 0.435069],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/stone.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 88,
+      "parentId": -1,
+      "name": "🪨 Meadow_Stone_8",
+      "type": "model",
+      "modelPath": "models/stone.glb",
+      "rawModelPath": "assets/models/stone.glb",
+      "modelOffset": [0.0624479, -0.0430574, -0.00400059],
+      "modelScale": 2.23122,
+      "position": [-8.96881, 0.55737, 0.809851],
+      "rotationEuler": [1.77228, 82.0566, -0.874707],
+      "rotationQuat": [0.0166766, 0.656245, -0.0159094, 0.754195],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/stone.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 89,
+      "parentId": -1,
+      "name": "🪨 Meadow_Boulder_9",
+      "type": "model",
+      "modelPath": "models/rock.glb",
+      "rawModelPath": "assets/models/rock.glb",
+      "modelOffset": [-0.382866, 0.05786, -0.364044],
+      "modelScale": 0.128834,
+      "position": [-11.488, 1.90852, 8.45221],
+      "rotationEuler": [0, 126.925, 0],
+      "rotationQuat": [0, 0.894641, 0, 0.446785],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/rock.glb#img0",
+        "pbr": true,
+        "roughness": 0.05,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.806351,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.806351,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 90,
+      "parentId": -1,
+      "name": "🪨 Meadow_Stone_10",
+      "type": "model",
+      "modelPath": "models/stone.glb",
+      "rawModelPath": "assets/models/stone.glb",
+      "modelOffset": [0.0624479, -0.0430574, -0.00400059],
+      "modelScale": 2.23122,
+      "position": [8.2968, 0.44251, 1.26694],
+      "rotationEuler": [-4.02413, 2.50276, 0.128967],
+      "rotationQuat": [-0.0351261, 0.021786, 0.00189125, 0.999144],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/stone.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 91,
+      "parentId": -1,
+      "name": "🪨 Meadow_Stone_11",
+      "type": "model",
+      "modelPath": "models/stone.glb",
+      "rawModelPath": "assets/models/stone.glb",
+      "modelOffset": [0.0624479, -0.0430574, -0.00400059],
+      "modelScale": 2.23122,
+      "position": [0.784056, -0.0288624, 2.84375],
+      "rotationEuler": [-3.33471, 174.539, 2.30923],
+      "rotationQuat": [-0.021505, 0.998211, 0.0300173, 0.0470245],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/stone.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 92,
+      "parentId": -1,
+      "name": "🪨 Meadow_Boulder_12",
+      "type": "model",
+      "modelPath": "models/rock.glb",
+      "rawModelPath": "assets/models/rock.glb",
+      "modelOffset": [-0.382866, 0.05786, -0.364044],
+      "modelScale": 0.128834,
+      "position": [-8.7431, 0.501194, 0.771772],
+      "rotationEuler": [0, 121.541, 0],
+      "rotationQuat": [0, 0.872673, 0, 0.488306],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/rock.glb#img0",
+        "pbr": true,
+        "roughness": 0.05,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "",
+          "roughness": 0.806351,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "",
+          "roughness": 0.806351,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/rock.glb#img0",
+          "roughness": 0.05,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    },
+    {
+      "id": 93,
+      "parentId": -1,
+      "name": "🪨 Meadow_Stone_13",
+      "type": "model",
+      "modelPath": "models/stone.glb",
+      "rawModelPath": "assets/models/stone.glb",
+      "modelOffset": [0.0624479, -0.0430574, -0.00400059],
+      "modelScale": 2.23122,
+      "position": [-5.88511, 0.634092, 10.2007],
+      "rotationEuler": [-2.12157, 60.5848, -3.37483],
+      "rotationQuat": [-0.00112769, 0.504578, -0.0160876, 0.863215],
+      "scale": [1, 1, 1],
+      "color": [1, 1, 1, 1],
+      "material": {
+        "texturePath": "models/stone.glb#img0",
+        "pbr": true,
+        "roughness": 1,
+        "metallic": 0,
+        "ambientOcclusion": 1
+      },
+      "submeshes": [
+        {
+          "index": 0,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 1,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 2,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 3,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        },
+        {
+          "index": 4,
+          "texturePath": "models/stone.glb#img0",
+          "roughness": 1,
+          "metallic": 0,
+          "isFoliage": false,
+          "twoSided": true
+        }
+      ],
+      "physics": {
+        "enabled": false,
+        "hasRigidBody": false,
+        "mass": 0,
+        "colliderType": "mesh",
+        "friction": 0.5,
+        "restitution": 0
+      }
+    }
+  ]
+}

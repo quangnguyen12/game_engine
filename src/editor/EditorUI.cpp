@@ -19,6 +19,9 @@
 #include <fstream>
 #include <cstring>
 #include <iostream>
+#include <filesystem>
+#include <unordered_map>
+#include <algorithm>
 
 EditorUI::EditorUI()
 {
@@ -203,6 +206,21 @@ void EditorUI::render(GLFWwindow* window,
             {
                 scene->redo();
             }
+            if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S))
+            {
+                if (ImGui::GetIO().KeyShift)
+                {
+                    showSaveSceneModal = true;
+                }
+                else
+                {
+                    if (onSaveScene) onSaveScene();
+                }
+            }
+            if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_L))
+            {
+                showLoadSceneModal = true;
+            }
         }
 
         if (!ImGui::GetIO().WantTextInput && (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)))
@@ -276,7 +294,7 @@ void EditorUI::render(GLFWwindow* window,
             if (ImGui::Begin("Game View Fullscreen (Monitor 2)", &gizmoSystem->isGameFullscreen, 
                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings))
             {
-                gizmoSystem->drawGameView(gameViewDescriptorSet, ImGui::GetWindowPos(), ImGui::GetWindowSize(), gameScore, highScore, onToggleFullscreen, mode);
+                gizmoSystem->drawGameView(gameViewDescriptorSet, ImGui::GetWindowPos(), ImGui::GetWindowSize(), gameScore, highScore, onToggleFullscreen, mode, nullptr, renderer);
             }
             ImGui::End();
         }
@@ -293,7 +311,7 @@ void EditorUI::render(GLFWwindow* window,
     // 1. Top Menu Bar
     drawMainMenuBar(scene, mode, gameScore, selectedGpuName,
                     onPlay, onStop, onReloadLua, onResetScene, onSaveScene, onLoadScene,
-                    gizmoSystem, profilerPanel, assetBrowserPanel, sceneGenerator, modelDownloader);
+                    gizmoSystem, profilerPanel, assetBrowserPanel, sceneGenerator, modelDownloader, renderer, assetManager);
 
     // 2. Hierarchy Panel
     drawHierarchyPanel(scene, assetManager, scriptEngine, gizmoSystem, mode, sceneGenerator, menuBarHeight, centerHeight);
@@ -324,7 +342,7 @@ void EditorUI::render(GLFWwindow* window,
                 ImGui::TextDisabled("| Kéo di chuyển / thay đổi kích thước cửa sổ tự do");
                 ImGui::Separator();
 
-                gizmoSystem->drawGameView(gameViewDescriptorSet, ImGui::GetWindowPos(), ImGui::GetWindowSize(), gameScore, highScore, onToggleFullscreen, mode);
+                gizmoSystem->drawGameView(gameViewDescriptorSet, ImGui::GetWindowPos(), ImGui::GetWindowSize(), gameScore, highScore, onToggleFullscreen, mode, scene, renderer);
             }
             ImGui::End();
         }
@@ -334,7 +352,7 @@ void EditorUI::render(GLFWwindow* window,
             ImGui::SetNextWindowSize(ImVec2(centerWidth * 0.5f, centerHeight));
             if (ImGui::Begin("Game", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
             {
-                gizmoSystem->drawGameView(gameViewDescriptorSet, ImGui::GetWindowPos(), ImGui::GetWindowSize(), gameScore, highScore, onToggleFullscreen, mode);
+                gizmoSystem->drawGameView(gameViewDescriptorSet, ImGui::GetWindowPos(), ImGui::GetWindowSize(), gameScore, highScore, onToggleFullscreen, mode, scene, renderer);
             }
             ImGui::End();
         }
@@ -351,12 +369,32 @@ void EditorUI::render(GLFWwindow* window,
 
     // 8. Asset Browser Panel
     assetBrowserPanel->draw(assetManager, scene, editorWidth, bottomPanelHeight);
+    if (!assetBrowserPanel->getVisible())
+    {
+        ImGui::SetNextWindowPos(ImVec2(10.0f, editorHeight - 48.0f), ImGuiCond_Always);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.12f, 0.14f, 0.18f, 0.85f));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.96f, 0.65f, 0.14f, 0.9f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.05f, 0.05f, 0.05f, 1.0f));
+        if (ImGui::Begin("##CollapsedAssetTab", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings))
+        {
+            if (ImGui::Button(" 🎯 TARGETS & ASSETS 🔼 "))
+            {
+                assetBrowserPanel->setVisible(true);
+            }
+        }
+        ImGui::End();
+        ImGui::PopStyleColor(3);
+    }
 
     // 9. Scene Generator Panel
     sceneGenerator->drawSceneGeneratorPanel(scene, assetManager, gizmoSystem);
 
     // 10. Model Downloader Panel
     modelDownloader->draw(scene, assetManager);
+
+    // 11. Modal Dialogs (Load Scene & Save Scene)
+    drawLoadSceneModal(scene, assetManager, gizmoSystem, renderer, physEngine, scriptEngine, mode);
+    drawSaveSceneModal(scene, assetManager, gizmoSystem, renderer);
 
     ImGui::Render();
 }
@@ -367,7 +405,8 @@ void EditorUI::drawMainMenuBar(Scene* scene, AppMode& mode, int& gameScore, cons
                                std::function<void()> onSaveScene, std::function<void()> onLoadScene,
                                GizmoSystem* gizmoSystem, ProfilerPanel* profilerPanel,
                                AssetBrowserPanel* assetBrowserPanel, SceneGenerator* sceneGenerator,
-                               ModelDownloader* modelDownloader)
+                               ModelDownloader* modelDownloader, VulkanRenderer* renderer,
+                               AssetManager* assetManager)
 {
     if (ImGui::BeginMainMenuBar())
     {
@@ -385,9 +424,77 @@ void EditorUI::drawMainMenuBar(Scene* scene, AppMode& mode, int& gameScore, cons
             {
                 if (onSaveScene) onSaveScene();
             }
-            if (ImGui::MenuItem("Load Scene", "Ctrl+L"))
+            if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S"))
             {
-                if (onLoadScene) onLoadScene();
+                showSaveSceneModal = true;
+            }
+            if (ImGui::MenuItem("Load Scene...", "Ctrl+L"))
+            {
+                showLoadSceneModal = true;
+            }
+            if (ImGui::MenuItem("🐵 Export for jMonkeyEngine (.json)...", "Ctrl+E"))
+            {
+                const char* filterPatterns[] = { "*.json" };
+                std::string defaultExportPath = "../Jme_scene/scene.json";
+                if (!std::filesystem::exists("../Jme_scene") && std::filesystem::exists("D:/Game_prj/Jme_scene"))
+                {
+                    defaultExportPath = "D:/Game_prj/Jme_scene/scene.json";
+                }
+                const char* savePath = tinyfd_saveFileDialog(
+                    "Xuat Scene cho jMonkeyEngine (.json)",
+                    defaultExportPath.c_str(),
+                    1,
+                    filterPatterns,
+                    "JSON Scene File (*.json)"
+                );
+                std::string targetFile = savePath ? savePath : "scene_jme.json";
+                if (scene)
+                {
+                    scene->exportToJMonkeyEngine(targetFile, assetManager, gizmoSystem, renderer);
+                    if (gizmoSystem)
+                    {
+                        gizmoSystem->lastExportedImagePath = targetFile;
+                        gizmoSystem->exportNotificationTimer = 6.0f;
+                    }
+                }
+            }
+            if (ImGui::MenuItem(mode == AppMode::PLAY ? "⏹ Stop jMonkeyEngine" : "▶ Play in jMonkeyEngine", "F5"))
+            {
+                if (mode == AppMode::PLAY)
+                {
+                    if (onStop) onStop();
+                }
+                else
+                {
+                    if (onPlay) onPlay();
+                }
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("📷 Xuất Ảnh Khung Cam (PNG/JPG)", "F12"))
+            {
+                if (renderer && gizmoSystem)
+                {
+                    bool is2m4 = (gizmoSystem->gameAspectRatioMode == GameViewAspectRatioMode::PHOTO_2M4_X_2M);
+                    uint32_t expW = is2m4 ? 2400 : 1920;
+                    uint32_t expH = is2m4 ? 2000 : 1080;
+                    const char* filterPatterns[] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
+                    std::string defaultName = is2m4 ? "Cam_View_2m4x2m.png" : "Cam_View.png";
+                    const char* savePath = tinyfd_saveFileDialog(
+                        "Lưu Ảnh Khung Cam (Export Camera View Image)",
+                        defaultName.c_str(),
+                        4,
+                        filterPatterns,
+                        "Image Files (*.png, *.jpg, *.bmp)"
+                    );
+                    if (savePath)
+                    {
+                        if (renderer->exportGameViewImage(savePath, expW, expH))
+                        {
+                            gizmoSystem->lastExportedImagePath = savePath;
+                            gizmoSystem->exportNotificationTimer = 7.0f;
+                        }
+                    }
+                }
             }
             ImGui::EndMenu();
         }
@@ -396,16 +503,27 @@ void EditorUI::drawMainMenuBar(Scene* scene, AppMode& mode, int& gameScore, cons
         if (mode == AppMode::PLAY)
         {
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.65f, 0.32f, 1.0f));
-            if (ImGui::Button(" [ > PLAYING ] "))
+            if (ImGui::Button(" [ 🐵 PLAYING (jME) ] "))
             {
                 if (onStop) onStop();
             }
             ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("jMonkeyEngine đang chạy. Nhấn để dừng (F5)");
+            }
 
             ImGui::SameLine();
-            if (ImGui::Button(" [ STOP ] "))
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.20f, 0.20f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.85f, 0.25f, 0.25f, 1.0f));
+            if (ImGui::Button(" [ ⏹ STOP jME ] "))
             {
                 if (onStop) onStop();
+            }
+            ImGui::PopStyleColor(2);
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Dừng ứng dụng jMonkeyEngine và trở về chế độ chỉnh sửa Edit Mode (F5)");
             }
 
             ImGui::SameLine();
@@ -419,9 +537,17 @@ void EditorUI::drawMainMenuBar(Scene* scene, AppMode& mode, int& gameScore, cons
         }
         else
         {
-            if (ImGui::Button(" [ PLAY ] "))
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.14f, 0.62f, 0.32f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.18f, 0.75f, 0.38f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.10f, 0.50f, 0.25f, 1.0f));
+            if (ImGui::Button(" [ ▶ PLAY (jMonkeyEngine) ] "))
             {
                 if (onPlay) onPlay();
+            }
+            ImGui::PopStyleColor(3);
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Xuất cảnh hiện tại sang jMonkeyEngine và khởi chạy trực tiếp (F5)");
             }
         }
 
@@ -446,7 +572,7 @@ void EditorUI::drawMainMenuBar(Scene* scene, AppMode& mode, int& gameScore, cons
         }
 
         ImGui::Separator();
-        if (ImGui::Button(assetBrowserPanel->getVisible() ? " [ [x] Asset Browser ] " : " [ [ ] Asset Browser ] "))
+        if (ImGui::Button(assetBrowserPanel->getVisible() ? " [ [x] 🎯 Targets & Assets ] " : " [ [ ] 🎯 Targets & Assets ] "))
         {
             assetBrowserPanel->getVisible() = !assetBrowserPanel->getVisible();
         }
@@ -577,7 +703,7 @@ void EditorUI::drawHierarchyPanel(Scene* scene, AssetManager* assetManager, Scri
             if (ImGui::MenuItem("Sinh Cảnh 3D Tự Động..."))
             {
                 sceneGenerator->getVisible() = true;
-                sceneGenerator->generate3DScene(scene, assetManager);
+                sceneGenerator->generate3DScene(scene, assetManager, gizmoSystem);
             }
             ImGui::EndPopup();
         }
@@ -646,6 +772,7 @@ void EditorUI::drawHierarchyPanel(Scene* scene, AssetManager* assetManager, Scri
                         if (meshId >= 0)
                         {
                             sceneObjects[i].meshId = meshId;
+                            sceneObjects[i].modelPath = assetPath;
                             const auto& meshes = assetManager->getMeshes();
                             if (meshId < static_cast<int>(meshes.size()) && meshes[meshId].defaultTextureId >= 0) {
                                 sceneObjects[i].textureId = meshes[meshId].defaultTextureId;
@@ -805,10 +932,10 @@ void EditorUI::drawInspectorPanel(Scene* scene, AssetManager* assetManager, Scri
                     }
                     
                     ImGui::Spacing();
-                    if (ImGui::Button("Load 3D Mesh (.obj, .glb, .gltf)", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+                    if (ImGui::Button("Load 3D Mesh (.obj, .glb, .gltf, .fbx)", ImVec2(ImGui::GetContentRegionAvail().x, 0)))
                     {
-                        const char* filterPatterns[3] = { "*.obj", "*.glb", "*.gltf" };
-                        const char* filePath = tinyfd_openFileDialog("Load 3D Model", "", 3, filterPatterns, "3D Model files", 0);
+                        const char* filterPatterns[4] = { "*.obj", "*.glb", "*.gltf", "*.fbx" };
+                        const char* filePath = tinyfd_openFileDialog("Load 3D Model", "", 4, filterPatterns, "3D Model files", 0);
                         if (filePath)
                         {
                             try {
@@ -816,6 +943,7 @@ void EditorUI::drawInspectorPanel(Scene* scene, AssetManager* assetManager, Scri
                                 if (meshId >= 0)
                                 {
                                     obj.meshId = meshId;
+                                    obj.modelPath = filePath;
                                     const auto& meshes = assetManager->getMeshes();
                                     if (meshId < static_cast<int>(meshes.size()) && meshes[meshId].defaultTextureId >= 0) {
                                         obj.textureId = meshes[meshId].defaultTextureId;
@@ -840,6 +968,7 @@ void EditorUI::drawInspectorPanel(Scene* scene, AssetManager* assetManager, Scri
                                 int texId = assetManager->loadTextureAsset(filePath);
                                 if (texId >= 0) {
                                     obj.textureId = texId;
+                                    obj.texturePath = filePath;
                                 }
                             }
                             catch (const std::exception& e) {
@@ -1151,24 +1280,100 @@ void EditorUI::drawInspectorPanel(Scene* scene, AssetManager* assetManager, Scri
             ImGui::Separator();
             ImGui::Spacing();
 
-            if (ImGui::CollapsingHeader("Camera Transform", ImGuiTreeNodeFlags_DefaultOpen))
+            if (ImGui::CollapsingHeader("Main Camera Transform (Khung 2.4m × 2.0m)", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::DragFloat3("Position (X,Y,Z)", &gizmoSystem->mainCameraPos.x, 0.05f);
                 ImGui::DragFloat3("Target (X,Y,Z)", &gizmoSystem->mainCameraTarget.x, 0.05f);
 
-                if (ImGui::Button("Reset Camera View"))
+                if (ImGui::Button("Reset Main Camera"))
                 {
-                    gizmoSystem->mainCameraPos = glm::vec3(2.0f, 2.0f, 2.0f);
-                    gizmoSystem->mainCameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+                    gizmoSystem->mainCameraPos = glm::vec3(0.0f, 3.2f, 14.5f);
+                    gizmoSystem->mainCameraTarget = glm::vec3(0.0f, 1.2f, 0.0f);
                     gizmoSystem->mainCameraFov = 45.0f;
+                    gizmoSystem->gameAspectRatioMode = GameViewAspectRatioMode::PHOTO_2M4_X_2M;
                 }
+            }
+
+            if (ImGui::CollapsingHeader("Editor Scene Camera (Góc Cam Soi Editor)", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::SliderFloat("Góc Nghiêng Pitch (X)", &gizmoSystem->sceneRotationX, -89.0f, 89.0f, "%.1f°");
+                ImGui::SliderFloat("Góc Xoay Yaw (Y)", &gizmoSystem->sceneRotationY, 0.0f, 360.0f, "%.1f°");
+                ImGui::DragFloat("Khoảng Cách (Zoom)", &gizmoSystem->sceneCameraDistance, 0.1f, 1.0f, 60.0f, "%.1f m");
+                ImGui::DragFloat3("Tâm Xoay Pivot Target", &gizmoSystem->sceneCameraTarget.x, 0.05f);
             }
 
             if (ImGui::CollapsingHeader("Camera Lens Settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::SliderFloat("Field of View (FOV)", &gizmoSystem->mainCameraFov, 10.0f, 120.0f);
                 ImGui::DragFloat("Near Clip", &gizmoSystem->mainCameraNear, 0.01f, 0.01f, 5.0f);
-                ImGui::DragFloat("Far Clip", &gizmoSystem->mainCameraFar, 0.5f, 5.0f, 100.0f);
+                ImGui::DragFloat("Far Clip", &gizmoSystem->mainCameraFar, 0.5f, 5.0f, 200.0f);
+            }
+
+            if (ImGui::CollapsingHeader("🖼️ Khung Hình Chiếu 2.4m × 2.0m (View Ảnh)", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                const char* ratioNames[] = {
+                    "🖼️ 2.4m × 2.0m (Chuẩn View Ảnh / Màn Chiếu 6:5)",
+                    "📺 16:9 (Chuẩn Màn Hình)",
+                    "📐 Tự Do (Fill Cửa Sổ)"
+                };
+                int currentRatio = static_cast<int>(gizmoSystem->gameAspectRatioMode);
+                if (ImGui::Combo("Tỉ Lệ Khung", &currentRatio, ratioNames, IM_ARRAYSIZE(ratioNames)))
+                {
+                    gizmoSystem->gameAspectRatioMode = static_cast<GameViewAspectRatioMode>(currentRatio);
+                }
+
+                ImGui::Spacing();
+                if (ImGui::Button("📷 Căn Cam Chiếu Trực Diện Sinh Cảnh (2.4m × 2.0m)", ImVec2(-1, 30)))
+                {
+                    gizmoSystem->frameScenicPhotoView(*scene, 0);
+                }
+
+                ImGui::Text("Góc máy mẫu:");
+                if (ImGui::Button("Chính Diện", ImVec2(75, 24))) gizmoSystem->frameScenicPhotoView(*scene, 0);
+                ImGui::SameLine();
+                if (ImGui::Button("Nghiêng 45°", ImVec2(80, 24))) gizmoSystem->frameScenicPhotoView(*scene, 1);
+                ImGui::SameLine();
+                if (ImGui::Button("Tầm Mắt", ImVec2(65, 24))) gizmoSystem->frameScenicPhotoView(*scene, 2);
+                ImGui::SameLine();
+                if (ImGui::Button("Góc Cao", ImVec2(65, 24))) gizmoSystem->frameScenicPhotoView(*scene, 3);
+
+                ImGui::Spacing();
+                ImGui::Checkbox("Hiển Thị Thước Đo 2.4m × 2.0m", &gizmoSystem->showPhotoFrameRulers);
+                ImGui::Checkbox("Hiển Thị Lưới Bố Cục 1/3 (Rule of Thirds)", &gizmoSystem->showPhotoGrid);
+
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.65f, 0.32f, 0.95f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.80f, 0.40f, 1.0f));
+                if (ImGui::Button("💾 Xuất Ảnh Khung Cam (PNG / JPG)", ImVec2(-1, 32)))
+                {
+                    if (renderer)
+                    {
+                        bool is2m4 = (gizmoSystem->gameAspectRatioMode == GameViewAspectRatioMode::PHOTO_2M4_X_2M);
+                        uint32_t expW = is2m4 ? 2400 : 1920;
+                        uint32_t expH = is2m4 ? 2000 : 1080;
+                        const char* filterPatterns[] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
+                        std::string defaultName = is2m4 ? "Cam_View_2m4x2m.png" : "Cam_View.png";
+                        const char* savePath = tinyfd_saveFileDialog(
+                            "Lưu Ảnh Khung Cam (Export Camera View Image)",
+                            defaultName.c_str(),
+                            4,
+                            filterPatterns,
+                            "Image Files (*.png, *.jpg, *.bmp)"
+                        );
+                        if (savePath)
+                        {
+                            if (renderer->exportGameViewImage(savePath, expW, expH))
+                            {
+                                gizmoSystem->lastExportedImagePath = savePath;
+                                gizmoSystem->exportNotificationTimer = 7.0f;
+                            }
+                        }
+                    }
+                }
+                ImGui::PopStyleColor(2);
             }
         }
 
@@ -1195,3 +1400,322 @@ void EditorUI::drawConsolePanel(const std::string& selectedGpuName, AppMode mode
     }
     ImGui::End();
 }
+
+void EditorUI::drawLoadSceneModal(Scene* scene, AssetManager* assetManager, GizmoSystem* gizmoSystem,
+                                  VulkanRenderer* renderer, PhysEngine* physEngine, ScriptEngine* scriptEngine, AppMode& mode)
+{
+    struct SceneFileInfo {
+        std::string fileName;
+        std::string filePath;
+        std::string envName;
+        size_t objectCount = 0;
+        uintmax_t fileSize = 0;
+        std::string icon = "📁 ";
+    };
+    static std::vector<SceneFileInfo> cachedSceneFiles;
+
+    auto refreshSceneFiles = [&]() {
+        cachedSceneFiles.clear();
+        std::vector<std::string> searchDirs = { ".", "scenes", "build/Release" };
+        std::unordered_map<std::string, bool> seenStems;
+
+        for (const auto& dir : searchDirs)
+        {
+            if (!std::filesystem::exists(dir)) continue;
+            for (const auto& entry : std::filesystem::directory_iterator(dir))
+            {
+                if (!entry.is_regular_file()) continue;
+                std::string ext = entry.path().extension().string();
+                for (auto& c : ext) c = static_cast<char>(tolower(c));
+                if (ext != ".json") continue;
+
+                std::string fname = entry.path().filename().string();
+                std::string lowerFname = fname;
+                for (auto& c : lowerFname) c = static_cast<char>(tolower(c));
+
+                if (lowerFname.find("test_") != std::string::npos || lowerFname.find("compile_commands") != std::string::npos || lowerFname.find("cmake") != std::string::npos) continue;
+
+                std::string stem = entry.path().stem().string();
+                if (seenStems[stem]) continue;
+                seenStems[stem] = true;
+
+                std::string normPath = entry.path().string();
+                std::replace(normPath.begin(), normPath.end(), '\\', '/');
+
+                SceneFileInfo info;
+                info.fileName = fname;
+                info.filePath = normPath;
+                info.fileSize = entry.file_size();
+
+                std::ifstream f(normPath);
+                if (f.is_open())
+                {
+                    std::string line;
+                    bool isShapeRendererScene = false;
+                    while (std::getline(f, line))
+                    {
+                        if (line.find("# ShapeRenderer Scene File") != std::string::npos) isShapeRendererScene = true;
+                        if (line.rfind("environment: ", 0) == 0)
+                        {
+                            info.envName = line.substr(13);
+                        }
+                        if (line.rfind("object: ", 0) == 0)
+                        {
+                            info.objectCount++;
+                        }
+                    }
+                    if (!isShapeRendererScene && info.objectCount == 0 && fname != "scene.json")
+                    {
+                        continue;
+                    }
+                }
+
+                if (info.envName.empty())
+                {
+                    if (lowerFname.find("warehouse") != std::string::npos) info.envName = "Industrial Warehouse";
+                    else if (lowerFname.find("forest") != std::string::npos) info.envName = "Forest Clearing";
+                    else if (lowerFname.find("tactical") != std::string::npos || lowerFname.find("outpost") != std::string::npos) info.envName = "Tactical Outpost";
+                    else if (lowerFname.find("desert") != std::string::npos || lowerFname.find("dune") != std::string::npos) info.envName = "Desert Dunes";
+                    else if (lowerFname.find("city") != std::string::npos || lowerFname.find("cyber") != std::string::npos) info.envName = "Cyberpunk City";
+                    else if (lowerFname.find("medieval") != std::string::npos || lowerFname.find("citadel") != std::string::npos) info.envName = "Medieval Citadel";
+                    else if (lowerFname.find("island") != std::string::npos) info.envName = "Floating Islands";
+                    else if (lowerFname.find("maze") != std::string::npos) info.envName = "3D Maze";
+                    else if (fname == "scene.json") info.envName = "Default Scene (scene.json)";
+                    else info.envName = stem;
+                }
+
+                std::string lowerEnv = info.envName;
+                for (auto& c : lowerEnv) c = static_cast<char>(tolower(c));
+                if (lowerEnv.find("warehouse") != std::string::npos) info.icon = "🏭 ";
+                else if (lowerEnv.find("forest") != std::string::npos) info.icon = "🌲 ";
+                else if (lowerEnv.find("tactical") != std::string::npos || lowerEnv.find("outpost") != std::string::npos || lowerEnv.find("target") != std::string::npos) info.icon = "🎯 ";
+                else if (lowerEnv.find("desert") != std::string::npos || lowerEnv.find("dune") != std::string::npos) info.icon = "🏜️ ";
+                else if (lowerEnv.find("city") != std::string::npos || lowerEnv.find("cyber") != std::string::npos) info.icon = "🏙️ ";
+                else if (lowerEnv.find("medieval") != std::string::npos || lowerEnv.find("citadel") != std::string::npos) info.icon = "🏰 ";
+                else if (lowerEnv.find("island") != std::string::npos) info.icon = "🌌 ";
+                else if (lowerEnv.find("maze") != std::string::npos) info.icon = "🌀 ";
+                else info.icon = "📁 ";
+
+                cachedSceneFiles.push_back(info);
+            }
+        }
+
+        if (loadSceneSelectedPath.empty() && !cachedSceneFiles.empty())
+        {
+            loadSceneSelectedPath = cachedSceneFiles[0].filePath;
+        }
+    };
+
+    if (showLoadSceneModal)
+    {
+        ImGui::OpenPopup("📂 Chọn Scene Để Tải (Select Scene to Load)");
+        showLoadSceneModal = false;
+        refreshSceneFiles();
+    }
+
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(700, 480), ImGuiCond_Appearing);
+
+    bool isLoadOpen = true;
+    if (ImGui::BeginPopupModal("📂 Chọn Scene Để Tải (Select Scene to Load)", &isLoadOpen, ImGuiWindowFlags_NoCollapse))
+    {
+        if (!isLoadOpen)
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::TextColored(ImVec4(0.96f, 0.65f, 0.14f, 1.0f), "✨ Danh Sách Scene Hiện Có Trong Dự Án (Available Scenes):");
+        ImGui::TextDisabled("Nhấp đúp chuột vào một scene để nạp ngay, hoặc chọn và bấm 'Tải Scene Đang Chọn':");
+        ImGui::SameLine(ImGui::GetWindowWidth() - 170.0f);
+        if (ImGui::Button(" 🔄 Làm Mới Danh Sách "))
+        {
+            refreshSceneFiles();
+        }
+        ImGui::Separator();
+
+        ImGui::BeginChild("SceneFileList", ImVec2(0, 250), true);
+        if (ImGui::BeginTable("SceneTable", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
+        {
+            ImGui::TableSetupColumn("Môi Trường / Tên File", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Số Vật Thể", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+            ImGui::TableSetupColumn("Dung Lượng", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+            ImGui::TableHeadersRow();
+
+            for (const auto& sf : cachedSceneFiles)
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+
+                bool isSel = (loadSceneSelectedPath == sf.filePath);
+                std::string rowLabel = sf.icon + sf.envName + " (" + sf.fileName + ")";
+
+                if (ImGui::Selectable(rowLabel.c_str(), isSel, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick))
+                {
+                    loadSceneSelectedPath = sf.filePath;
+                    if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                    {
+                        scene->loadScene(sf.filePath, assetManager, assetManager->getCubeMeshId(), assetManager->getSphereMeshId(), assetManager->getPlaneMeshId(), gizmoSystem, renderer, physEngine);
+                        if (mode == AppMode::PLAY)
+                        {
+                            scene->initPhysicsBodies(physEngine);
+                            scriptEngine->reloadLuaScripts(scene);
+                        }
+                        ImGui::CloseCurrentPopup();
+                    }
+                }
+
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%zu objects", sf.objectCount);
+
+                ImGui::TableSetColumnIndex(2);
+                float kb = sf.fileSize / 1024.0f;
+                ImGui::Text("%.1f KB", kb);
+            }
+            ImGui::EndTable();
+        }
+        ImGui::EndChild();
+
+        ImGui::Spacing();
+        ImGui::Text("Đường dẫn file đã chọn: %s", loadSceneSelectedPath.c_str());
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.65f, 0.35f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.8f, 0.4f, 1.0f));
+        if (ImGui::Button(" 📂 TẢI SCENE ĐANG CHỌN (LOAD SCENE) ", ImVec2(240, 32)))
+        {
+            if (!loadSceneSelectedPath.empty())
+            {
+                scene->loadScene(loadSceneSelectedPath, assetManager, assetManager->getCubeMeshId(), assetManager->getSphereMeshId(), assetManager->getPlaneMeshId(), gizmoSystem, renderer, physEngine);
+                if (mode == AppMode::PLAY)
+                {
+                    scene->initPhysicsBodies(physEngine);
+                    scriptEngine->reloadLuaScripts(scene);
+                }
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::PopStyleColor(2);
+
+        ImGui::SameLine();
+        if (ImGui::Button(" 🗂️ Chọn File Khác từ Máy Tính... (Browse File) ", ImVec2(270, 32)))
+        {
+            const char* filterPatterns[] = { "*.json" };
+            const char* openPath = tinyfd_openFileDialog(
+                "Chọn File Scene JSON",
+                "scene.json",
+                1,
+                filterPatterns,
+                "Scene Files (*.json)",
+                0
+            );
+            if (openPath)
+            {
+                scene->loadScene(openPath, assetManager, assetManager->getCubeMeshId(), assetManager->getSphereMeshId(), assetManager->getPlaneMeshId(), gizmoSystem, renderer, physEngine);
+                if (mode == AppMode::PLAY)
+                {
+                    scene->initPhysicsBodies(physEngine);
+                    scriptEngine->reloadLuaScripts(scene);
+                }
+                ImGui::CloseCurrentPopup();
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button(" ✖ Hủy (Cancel) ", ImVec2(100, 32)))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void EditorUI::drawSaveSceneModal(Scene* scene, AssetManager* assetManager, GizmoSystem* gizmoSystem, VulkanRenderer* renderer)
+{
+    if (showSaveSceneModal)
+    {
+        ImGui::OpenPopup("💾 Lưu Scene Theo Môi Trường (Save Scene As)");
+        std::string suggested = Scene::getEnvironmentFileName(scene->getCurrentEnvironmentName());
+        strncpy(saveSceneFileNameInput, suggested.c_str(), sizeof(saveSceneFileNameInput) - 1);
+        saveSceneFileNameInput[sizeof(saveSceneFileNameInput) - 1] = '\0';
+        showSaveSceneModal = false;
+    }
+
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(560, 240), ImGuiCond_Appearing);
+
+    bool isSaveOpen = true;
+    if (ImGui::BeginPopupModal("💾 Lưu Scene Theo Môi Trường (Save Scene As)", &isSaveOpen, ImGuiWindowFlags_NoCollapse))
+    {
+        if (!isSaveOpen)
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::TextColored(ImVec4(0.96f, 0.65f, 0.14f, 1.0f), "💾 Lưu File Scene Theo Môi Trường Đang Tạo:");
+        ImGui::TextDisabled("Tên file được gợi ý tự động theo môi trường hiện tại:");
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::Text("Môi trường hiện tại: %s", scene->getCurrentEnvironmentName().c_str());
+        ImGui::Spacing();
+
+        ImGui::InputText("Tên File Lưu (.json)", saveSceneFileNameInput, sizeof(saveSceneFileNameInput));
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.65f, 0.35f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.8f, 0.4f, 1.0f));
+        if (ImGui::Button(" 💾 LƯU SCENE (SAVE) ", ImVec2(180, 32)))
+        {
+            std::string saveFile = saveSceneFileNameInput;
+            if (saveFile.empty()) saveFile = "scene.json";
+            if (saveFile.find(".json") == std::string::npos) saveFile += ".json";
+
+            scene->setCurrentScenePath(saveFile);
+            scene->saveScene(saveFile, assetManager, gizmoSystem, renderer);
+            if (saveFile != "scene.json")
+            {
+                scene->saveScene("scene.json", assetManager, gizmoSystem, renderer);
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::PopStyleColor(2);
+
+        ImGui::SameLine();
+        if (ImGui::Button(" 🗂️ Duyệt Nơi Lưu... (Browse File) ", ImVec2(210, 32)))
+        {
+            const char* filterPatterns[] = { "*.json" };
+            const char* savePath = tinyfd_saveFileDialog(
+                "Lưu File Scene JSON",
+                saveSceneFileNameInput,
+                1,
+                filterPatterns,
+                "Scene Files (*.json)"
+            );
+            if (savePath)
+            {
+                scene->setCurrentScenePath(savePath);
+                scene->saveScene(savePath, assetManager, gizmoSystem, renderer);
+                if (std::string(savePath) != "scene.json")
+                {
+                    scene->saveScene("scene.json", assetManager, gizmoSystem, renderer);
+                }
+                ImGui::CloseCurrentPopup();
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button(" ✖ Hủy (Cancel) ", ImVec2(100, 32)))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+

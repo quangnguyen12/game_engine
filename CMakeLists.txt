@@ -90,7 +90,10 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${VERT_SPV} $<TARGET_FILE_DIR:ShapeRenderer>/vert.spv
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${FRAG_SPV} $<TARGET_FILE_DIR:ShapeRenderer>/frag.spv
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SHADOW_VERT_SPV} $<TARGET_FILE_DIR:ShapeRenderer>/shadow_vert.spv
-    COMMENT "Copying compiled shaders to output directory..."
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_CURRENT_SOURCE_DIR}/assets $<TARGET_FILE_DIR:ShapeRenderer>/assets
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/scene.json $<TARGET_FILE_DIR:ShapeRenderer>/scene.json
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/scene_industrial_warehouse.json $<TARGET_FILE_DIR:ShapeRenderer>/scene_industrial_warehouse.json
+    COMMENT "Copying compiled shaders, assets, and scenes to output directory..."
 )
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

@@ -83,16 +83,16 @@ Mesh PrimitiveGenerator::generateSphere(int stacks, int slices)
 Mesh PrimitiveGenerator::generatePlane()
 {
     Mesh mesh;
-    glm::vec3 normal = {0, 1, 0};
+    glm::vec3 normal = {0.0f, 1.0f, 0.0f};
     glm::vec3 cols[4] = {
-        {0.35f,0.35f,0.4f}, {0.3f,0.3f,0.38f},
-        {0.4f,0.4f,0.45f},  {0.32f,0.32f,0.4f}
+        {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f},
+        {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}
     };
     glm::vec3 pos[4] = {
         {-0.5f, 0.0f, -0.5f}, {0.5f, 0.0f, -0.5f},
         {0.5f,  0.0f,  0.5f}, {-0.5f, 0.0f, 0.5f}
     };
-    glm::vec2 uvs[4] = { {0,0},{1,0},{1,1},{0,1} };
+    glm::vec2 uvs[4] = { {0.0f, 0.0f}, {4.0f, 0.0f}, {4.0f, 4.0f}, {0.0f, 4.0f} };
     for (int i = 0; i < 4; i++) {
         Vertex v{};
         v.pos = pos[i]; v.normal = normal; v.color = cols[i]; v.texCoord = uvs[i];
@@ -207,11 +207,26 @@ Mesh PrimitiveGenerator::generateTerrain(int gridW, int gridD, float cellSize, f
         float sz = z * 0.1f + seed * 0.17f;
 
         float h = 0.0f;
-        if (biomeType == 0) { // Forest & Mountains
-            h += std::sin(sx) * std::cos(sz) * 0.6f;
-            h += std::sin(sx * 2.3f + 1.2f) * std::cos(sz * 2.1f + 0.5f) * 0.3f;
-            h += std::sin(sx * 4.7f) * std::cos(sz * 4.9f) * 0.1f;
-            h = std::pow(std::abs(h), 1.3f) * (h >= 0 ? 1.0f : -0.5f);
+        if (biomeType == 0) { // Tactical Outpost & Riverbed Valley (scene_demo.jpg)
+            // 1. Z-axis valley profile: Foreground slope descending to riverbed at z=2.0
+            float zRel = z - 2.0f;
+            float gully = 1.0f - std::exp(-zRel * zRel * 0.08f);
+            float fgSlope = (z > 2.0f) ? ((z - 2.0f) * 0.05f) : ((2.0f - z) * 0.10f);
+
+            // 2. Distant mountain backdrop for z < -4.0
+            float mountains = 0.0f;
+            if (z < -4.0f) {
+                float distZ = (-4.0f - z) * 0.18f;
+                mountains = (distZ * distZ * 0.45f) + std::sin(sx * 1.6f + 0.4f) * 0.55f + std::cos(sx * 2.8f) * 0.25f;
+            }
+
+            // 3. Lateral banks (left and right hills framing the view)
+            float lateral = (std::abs(x) > 4.5f) ? (std::abs(x) - 4.5f) * 0.06f : 0.0f;
+
+            // 4. Natural ground undulating micro-noise
+            float micro = std::sin(sx * 1.4f + sz * 1.1f) * 0.12f + std::cos(sx * 3.2f - sz * 2.5f) * 0.06f;
+
+            h = (fgSlope * gully + lateral + mountains + micro);
         } else if (biomeType == 1) { // Desert Dunes
             h += std::sin(sx * 0.7f + sz * 0.5f) * 0.8f;
             h += std::cos(sx * 1.8f - sz * 1.2f) * 0.2f;
@@ -225,6 +240,16 @@ Mesh PrimitiveGenerator::generateTerrain(int gridW, int gridD, float cellSize, f
             h += std::sin(sx * 1.5f) * std::cos(sz * 1.5f) * 0.2f;
         } else if (biomeType == 4) { // Floating Islands
             h = std::sin(sx * 1.2f) * std::cos(sz * 1.2f) * 1.2f;
+        } else if (biomeType == 5) { // Forest Clearing & Mountains (Biotope 2 - Sample_jungle.png)
+            float fgSlope = (z > 2.0f) ? (z - 2.0f) * 0.04f : 0.0f;
+            float mountains = 0.0f;
+            if (z < -2.0f) {
+                float distZ = (-2.0f - z) * 0.16f;
+                mountains = distZ * distZ * 0.55f + std::sin(sx * 1.4f) * 0.65f + std::cos(sx * 2.6f + 0.8f) * 0.35f;
+            }
+            float lateral = (std::abs(x) > 4.5f) ? std::pow((std::abs(x) - 4.5f) * 0.12f, 1.4f) * 0.8f : 0.0f;
+            float micro = std::sin(sx * 1.2f + sz * 1.5f) * 0.12f + std::cos(sx * 2.8f - sz * 2.1f) * 0.06f;
+            h = (fgSlope + lateral + mountains + micro);
         } else { // 3D Maze Floor
             h = 0.0f;
         }
@@ -264,19 +289,21 @@ Mesh PrimitiveGenerator::generateTerrain(int gridW, int gridD, float cellSize, f
 
             float y = v.pos.y;
             if (biomeType == 0) { // Forest
-                if (y < heightScale * 0.2f) v.color = glm::vec3(0.2f, 0.6f, 0.25f);
-                else if (y < heightScale * 0.6f) v.color = glm::vec3(0.45f, 0.4f, 0.25f);
-                else v.color = glm::vec3(0.9f, 0.92f, 0.95f);
+                if (y < heightScale * 0.2f) v.color = glm::vec3(0.92f, 1.0f, 0.92f);
+                else if (y < heightScale * 0.6f) v.color = glm::vec3(0.95f, 0.92f, 0.85f);
+                else v.color = glm::vec3(1.0f, 1.0f, 1.0f);
             } else if (biomeType == 1) { // Desert
-                v.color = glm::vec3(0.85f + 0.1f * std::sin(y), 0.68f, 0.35f);
+                v.color = glm::vec3(1.0f, 0.95f, 0.88f);
             } else if (biomeType == 2) { // Cyberpunk Floor
-                v.color = glm::vec3(0.12f, 0.14f, 0.18f);
+                v.color = glm::vec3(0.9f, 0.92f, 0.95f);
             } else if (biomeType == 3) { // Medieval Valley
-                v.color = (y > heightScale * 0.5f) ? glm::vec3(0.5f, 0.5f, 0.5f) : glm::vec3(0.3f, 0.65f, 0.3f);
+                v.color = (y > heightScale * 0.5f) ? glm::vec3(0.95f, 0.95f, 0.95f) : glm::vec3(0.92f, 1.0f, 0.92f);
             } else if (biomeType == 4) { // Floating Island
-                v.color = glm::vec3(0.4f, 0.45f, 0.35f);
+                v.color = glm::vec3(0.95f, 0.98f, 0.92f);
+            } else if (biomeType == 5) { // Forest Clearing Meadow
+                v.color = (y > heightScale * 0.5f) ? glm::vec3(0.88f, 0.95f, 0.85f) : glm::vec3(0.92f, 1.0f, 0.90f);
             } else { // Dungeon Stone
-                v.color = glm::vec3(0.3f, 0.3f, 0.32f);
+                v.color = glm::vec3(0.95f, 0.95f, 0.95f);
             }
 
             mesh.vertices.push_back(v);

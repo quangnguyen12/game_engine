@@ -9,6 +9,10 @@
 #include <algorithm>
 #include <set>
 #include <cstring>
+#include <filesystem>
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "vendor/stb_image_write.h"
 
 static const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -1112,7 +1116,7 @@ void VulkanRenderer::createSyncObjects()
 void VulkanRenderer::createOffscreenResources()
 {
     createImage(WIDTH, HEIGHT, swapChainImageFormat, VK_IMAGE_TILING_OPTIMAL, 
-                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, 
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, offscreenColorImage, offscreenColorImageMemory);
     offscreenColorImageView = createImageView(offscreenColorImage, swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 
@@ -1220,7 +1224,7 @@ void VulkanRenderer::createOffscreenResources()
     // Game View
     VkFormat gameDepthFormat = findDepthFormat();
     createImage(WIDTH, HEIGHT, swapChainImageFormat, VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, gameColorImage, gameColorImageMemory);
     gameColorImageView = createImageView(gameColorImage, swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 
@@ -1941,4 +1945,245 @@ void VulkanRenderer::cleanup()
     if (device != VK_NULL_HANDLE) vkDestroyDevice(device, nullptr);
     if (surface != VK_NULL_HANDLE) vkDestroySurfaceKHR(instance, surface, nullptr);
     if (instance != VK_NULL_HANDLE) vkDestroyInstance(instance, nullptr);
+}
+
+bool VulkanRenderer::captureImagePixels(VkImage sourceImage, uint32_t srcWidth, uint32_t srcHeight, std::vector<uint8_t>& outRGBA)
+{
+    if (sourceImage == VK_NULL_HANDLE || device == VK_NULL_HANDLE) return false;
+
+    // Wait until GPU completes rendering
+    vkDeviceWaitIdle(device);
+
+    VkDeviceSize bufferSize = srcWidth * srcHeight * 4;
+    VkBuffer stagingBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory stagingBufferMemory = VK_NULL_HANDLE;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 stagingBuffer, stagingBufferMemory);
+
+    VkCommandBuffer cmd = beginSingleTimeCommands();
+
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = sourceImage;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+    vkCmdPipelineBarrier(cmd,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {srcWidth, srcHeight, 1};
+
+    vkCmdCopyImageToBuffer(cmd, sourceImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, stagingBuffer, 1, &region);
+
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(cmd,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+    endSingleTimeCommands(cmd);
+
+    void* mapped = nullptr;
+    if (vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &mapped) != VK_SUCCESS || !mapped) {
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
+        return false;
+    }
+
+    outRGBA.resize(bufferSize);
+    const uint8_t* srcBytes = reinterpret_cast<const uint8_t*>(mapped);
+    bool isBGRA = (swapChainImageFormat == VK_FORMAT_B8G8R8A8_SRGB || swapChainImageFormat == VK_FORMAT_B8G8R8A8_UNORM);
+
+    for (uint32_t i = 0; i < srcWidth * srcHeight; ++i) {
+        uint32_t idx = i * 4;
+        if (isBGRA) {
+            outRGBA[idx + 0] = srcBytes[idx + 2]; // R
+            outRGBA[idx + 1] = srcBytes[idx + 1]; // G
+            outRGBA[idx + 2] = srcBytes[idx + 0]; // B
+            outRGBA[idx + 3] = 255;
+        } else {
+            outRGBA[idx + 0] = srcBytes[idx + 0];
+            outRGBA[idx + 1] = srcBytes[idx + 1];
+            outRGBA[idx + 2] = srcBytes[idx + 2];
+            outRGBA[idx + 3] = 255;
+        }
+    }
+
+    vkUnmapMemory(device, stagingBufferMemory);
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+    return true;
+}
+
+bool VulkanRenderer::captureGameViewPixels(std::vector<uint8_t>& outRGBA, uint32_t& outWidth, uint32_t& outHeight)
+{
+    outWidth = WIDTH;
+    outHeight = HEIGHT;
+    return captureImagePixels(gameColorImage, WIDTH, HEIGHT, outRGBA);
+}
+
+bool VulkanRenderer::captureSceneViewPixels(std::vector<uint8_t>& outRGBA, uint32_t& outWidth, uint32_t& outHeight)
+{
+    outWidth = WIDTH;
+    outHeight = HEIGHT;
+    return captureImagePixels(offscreenColorImage, WIDTH, HEIGHT, outRGBA);
+}
+
+bool VulkanRenderer::exportGameViewImage(const std::string& filepath, uint32_t targetWidth, uint32_t targetHeight)
+{
+    std::vector<uint8_t> srcRGBA;
+    uint32_t srcW = 0, srcH = 0;
+    if (!captureGameViewPixels(srcRGBA, srcW, srcH)) return false;
+
+    if (targetWidth == 0 || targetHeight == 0) {
+        targetWidth = srcW;
+        targetHeight = srcH;
+    }
+
+    std::vector<uint8_t> finalRGBA;
+    if (targetWidth == srcW && targetHeight == srcH) {
+        finalRGBA = std::move(srcRGBA);
+    } else {
+        finalRGBA.resize(targetWidth * targetHeight * 4);
+        for (uint32_t y = 0; y < targetHeight; ++y) {
+            float v = (targetHeight > 1) ? ((float)y / (float)(targetHeight - 1)) : 0.0f;
+            float sy = v * (float)(srcH - 1);
+            int y0 = (int)sy;
+            int y1 = std::min(y0 + 1, (int)srcH - 1);
+            float fy = sy - (float)y0;
+
+            for (uint32_t x = 0; x < targetWidth; ++x) {
+                float u = (targetWidth > 1) ? ((float)x / (float)(targetWidth - 1)) : 0.0f;
+                float sx = u * (float)(srcW - 1);
+                int x0 = (int)sx;
+                int x1 = std::min(x0 + 1, (int)srcW - 1);
+                float fx = sx - (float)x0;
+
+                uint32_t idx00 = (y0 * srcW + x0) * 4;
+                uint32_t idx10 = (y0 * srcW + x1) * 4;
+                uint32_t idx01 = (y1 * srcW + x0) * 4;
+                uint32_t idx11 = (y1 * srcW + x1) * 4;
+
+                uint32_t dstIdx = (y * targetWidth + x) * 4;
+                for (int c = 0; c < 4; ++c) {
+                    float top = (1.0f - fx) * srcRGBA[idx00 + c] + fx * srcRGBA[idx10 + c];
+                    float bot = (1.0f - fx) * srcRGBA[idx01 + c] + fx * srcRGBA[idx11 + c];
+                    float val = (1.0f - fy) * top + fy * bot;
+                    finalRGBA[dstIdx + c] = static_cast<uint8_t>(std::clamp(val, 0.0f, 255.0f));
+                }
+            }
+        }
+    }
+
+    std::filesystem::path p(filepath);
+    if (p.has_parent_path()) {
+        std::filesystem::create_directories(p.parent_path());
+    }
+    std::string ext = p.extension().string();
+    for (auto& c : ext) c = static_cast<char>(tolower(c));
+
+    int res = 0;
+    if (ext == ".jpg" || ext == ".jpeg") {
+        res = stbi_write_jpg(filepath.c_str(), static_cast<int>(targetWidth), static_cast<int>(targetHeight), 4, finalRGBA.data(), 95);
+    } else if (ext == ".bmp") {
+        res = stbi_write_bmp(filepath.c_str(), static_cast<int>(targetWidth), static_cast<int>(targetHeight), 4, finalRGBA.data());
+    } else {
+        res = stbi_write_png(filepath.c_str(), static_cast<int>(targetWidth), static_cast<int>(targetHeight), 4, finalRGBA.data(), static_cast<int>(targetWidth * 4));
+    }
+
+    if (res != 0) {
+        printf("[Screenshot] Saved image successfully (%ux%u): %s\n", targetWidth, targetHeight, filepath.c_str());
+    } else {
+        printf("[Screenshot] Failed to write image: %s\n", filepath.c_str());
+    }
+    return res != 0;
+}
+
+bool VulkanRenderer::exportSceneViewImage(const std::string& filepath, uint32_t targetWidth, uint32_t targetHeight)
+{
+    std::vector<uint8_t> srcRGBA;
+    uint32_t srcW = 0, srcH = 0;
+    if (!captureSceneViewPixels(srcRGBA, srcW, srcH)) return false;
+
+    if (targetWidth == 0 || targetHeight == 0) {
+        targetWidth = srcW;
+        targetHeight = srcH;
+    }
+
+    std::vector<uint8_t> finalRGBA;
+    if (targetWidth == srcW && targetHeight == srcH) {
+        finalRGBA = std::move(srcRGBA);
+    } else {
+        finalRGBA.resize(targetWidth * targetHeight * 4);
+        for (uint32_t y = 0; y < targetHeight; ++y) {
+            float v = (targetHeight > 1) ? ((float)y / (float)(targetHeight - 1)) : 0.0f;
+            float sy = v * (float)(srcH - 1);
+            int y0 = (int)sy;
+            int y1 = std::min(y0 + 1, (int)srcH - 1);
+            float fy = sy - (float)y0;
+
+            for (uint32_t x = 0; x < targetWidth; ++x) {
+                float u = (targetWidth > 1) ? ((float)x / (float)(targetWidth - 1)) : 0.0f;
+                float sx = u * (float)(srcW - 1);
+                int x0 = (int)sx;
+                int x1 = std::min(x0 + 1, (int)srcW - 1);
+                float fx = sx - (float)x0;
+
+                uint32_t idx00 = (y0 * srcW + x0) * 4;
+                uint32_t idx10 = (y0 * srcW + x1) * 4;
+                uint32_t idx01 = (y1 * srcW + x0) * 4;
+                uint32_t idx11 = (y1 * srcW + x1) * 4;
+
+                uint32_t dstIdx = (y * targetWidth + x) * 4;
+                for (int c = 0; c < 4; ++c) {
+                    float top = (1.0f - fx) * srcRGBA[idx00 + c] + fx * srcRGBA[idx10 + c];
+                    float bot = (1.0f - fx) * srcRGBA[idx01 + c] + fx * srcRGBA[idx11 + c];
+                    float val = (1.0f - fy) * top + fy * bot;
+                    finalRGBA[dstIdx + c] = static_cast<uint8_t>(std::clamp(val, 0.0f, 255.0f));
+                }
+            }
+        }
+    }
+
+    std::filesystem::path p(filepath);
+    if (p.has_parent_path()) {
+        std::filesystem::create_directories(p.parent_path());
+    }
+    std::string ext = p.extension().string();
+    for (auto& c : ext) c = static_cast<char>(tolower(c));
+
+    int res = 0;
+    if (ext == ".jpg" || ext == ".jpeg") {
+        res = stbi_write_jpg(filepath.c_str(), static_cast<int>(targetWidth), static_cast<int>(targetHeight), 4, finalRGBA.data(), 95);
+    } else if (ext == ".bmp") {
+        res = stbi_write_bmp(filepath.c_str(), static_cast<int>(targetWidth), static_cast<int>(targetHeight), 4, finalRGBA.data());
+    } else {
+        res = stbi_write_png(filepath.c_str(), static_cast<int>(targetWidth), static_cast<int>(targetHeight), 4, finalRGBA.data(), static_cast<int>(targetWidth * 4));
+    }
+    return res != 0;
 }

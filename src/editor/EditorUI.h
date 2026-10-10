@@ -65,7 +65,8 @@ private:
                          std::function<void()> onSaveScene, std::function<void()> onLoadScene,
                          GizmoSystem* gizmoSystem, ProfilerPanel* profilerPanel,
                          AssetBrowserPanel* assetBrowserPanel, SceneGenerator* sceneGenerator,
-                         ModelDownloader* modelDownloader);
+                         ModelDownloader* modelDownloader, VulkanRenderer* renderer = nullptr,
+                         AssetManager* assetManager = nullptr);
 
     void drawHierarchyPanel(Scene* scene, AssetManager* assetManager, ScriptEngine* scriptEngine,
                             GizmoSystem* gizmoSystem, AppMode mode, SceneGenerator* sceneGenerator,
@@ -84,5 +85,14 @@ private:
 
     float leftPanelWidth = 260.0f;
     float rightPanelWidth = 320.0f;
-    float bottomPanelHeight = 220.0f;
+    float bottomPanelHeight = 175.0f;
+
+    void drawLoadSceneModal(Scene* scene, AssetManager* assetManager, GizmoSystem* gizmoSystem,
+                            VulkanRenderer* renderer, PhysEngine* physEngine, ScriptEngine* scriptEngine, AppMode& mode);
+    void drawSaveSceneModal(Scene* scene, AssetManager* assetManager, GizmoSystem* gizmoSystem, VulkanRenderer* renderer);
+
+    bool showLoadSceneModal = false;
+    bool showSaveSceneModal = false;
+    std::string loadSceneSelectedPath = "";
+    char saveSceneFileNameInput[128] = "scene.json";
 };

@@ -1,0 +1,763 @@
+# ShapeRenderer Scene File
+environment: Industrial Warehouse
+# Camera Settings
+camera_scene: 0 2 2 8 0 18
+camera_main: 0 1.75 18 0 1.85 -15 45 0.1 120 0
+camera_photo_frame: 2.4 2 0 1
+scene_settings: -1 1 0 0 17
+
+object: ☀️ Sun Light (Main)
+id: 0
+parentId: -1
+type: 3
+position: 6 18 12
+rotation: 42 32 0
+scale: 0.5 0.5 0.5
+color: 1 0.95 0.85 1
+primitiveMesh: CUBE
+texture: none
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+light: 1 0.95 0.85 1 1.6
+luaScriptsCount: 0
+
+object: 🏭 Main_Warehouse_Facility
+id: 1
+parentId: -1
+type: 0
+position: 0 0 0
+rotation: 0 0 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse.glb
+texture: assets/models/warehouse.png
+pbr: 1 0.4 0.6 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🏗️ Shelving_Aisle_Red_L1
+id: 2
+parentId: -1
+type: 0
+position: -5.2 0 10.5
+rotation: 0 90 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_Red_A/SM_Aisle_Red_A.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_Red_A/SM_Aisle_Red_A.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🏗️ Shelving_Aisle_Red_L2
+id: 3
+parentId: -1
+type: 0
+position: -5.2 0 6.5
+rotation: 0 90 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_Red_A/SM_Aisle_Red_B.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_Red_A/SM_Aisle_Red_B.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🏗️ Shelving_Aisle_White_L3
+id: 4
+parentId: -1
+type: 0
+position: -5.2 0 -4.5
+rotation: 0 90 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_White/SM_Aisle_White_A.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_White/SM_Aisle_White_A.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🏗️ Shelving_Aisle_White_L4
+id: 5
+parentId: -1
+type: 0
+position: -5.2 0 -8.5
+rotation: 0 90 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_White/SM_Aisle_White_B.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_White/SM_Aisle_White_B.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🏗️ Shelving_Aisle_White_R1
+id: 6
+parentId: -1
+type: 0
+position: 5.2 0 10.5
+rotation: 0 90 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_White/SM_Aisle_White_A.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_White/SM_Aisle_White_A.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🏗️ Shelving_Aisle_White_R2
+id: 7
+parentId: -1
+type: 0
+position: 5.2 0 6.5
+rotation: 0 90 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_White/SM_Aisle_White_B.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_White/SM_Aisle_White_B.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🏗️ Shelving_Aisle_Red_R3
+id: 8
+parentId: -1
+type: 0
+position: 5.2 0 -4.5
+rotation: 0 90 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_Red_A/SM_Aisle_Red_A.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_Red_A/SM_Aisle_Red_A.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🏗️ Shelving_Aisle_Red_R4
+id: 9
+parentId: -1
+type: 0
+position: 5.2 0 -8.5
+rotation: 0 90 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_Red_A/SM_Aisle_Red_B.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Aisles/SM_Aisle_Red_A/SM_Aisle_Red_B.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🚜 Industrial_Forklift_Detailed
+id: 10
+parentId: -1
+type: 0
+position: -2.2 0 -14.5
+rotation: 0 25 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/SM_Industrial_Forklift_OBJ_v1_0/Obj/SM_Hyster_Forklift_Detailed.obj
+texture: assets/models/warehouse_item/SM_Industrial_Forklift_OBJ_v1_0/Obj/Stylized_Industrial_TextureMap_V02.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🛒 Pallet_Truck_Jack_Red_A
+id: 11
+parentId: -1
+type: 0
+position: 2 0 9.8
+rotation: 0 -25 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_IPalletTruck_Detailed/SM_IPalletTruck_Detailed/SM_HandTruck_Red.glb
+texture: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_IPalletTruck_Detailed/SM_IPalletTruck_Detailed/SM_HandTruck_Red.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🛒 Pallet_Truck_Jack_Red_B
+id: 12
+parentId: -1
+type: 0
+position: -2.4 0 -0.5
+rotation: 0 30 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_IPalletTruck_Detailed/SM_IPalletTruck_Detailed/SM_HandTruck_Red.glb
+texture: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_IPalletTruck_Detailed/SM_IPalletTruck_Detailed/SM_HandTruck_Red.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🛒 TwoWheel_Hand_Truck_Blue
+id: 13
+parentId: -1
+type: 0
+position: 2.4 0 -1.2
+rotation: 0 -75 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_IHandTruck_Standard/SM_IHandTruck_Standard_Blue.glb
+texture: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_IHandTruck_Standard/SM_IHandTruck_Standard_Blue.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🔧 Maintenance_Workbench_ToolStation
+id: 14
+parentId: -1
+type: 0
+position: 6.8 0 -14
+rotation: 0 -90 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Industrial_Tool_Workbench_and_Tool_Set_GLB_v1_0/GLB/SM_Tool_Desk_Populated_D.glb
+texture: assets/models/warehouse_item/Stylized_Industrial_Tool_Workbench_and_Tool_Set_GLB_v1_0/GLB/SM_Tool_Desk_Populated_D.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: ❄️ Industrial_HVAC_Unit_West
+id: 15
+parentId: -1
+type: 0
+position: -6.8 0 -18.5
+rotation: 0 90 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Industrial_HVAC_Equipment_Collection_OBJ_v1_0/Obj/SM_Industrial_Air_Conditioner.obj
+texture: assets/models/warehouse_item/Industrial_HVAC_Equipment_Collection_OBJ_v1_0/Obj/Stylized_Industrial_TextureMap_V02.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: ❄️ Industrial_HVAC_Unit_East
+id: 16
+parentId: -1
+type: 0
+position: 6.8 0 -18.5
+rotation: 0 -90 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Industrial_HVAC_Equipment_Collection_OBJ_v1_0/Obj/SM_Industrial_Air_Conditioner.obj
+texture: assets/models/warehouse_item/Industrial_HVAC_Equipment_Collection_OBJ_v1_0/Obj/Stylized_Industrial_TextureMap_V02.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 📦 Pallet_Cement_Bags_Dock
+id: 17
+parentId: -1
+type: 0
+position: -2 0 -18.5
+rotation: 0 10 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Bags/SM_PalletteCementBags_A_D.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Bags/SM_PalletteCementBags_A_D.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 📦 Pallet_Cement_Bags_MidAisle
+id: 18
+parentId: -1
+type: 0
+position: -2.2 0 4.8
+rotation: 0 5 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Bags/SM_PalletteCementBags_A_D.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Bags/SM_PalletteCementBags_A_D.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 📦 Pallet_Cargo_Boxes_Front
+id: 19
+parentId: -1
+type: 0
+position: 2 0 8.5
+rotation: 0 -25 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Boxes/SM_PalletBoxes_A_D.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Boxes/SM_PalletBoxes_A_D.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 📦 Pallet_Cargo_Boxes_Mid
+id: 20
+parentId: -1
+type: 0
+position: 2.2 0 4.8
+rotation: 0 -10 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Boxes/SM_PalletBoxes_A_D.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Boxes/SM_PalletBoxes_A_D.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 📦 Pallet_Cargo_Boxes_Dock
+id: 21
+parentId: -1
+type: 0
+position: 1.8 0 -18.5
+rotation: 0 -5 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Boxes/SM_PalletBoxes_A_D.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Boxes/SM_PalletBoxes_A_D.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 📦 Pallet_Cargo_Boxes_Corner
+id: 22
+parentId: -1
+type: 0
+position: 6.8 0 14.5
+rotation: 0 5 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Boxes/SM_PalletBoxes_A_D.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Boxes/SM_PalletBoxes_A_D.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Empty_Pallet_Base
+id: 23
+parentId: -1
+type: 0
+position: -6.8 0 14.5
+rotation: 0 -10 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Pallets/SM_Pallet_A_D.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Pallets/SM_Pallet_A_D.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Empty_Pallet_StackTop
+id: 24
+parentId: -1
+type: 0
+position: -6.8 0.26 14.5
+rotation: 0 -8 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Pallets/SM_Pallet_A_D.glb
+texture: assets/models/warehouse_item/Stylized_Warehouse_Shelving_Set_A_GLB_v1_0/GLB/SM_Stores/SM_Pallets/SM_Pallet_A_D.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🛢️ Palleted_Barrels_Dock
+id: 25
+parentId: -1
+type: 0
+position: 2.4 0 -13.5
+rotation: 0 -20 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/SM_Industrial_Palleted_4_Barrels_01.obj
+texture: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/Stylized_Industrial_TextureMap_V02.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🛢️ Palleted_Barrels_MidAisle
+id: 26
+parentId: -1
+type: 0
+position: -2.6 0 1.2
+rotation: 0 15 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/SM_Industrial_Palleted_4_Barrels_01.obj
+texture: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/Stylized_Industrial_TextureMap_V02.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🛢️ Hazard_Barrel_Labeled_A
+id: 27
+parentId: -1
+type: 0
+position: 2.3 0 1
+rotation: 0 -30 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/SM_Industrial_BarrelLabeled_01.obj
+texture: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/Stylized_Industrial_TextureMap_V02.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🛢️ Hazard_Barrel_Labeled_B
+id: 28
+parentId: -1
+type: 0
+position: -2.8 0 -11.5
+rotation: 0 80 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/SM_Industrial_BarrelLabeled_01.obj
+texture: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/Stylized_Industrial_TextureMap_V02.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🛢️ Hazard_Barrel_Labeled_C
+id: 29
+parentId: -1
+type: 0
+position: -2 0 13.5
+rotation: 0 45 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/SM_Industrial_BarrelLabeled_01.obj
+texture: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/Stylized_Industrial_TextureMap_V02.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 📦 Industrial_Wood_Crate_A
+id: 30
+parentId: -1
+type: 0
+position: 1.8 0 2.2
+rotation: 0 -15 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_ICrate_Wood/SM_ICrate_Wood_Brown_V01.glb
+texture: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_ICrate_Wood/SM_ICrate_Wood_Brown_V01.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 📦 Industrial_Wood_Crate_B
+id: 31
+parentId: -1
+type: 0
+position: -1.7 0 12
+rotation: 0 12 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_ICrate_Wood/SM_ICrate_Wood_Brown_V01.glb
+texture: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_ICrate_Wood/SM_ICrate_Wood_Brown_V01.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 📦 Stackable_Plastic_Crate
+id: 32
+parentId: -1
+type: 0
+position: -1.7 0.47 12
+rotation: 0 12 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_IStackCrate/SM_IStackCrate_Red_V01.glb
+texture: assets/models/warehouse_item/Stylized_Pallet_Trucks_Hand_Trucks_Crates_Collection_GLB_v1_0/GLB/SM_IStackCrate/SM_IStackCrate_Red_V01.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Wooden_Pallet_Staging_OBJ
+id: 33
+parentId: -1
+type: 0
+position: 2.4 0 -11.5
+rotation: 0 15 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/SM_Industrial_Pallet_Wood_01.obj
+texture: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/Stylized_Industrial_TextureMap_V02.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🛢️ Plastic_Chemical_Barrel_OBJ
+id: 34
+parentId: -1
+type: 0
+position: -2.5 0 8.5
+rotation: 0 -35 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/SM_Industrial_PlasticBarrel_L1_C1.obj
+texture: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/Stylized_Industrial_TextureMap_V02.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🛢️ Damaged_Steel_Barrel_OBJ
+id: 35
+parentId: -1
+type: 0
+position: 2.5 0 -8.5
+rotation: 0 65 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/SM_Industrial_Barrel_01_Damaged.obj
+texture: assets/models/warehouse_item/SM_Barrels_Palleted_OBJ_v1_0/Obj/Stylized_Industrial_TextureMap_V02.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 Warehouse_CQB_Target_FarEnd
+id: 36
+parentId: -1
+type: 0
+position: 0 0 -17
+rotation: 0 0 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/ShootingTarget.obj
+texture: assets/models/ShootingTarget.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 Warehouse_CQB_Target_FlankLeft
+id: 37
+parentId: -1
+type: 0
+position: -2.8 0 -10
+rotation: 0 15 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/ShootingTarget.obj
+texture: assets/models/ShootingTarget.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 Warehouse_CQB_Target_FlankRight
+id: 38
+parentId: -1
+type: 0
+position: 2.8 0 -4
+rotation: 0 -15 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/ShootingTarget.obj
+texture: assets/models/ShootingTarget.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 Warehouse_CQB_Target_MidLeft
+id: 39
+parentId: -1
+type: 0
+position: -1.8 0 2
+rotation: 0 5 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/ShootingTarget.obj
+texture: assets/models/ShootingTarget.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 Warehouse_CQB_Target_CloseRight
+id: 40
+parentId: -1
+type: 0
+position: 2 0 8
+rotation: 0 -5 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/ShootingTarget.obj
+texture: assets/models/ShootingTarget.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 IPSC_Warehouse_Target_CoverA
+id: 41
+parentId: -1
+type: 0
+position: -1.2 0 -14
+rotation: 0 10 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/IPSC_Metric_Target.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 IPSC_Warehouse_Target_CoverB
+id: 42
+parentId: -1
+type: 0
+position: 1.5 0 -7
+rotation: 0 -15 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/IPSC_Metric_Target.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 IPSC_Warehouse_Target_Center
+id: 43
+parentId: -1
+type: 0
+position: 0 0 0
+rotation: 0 0 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/IPSC_Metric_Target.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🔘 Steel_Pepper_Popper_1
+id: 44
+parentId: -1
+type: 0
+position: -1.8 0 4
+rotation: 0 0 0
+scale: 1 1 1
+color: 0.92 0.95 0.98 1
+model: assets/models/Pepper_Popper.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.4 0.8 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🔘 Steel_Pepper_Popper_2
+id: 45
+parentId: -1
+type: 0
+position: 1.8 0 4
+rotation: 0 0 0
+scale: 1 1 1
+color: 0.92 0.95 0.98 1
+model: assets/models/Pepper_Popper.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.4 0.8 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 💡 Ceiling_Fluorescent_Front
+id: 46
+parentId: -1
+type: 3
+position: 0 4.3 14
+rotation: 0 0 0
+scale: 0.35 0.35 0.35
+color: 0.92 0.96 1 1
+primitiveMesh: CUBE
+texture: none
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+light: 0.92 0.96 1 1 2.8
+luaScriptsCount: 0
+
+object: 💡 Ceiling_Fluorescent_MidFront
+id: 47
+parentId: -1
+type: 3
+position: 0 4.3 4
+rotation: 0 0 0
+scale: 0.35 0.35 0.35
+color: 0.92 0.96 1 1
+primitiveMesh: CUBE
+texture: none
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+light: 0.92 0.96 1 1 3
+luaScriptsCount: 0
+
+object: 💡 Ceiling_Fluorescent_MidBack
+id: 48
+parentId: -1
+type: 3
+position: 0 4.3 -5
+rotation: 0 0 0
+scale: 0.35 0.35 0.35
+color: 0.92 0.96 1 1
+primitiveMesh: CUBE
+texture: none
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+light: 0.92 0.96 1 1 3
+luaScriptsCount: 0
+
+object: 💡 Ceiling_Fluorescent_FarBack
+id: 49
+parentId: -1
+type: 3
+position: 0 4.3 -14
+rotation: 0 0 0
+scale: 0.35 0.35 0.35
+color: 0.92 0.96 1 1
+primitiveMesh: CUBE
+texture: none
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+light: 0.92 0.96 1 1 2.8
+luaScriptsCount: 0
+

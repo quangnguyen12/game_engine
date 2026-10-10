@@ -1,0 +1,1419 @@
+# ShapeRenderer Scene File
+environment: Forest Clearing
+# Camera Settings
+camera_scene: 0 1 0 20 40 14
+camera_main: 0 3.2 14.5 0 1.2 0 45 0.1 120 0
+camera_photo_frame: 2.4 2 0 1
+scene_settings: -1 1 0 0 0
+
+object: ☀️ Sun Light (Main)
+id: 0
+parentId: -1
+type: 3
+position: 6 18 12
+rotation: 42 32 0
+scale: 0.5 0.5 0.5
+color: 1 0.95 0.85 1
+primitiveMesh: CUBE
+texture: none
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+light: 1 0.95 0.85 1 1.6
+luaScriptsCount: 0
+
+object: 🌲 Forest_Clearing_Terrain
+id: 1
+parentId: -1
+type: 2
+position: 0 0 0
+rotation: 0 0 0
+scale: 1 1 1
+color: 0.92 1 0.9 1
+terrainMesh: 35 35 1.000000 2.500000 42 5
+texture: assets/grass.jpg
+pbr: 1 0.85 0.02 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Forest_Log_Pile_1
+id: 2
+parentId: -1
+type: 0
+position: -3.6 0.186413 7.2
+rotation: 0 18 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/log_pile.glb
+texture: assets/models/log_pile.glb#img0
+pbr: 1 1 1 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Clearing_Log_Pile_2
+id: 3
+parentId: -1
+type: 0
+position: 4.2 0.461681 5.8
+rotation: 0 -28 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/log_pile.glb
+texture: assets/models/log_pile.glb#img0
+pbr: 1 1 1 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Woodcutter_Log_Pile_3
+id: 4
+parentId: -1
+type: 0
+position: -1.8 -0.158684 0.8
+rotation: 0 75 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/log_pile.glb
+texture: assets/models/log_pile.glb#img0
+pbr: 1 1 1 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Reserve_Log_Pile_4
+id: 5
+parentId: -1
+type: 0
+position: 5.5 1.15739 9.6
+rotation: 0 -10 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/log_pile.glb
+texture: assets/models/log_pile.glb#img0
+pbr: 1 1 1 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Fallen_Tree_Log_1
+id: 6
+parentId: -1
+type: 0
+position: -0.8 -0.134327 2.2
+rotation: 0 62 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_log.glb
+texture: assets/models/tree_log.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Fallen_Tree_Log_2
+id: 7
+parentId: -1
+type: 0
+position: 2.5 0.129864 3.8
+rotation: 0 -32 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_log.glb
+texture: assets/models/tree_log.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Tactical_Fallen_Log_3
+id: 8
+parentId: -1
+type: 0
+position: -2.2 0.0266295 4.6
+rotation: 0 45 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_log.glb
+texture: assets/models/tree_log.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Mossy_Tree_Log_4
+id: 9
+parentId: -1
+type: 0
+position: -4.2 -0.177231 3.2
+rotation: 0 -15 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_log.glb
+texture: assets/models/tree_log.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Forest_Tree_Log_5
+id: 10
+parentId: -1
+type: 0
+position: 4.5 0.822319 8.2
+rotation: 0 -70 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_log.glb
+texture: assets/models/tree_log.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪵 Ridge_Tree_Log_6
+id: 11
+parentId: -1
+type: 0
+position: 1.2 -0.199803 -1
+rotation: 0 10 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_log.glb
+texture: assets/models/tree_log.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 Forest_ShootingTarget_Center
+id: 12
+parentId: -1
+type: 0
+position: 0 0.0235683 3.5
+rotation: 0 180 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/ShootingTarget.obj
+texture: assets/models/ShootingTarget.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 Forest_ShootingTarget_LeftFlank
+id: 13
+parentId: -1
+type: 0
+position: -2.8 0.0279793 5
+rotation: 0 168 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/ShootingTarget.obj
+texture: assets/models/ShootingTarget.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 Forest_ShootingTarget_RightFlank
+id: 14
+parentId: -1
+type: 0
+position: 2.8 0.235133 4.5
+rotation: 0 192 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/ShootingTarget.obj
+texture: assets/models/ShootingTarget.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 Forest_IPSC_Target_NearLeft
+id: 15
+parentId: -1
+type: 0
+position: -1.6 0.241609 6.5
+rotation: 0 175 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/IPSC_Metric_Target.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🎯 Forest_IPSC_Target_NearRight
+id: 16
+parentId: -1
+type: 0
+position: 1.8 0.497896 6.8
+rotation: 0 185 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/IPSC_Metric_Target.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🔘 Steel_Pepper_Popper_Left
+id: 17
+parentId: -1
+type: 0
+position: -3.6 -0.233231 2
+rotation: 0 165 0
+scale: 1 1 1
+color: 0.92 0.95 0.98 1
+model: assets/models/Pepper_Popper.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.35 0.85 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🔘 Steel_Pepper_Popper_Right
+id: 18
+parentId: -1
+type: 0
+position: 3.5 -0.140831 1.8
+rotation: 0 195 0
+scale: 1 1 1
+color: 0.92 0.95 0.98 1
+model: assets/models/Pepper_Popper.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.35 0.85 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🔘 Steel_Plate_Target_MidLeft
+id: 19
+parentId: -1
+type: 0
+position: -0.9 -0.152838 1.2
+rotation: 0 180 0
+scale: 1 1 1
+color: 0.95 0.95 0.95 1
+model: assets/models/Plate_A.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.35 0.85 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🔘 Steel_Plate_Target_MidRight
+id: 20
+parentId: -1
+type: 0
+position: 0.9 -0.145468 1.2
+rotation: 0 180 0
+scale: 1 1 1
+color: 0.95 0.95 0.95 1
+model: assets/models/Plate_A.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.35 0.85 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🛡️ Tactical_Shooting_Barricade
+id: 21
+parentId: -1
+type: 0
+position: -1.8 0.515602 9.2
+rotation: 0 15 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/Wall_Barricade.obj
+texture: assets/models/Bark___0.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_0
+id: 22
+parentId: -1
+type: 0
+position: -7.68359 0.660546 7.74469
+rotation: 0 66.0365 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_redwood.obj
+texture: assets/models/Bottom_T.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_1
+id: 23
+parentId: -1
+type: 0
+position: -10.7219 1.51789 7.47506
+rotation: 0 214.866 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_redwood.obj
+texture: assets/models/Bottom_T.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_2
+id: 24
+parentId: -1
+type: 0
+position: -5.82616 -0.142808 2.13332
+rotation: 0 35.991 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_mossy.obj
+texture: assets/models/Mossy_Tr.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_3
+id: 25
+parentId: -1
+type: 0
+position: -4.99371 -0.22054 2.34798
+rotation: 0 120.135 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/trees_and_bush_pack.glb
+texture: assets/models/trees_and_bush_pack.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_4
+id: 26
+parentId: -1
+type: 0
+position: -9.60948 1.88829 -2.71413
+rotation: 0 234.32 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/trees_and_bush_pack.glb
+texture: assets/models/trees_and_bush_pack.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_5
+id: 27
+parentId: -1
+type: 0
+position: -4.67497 1.56137 -4.09741
+rotation: 0 259.92 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_cedar.obj
+texture: assets/models/Bark___S.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_6
+id: 28
+parentId: -1
+type: 0
+position: -11.5758 2.1435 10.0168
+rotation: 0 0.280344 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree9.obj
+texture: assets/models/Walnut_Bark.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_7
+id: 29
+parentId: -1
+type: 0
+position: -6.04551 0.758975 10.8754
+rotation: 0 222.293 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_redwood.obj
+texture: assets/models/Bottom_T.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_8
+id: 30
+parentId: -1
+type: 0
+position: -7.08606 0.235336 4.78645
+rotation: 0 2.54385 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree9.obj
+texture: assets/models/Walnut_Bark.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_9
+id: 31
+parentId: -1
+type: 0
+position: -8.17153 2.17724 -4.631
+rotation: 0 188.919 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_pine.obj
+texture: assets/models/Bark___1.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_10
+id: 32
+parentId: -1
+type: 0
+position: -9.70075 0.727756 1.39777
+rotation: 0 16.7996 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_cedar.obj
+texture: assets/models/Bark___S.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Left_Forest_Tree_11
+id: 33
+parentId: -1
+type: 0
+position: -6.98323 0.891498 10.5801
+rotation: 0 83.7977 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/trees_and_bush_pack.glb
+texture: assets/models/trees_and_bush_pack.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_0
+id: 34
+parentId: -1
+type: 0
+position: 8.37659 1.19144 -3.5503
+rotation: 0 222.619 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_and_bush.glb
+texture: assets/models/tree_and_bush.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_1
+id: 35
+parentId: -1
+type: 0
+position: 6.19723 -0.00538826 1.11939
+rotation: 0 353.963 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_and_bush.glb
+texture: assets/models/tree_and_bush.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_2
+id: 36
+parentId: -1
+type: 0
+position: 9.53552 0.897782 2.46821
+rotation: 0 309.579 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_mossy.obj
+texture: assets/models/Mossy_Tr.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_3
+id: 37
+parentId: -1
+type: 0
+position: 9.66413 1.51496 5.88492
+rotation: 0 162.18 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_redwood.obj
+texture: assets/models/Bottom_T.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_4
+id: 38
+parentId: -1
+type: 0
+position: 5.05294 0.591154 -4.78776
+rotation: 0 339.193 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_oak.obj
+texture: assets/models/Oak_Leav.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_5
+id: 39
+parentId: -1
+type: 0
+position: 12.7079 2.16459 4.01261
+rotation: 0 138.75 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_cedar.obj
+texture: assets/models/Bark___S.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_6
+id: 40
+parentId: -1
+type: 0
+position: 7.08922 0.988066 -4.74454
+rotation: 0 83.1218 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_redwood.obj
+texture: assets/models/Bottom_T.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_7
+id: 41
+parentId: -1
+type: 0
+position: 10.316 0.915318 -1.14359
+rotation: 0 245.975 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_and_bush.glb
+texture: assets/models/tree_and_bush.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_8
+id: 42
+parentId: -1
+type: 0
+position: 5.53732 0.421485 4.75995
+rotation: 0 299.95 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_redwood.obj
+texture: assets/models/Bottom_T.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_9
+id: 43
+parentId: -1
+type: 0
+position: 4.7923 0.353771 -2.22617
+rotation: 0 140.782 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree9.obj
+texture: assets/models/Walnut_Bark.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_10
+id: 44
+parentId: -1
+type: 0
+position: 6.69963 0.676749 -2.08422
+rotation: 0 271.93 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/trees_and_bush_pack.glb
+texture: assets/models/trees_and_bush_pack.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Right_Forest_Tree_11
+id: 45
+parentId: -1
+type: 0
+position: 7.14954 0.218162 1.80249
+rotation: 0 74.859 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree9.obj
+texture: assets/models/Walnut_Bark.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_0
+id: 46
+parentId: -1
+type: 0
+position: 1.12105 2.27439 -8.89315
+rotation: 0 11.2728 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree9.obj
+texture: assets/models/Walnut_Bark.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_1
+id: 47
+parentId: -1
+type: 0
+position: 11.27 5.38806 -11.5017
+rotation: 0 161.911 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_cedar.obj
+texture: assets/models/Bark___S.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_2
+id: 48
+parentId: -1
+type: 0
+position: 10.548 2.83587 -7.25393
+rotation: 0 333.597 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree9.obj
+texture: assets/models/Walnut_Bark.png
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_3
+id: 49
+parentId: -1
+type: 0
+position: 2.3496 3.00071 -10.4091
+rotation: 0 117.555 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/trees_and_bush_pack.glb
+texture: assets/models/trees_and_bush_pack.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_4
+id: 50
+parentId: -1
+type: 0
+position: -9.87618 3.97041 -8.91922
+rotation: 0 187.5 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_and_bush.glb
+texture: assets/models/tree_and_bush.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_5
+id: 51
+parentId: -1
+type: 0
+position: -10.9145 6.34563 -12.6311
+rotation: 0 304.032 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/trees_and_bush_pack.glb
+texture: assets/models/trees_and_bush_pack.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_6
+id: 52
+parentId: -1
+type: 0
+position: -2.67175 3.89051 -10.5995
+rotation: 0 194.289 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_cedar.obj
+texture: assets/models/Bark___S.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_7
+id: 53
+parentId: -1
+type: 0
+position: 7.8897 2.82811 -9.07414
+rotation: 0 347.492 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_cedar.obj
+texture: assets/models/Bark___S.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_8
+id: 54
+parentId: -1
+type: 0
+position: -5.25757 3.5476 -9.26682
+rotation: 0 99.3597 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_oak.obj
+texture: assets/models/Oak_Leav.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_9
+id: 55
+parentId: -1
+type: 0
+position: -8.61782 2.73951 -6.3146
+rotation: 0 59.4961 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_and_bush.glb
+texture: assets/models/tree_and_bush.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_10
+id: 56
+parentId: -1
+type: 0
+position: -10.2108 2.04647 -3.64855
+rotation: 0 152.425 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_and_bush.glb
+texture: assets/models/tree_and_bush.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_11
+id: 57
+parentId: -1
+type: 0
+position: 6.53387 1.58781 -7.25137
+rotation: 0 105.656 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_oak.obj
+texture: assets/models/Oak_Leav.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_12
+id: 58
+parentId: -1
+type: 0
+position: -11.8675 2.01429 -3.63376
+rotation: 0 71.5832 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_mossy.obj
+texture: assets/models/Mossy_Tr.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌲 Mountain_Ridge_Tree_13
+id: 59
+parentId: -1
+type: 0
+position: 4.96458 2.85333 -10.2577
+rotation: 0 284.463 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/tree_mossy.obj
+texture: assets/models/Mossy_Tr.jpg
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_0
+id: 60
+parentId: -1
+type: 0
+position: 5.96795 0.67842 5.87748
+rotation: 0 26.6561 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_1
+id: 61
+parentId: -1
+type: 0
+position: 9.37862 0.885614 2.66005
+rotation: 0 234.388 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_2
+id: 62
+parentId: -1
+type: 0
+position: -8.45088 1.14326 9.89448
+rotation: 0 310.717 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_3
+id: 63
+parentId: -1
+type: 0
+position: 7.70085 1.0677 6.10288
+rotation: 0 161.802 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_4
+id: 64
+parentId: -1
+type: 0
+position: -3.72024 -0.126612 -0.759669
+rotation: 0 22.881 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_5
+id: 65
+parentId: -1
+type: 0
+position: -2.842 -0.205741 2.04277
+rotation: 0 240.783 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_6
+id: 66
+parentId: -1
+type: 0
+position: -3.84597 0.119459 6.65699
+rotation: 0 262.658 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_7
+id: 67
+parentId: -1
+type: 0
+position: 2.00855 0.445221 6.28825
+rotation: 0 98.8998 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_8
+id: 68
+parentId: -1
+type: 0
+position: 8.51868 1.11876 5.29616
+rotation: 0 169.997 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_9
+id: 69
+parentId: -1
+type: 0
+position: -2.57561 -0.135445 -0.445275
+rotation: 0 349.816 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_10
+id: 70
+parentId: -1
+type: 0
+position: 4.69138 0.954917 9.03588
+rotation: 0 273.883 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_11
+id: 71
+parentId: -1
+type: 0
+position: 4.87805 0.422197 5.2966
+rotation: 0 84.9546 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_12
+id: 72
+parentId: -1
+type: 0
+position: 5.96128 -0.0291404 1.32889
+rotation: 0 177.766 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_13
+id: 73
+parentId: -1
+type: 0
+position: -10.1105 1.02924 4.79553
+rotation: 0 255.839 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_14
+id: 74
+parentId: -1
+type: 0
+position: -1.5941 -0.137409 -0.558419
+rotation: 0 9.15088 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_15
+id: 75
+parentId: -1
+type: 0
+position: -1.3346 -0.139565 -0.597412
+rotation: 0 72.6189 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_16
+id: 76
+parentId: -1
+type: 0
+position: -10.3086 1.66254 9.64493
+rotation: 0 229.108 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_17
+id: 77
+parentId: -1
+type: 0
+position: -0.541856 -0.139874 2.08663
+rotation: 0 202.779 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_18
+id: 78
+parentId: -1
+type: 0
+position: 0.188555 0.421798 7.04171
+rotation: 0 326.724 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🌿 Meadow_Bush_19
+id: 79
+parentId: -1
+type: 0
+position: -7.93471 0.278739 1.2408
+rotation: 0 217.59 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/bush.glb
+texture: assets/models/bush.glb#img0
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Boulder_0
+id: 80
+parentId: -1
+type: 0
+position: -2.06119 0.0304789 4.55777
+rotation: 0 271.998 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/rock.glb
+texture: assets/models/rock.glb#img0
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Stone_1
+id: 81
+parentId: -1
+type: 0
+position: -6.82959 0.114538 0.203174
+rotation: -5.07624 339.427 1.18639
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/stone.glb
+texture: assets/models/stone.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Stone_2
+id: 82
+parentId: -1
+type: 0
+position: -4.83572 0.102426 6.72699
+rotation: 4.56561 58.0397 5.15637
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/stone.glb
+texture: assets/models/stone.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Boulder_3
+id: 83
+parentId: -1
+type: 0
+position: 2.86014 0.751501 8.31369
+rotation: 0 106.428 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/rock.glb
+texture: assets/models/rock.glb#img0
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Stone_4
+id: 84
+parentId: -1
+type: 0
+position: 3.06829 -0.283083 -1.52308
+rotation: -0.521585 313.726 3.64406
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/stone.glb
+texture: assets/models/stone.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Stone_5
+id: 85
+parentId: -1
+type: 0
+position: -6.47587 0.0890207 -0.388019
+rotation: 4.71071 149.944 4.59936
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/stone.glb
+texture: assets/models/stone.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Boulder_6
+id: 86
+parentId: -1
+type: 0
+position: 0.904871 -0.138232 1.54083
+rotation: 0 290.678 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/rock.glb
+texture: assets/models/rock.glb#img0
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Stone_7
+id: 87
+parentId: -1
+type: 0
+position: -8.69198 1.15865 9.54528
+rotation: -2.18396 128.267 4.88194
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/stone.glb
+texture: assets/models/stone.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Stone_8
+id: 88
+parentId: -1
+type: 0
+position: -8.96881 0.55737 0.809851
+rotation: 1.77228 82.0566 -0.874707
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/stone.glb
+texture: assets/models/stone.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Boulder_9
+id: 89
+parentId: -1
+type: 0
+position: -11.488 1.90852 8.45221
+rotation: 0 126.925 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/rock.glb
+texture: assets/models/rock.glb#img0
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Stone_10
+id: 90
+parentId: -1
+type: 0
+position: 8.2968 0.44251 1.26694
+rotation: -4.02413 2.50276 0.128967
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/stone.glb
+texture: assets/models/stone.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Stone_11
+id: 91
+parentId: -1
+type: 0
+position: 0.784056 -0.0288624 2.84375
+rotation: -3.33471 174.539 2.30923
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/stone.glb
+texture: assets/models/stone.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Boulder_12
+id: 92
+parentId: -1
+type: 0
+position: -8.7431 0.501194 0.771772
+rotation: 0 121.541 0
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/rock.glb
+texture: assets/models/rock.glb#img0
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 🪨 Meadow_Stone_13
+id: 93
+parentId: -1
+type: 0
+position: -5.88511 0.634092 10.2007
+rotation: -2.12157 60.5848 -3.37483
+scale: 1 1 1
+color: 1 1 1 1
+model: assets/models/stone.glb
+texture: assets/models/stone.glb#img0
+pbr: 1 1 0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+

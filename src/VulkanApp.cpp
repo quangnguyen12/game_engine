@@ -2,9 +2,15 @@
 #include <iostream>
 #include <stdexcept>
 #include <algorithm>
+#include <filesystem>
+#include <vector>
 #include <glm/gtc/matrix_transform.hpp>
 
 #ifdef _WIN32
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <shellapi.h>
 extern "C" {
     __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
     __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
@@ -53,12 +59,7 @@ void VulkanApp::initEngine()
     editorUI.init(window, &renderer);
     physEngine.init();
 
-    // Create default primitive meshes
-    assetManager.createCubeMesh();
-    assetManager.createSphereMesh();
-    assetManager.createPlaneMesh();
-    assetManager.createCylinderMesh();
-    assetManager.createConeMesh();
+    // Default primitive meshes are created inside assetManager.init(&renderer)
 
     initializeDefaultScene();
     scriptEngine.init(window, &scene, &gameScore, &highScore);
@@ -66,13 +67,15 @@ void VulkanApp::initEngine()
 
 void VulkanApp::initializeDefaultScene()
 {
+    int groundTexId = assetManager.getOrLoadTextureAsset("assets/grass.jpg");
     scene.initializeDefaultScene(
         assetManager.getCubeMeshId(),
         assetManager.getSphereMeshId(),
         assetManager.getPlaneMeshId(),
-        -1,
+        groundTexId,
         &physEngine
     );
+    gizmoSystem.frameScenicPhotoView(scene, 0);
 }
 
 void VulkanApp::updateWindowTitle()
@@ -131,6 +134,21 @@ void VulkanApp::update(float deltaTime)
 {
     if (mode == AppMode::PLAY)
     {
+#ifdef _WIN32
+        if (jmeProcessHandle)
+        {
+            DWORD exitCode = 0;
+            if (GetExitCodeProcess(static_cast<HANDLE>(jmeProcessHandle), &exitCode) && exitCode != STILL_ACTIVE)
+            {
+                printf("[VulkanApp] jMonkeyEngine window closed (exit code %lu), returning to EDIT mode.\n", exitCode);
+                CloseHandle(static_cast<HANDLE>(jmeProcessHandle));
+                jmeProcessHandle = nullptr;
+                jmeProcessId = 0;
+                stopPlayMode();
+                return;
+            }
+        }
+#endif
         float dt = (deltaTime > 0.1f) ? 0.1f : deltaTime;
         scriptEngine.update(&scene, &physEngine, dt);
         physEngine.update(dt);
@@ -165,7 +183,8 @@ void VulkanApp::render()
     sceneCam.viewPos = camPos;
 
     CameraData gameCam;
-    gameCam.proj = glm::perspective(glm::radians(gizmoSystem.mainCameraFov), (float)VulkanRenderer::WIDTH / (float)VulkanRenderer::HEIGHT, gizmoSystem.mainCameraNear, gizmoSystem.mainCameraFar);
+    float gameAspect = gizmoSystem.getGameViewAspectRatio();
+    gameCam.proj = glm::perspective(glm::radians(gizmoSystem.mainCameraFov), gameAspect, gizmoSystem.mainCameraNear, gizmoSystem.mainCameraFar);
     gameCam.proj[1][1] *= -1;
     gameCam.view = glm::lookAt(gizmoSystem.mainCameraPos, gizmoSystem.mainCameraTarget, glm::vec3(0.0f, 1.0f, 0.0f));
     gameCam.viewPos = gizmoSystem.mainCameraPos;
@@ -191,20 +210,11 @@ void VulkanApp::render()
             renderer.getGpuName(),
             // onPlay
             [this]() {
-                mode = AppMode::PLAY;
-                updateWindowTitle();
-                scene.savePlayModeState();
-                scene.initPhysicsBodies(&physEngine);
-                scriptEngine.reloadLuaScripts(&scene);
-                gameScore = 0;
+                startPlayMode();
             },
             // onStop
             [this]() {
-                mode = AppMode::EDIT;
-                updateWindowTitle();
-                scene.restoreEditModeState(&physEngine);
-                for (auto& obj : scene.getObjects())
-                    obj.luaInstances.clear();
+                stopPlayMode();
             },
             // onReloadLua
             [this]() {
@@ -217,11 +227,28 @@ void VulkanApp::render()
             },
             // onSaveScene
             [this]() {
-                scene.saveScene("scene.json");
+                std::string targetPath = scene.getCurrentScenePath();
+                if (targetPath.empty())
+                {
+                    targetPath = Scene::getEnvironmentFileName(scene.getCurrentEnvironmentName());
+                }
+                scene.saveScene(targetPath, &assetManager, &gizmoSystem, &renderer);
+                if (targetPath != "scene.json")
+                {
+                    scene.saveScene("scene.json", &assetManager, &gizmoSystem, &renderer);
+                    scene.setCurrentScenePath(targetPath);
+                }
             },
             // onLoadScene
             [this]() {
-                scene.loadScene("scene.json", assetManager.getCubeMeshId(), assetManager.getSphereMeshId(), assetManager.getPlaneMeshId());
+                std::string loadPath = scene.getCurrentScenePath();
+                if (loadPath.empty()) loadPath = "scene.json";
+                scene.loadScene(loadPath, &assetManager, assetManager.getCubeMeshId(), assetManager.getSphereMeshId(), assetManager.getPlaneMeshId(), &gizmoSystem, &renderer, &physEngine);
+                if (mode == AppMode::PLAY)
+                {
+                    scene.initPhysicsBodies(&physEngine);
+                    scriptEngine.reloadLuaScripts(&scene);
+                }
             },
             // onToggleFullscreen
             [this]() {
@@ -253,6 +280,8 @@ void VulkanApp::mainLoop()
 
 void VulkanApp::cleanup()
 {
+    terminateJmeProcess();
+
     if (secondaryWindow)
     {
         glfwDestroyWindow(secondaryWindow);
@@ -270,6 +299,131 @@ void VulkanApp::cleanup()
     }
 
     glfwTerminate();
+}
+
+void VulkanApp::startPlayMode()
+{
+    mode = AppMode::PLAY;
+    updateWindowTitle();
+    scene.savePlayModeState();
+    scene.initPhysicsBodies(&physEngine);
+    scriptEngine.reloadLuaScripts(&scene);
+    gameScore = 0;
+
+    // 1. Tự động xuất và đồng bộ scene hiện tại sang jMonkeyEngine
+    scene.exportToJMonkeyEngine("scene_jme.json", &assetManager, &gizmoSystem, &renderer);
+
+    gizmoSystem.lastExportedImagePath = "jMonkeyEngine (Đang chạy...)";
+    gizmoSystem.exportNotificationTimer = 4.0f;
+
+    // 2. Khởi chạy tiến trình jMonkeyEngine trực tiếp
+    launchJmeProcess();
+}
+
+void VulkanApp::stopPlayMode()
+{
+    mode = AppMode::EDIT;
+    updateWindowTitle();
+    scene.restoreEditModeState(&physEngine);
+    for (auto& obj : scene.getObjects())
+        obj.luaInstances.clear();
+
+    terminateJmeProcess();
+}
+
+void VulkanApp::launchJmeProcess()
+{
+#ifdef _WIN32
+    if (jmeProcessHandle)
+    {
+        DWORD exitCode = 0;
+        if (GetExitCodeProcess(static_cast<HANDLE>(jmeProcessHandle), &exitCode) && exitCode == STILL_ACTIVE)
+        {
+            return;
+        }
+        CloseHandle(static_cast<HANDLE>(jmeProcessHandle));
+        jmeProcessHandle = nullptr;
+        jmeProcessId = 0;
+    }
+
+    std::filesystem::path jmeDir = "../Jme_scene";
+    if (!std::filesystem::exists(jmeDir))
+    {
+        jmeDir = "D:/Game_prj/Jme_scene";
+    }
+
+    std::filesystem::path jmeExe = jmeDir / "Jme_scene.exe";
+    if (!std::filesystem::exists(jmeExe))
+    {
+        jmeExe = "../Jme_scene.exe";
+    }
+    if (!std::filesystem::exists(jmeExe))
+    {
+        jmeExe = "D:/Game_prj/Jme_scene.exe";
+    }
+
+    std::wstring workDirStr = std::filesystem::absolute(jmeDir).wstring();
+
+    if (std::filesystem::exists(jmeExe))
+    {
+        std::wstring exeStr = std::filesystem::absolute(jmeExe).wstring();
+        std::wstring cmdStr = L"\"" + exeStr + L"\" scene.json";
+
+        STARTUPINFOW si{};
+        PROCESS_INFORMATION pi{};
+        si.cb = sizeof(si);
+
+        std::vector<wchar_t> cmdBuf(cmdStr.begin(), cmdStr.end());
+        cmdBuf.push_back(L'\0');
+
+        if (CreateProcessW(NULL, cmdBuf.data(), NULL, NULL, FALSE, 0, NULL, workDirStr.c_str(), &si, &pi))
+        {
+            jmeProcessHandle = pi.hProcess;
+            jmeProcessId = pi.dwProcessId;
+            CloseHandle(pi.hThread);
+            printf("[VulkanApp] Successfully launched jMonkeyEngine (PID %lu): %ls\n", pi.dwProcessId, cmdStr.c_str());
+            return;
+        }
+    }
+
+    // Fallback: khởi chạy qua run_jme.bat
+    std::wstring batchCmd = L"/c cd /d \"" + workDirStr + L"\" && run_jme.bat";
+    SHELLEXECUTEINFOW sei{};
+    sei.cbSize = sizeof(sei);
+    sei.fMask = SEE_MASK_NOCLOSEPROCESS;
+    sei.lpVerb = L"open";
+    sei.lpFile = L"cmd.exe";
+    sei.lpParameters = batchCmd.c_str();
+    sei.nShow = SW_SHOW;
+
+    if (ShellExecuteExW(&sei))
+    {
+        jmeProcessHandle = sei.hProcess;
+        printf("[VulkanApp] Launched jMonkeyEngine via batch script in %ls\n", workDirStr.c_str());
+    }
+    else
+    {
+        printf("[VulkanApp] Failed to launch jMonkeyEngine!\n");
+    }
+#endif
+}
+
+void VulkanApp::terminateJmeProcess()
+{
+#ifdef _WIN32
+    if (jmeProcessHandle)
+    {
+        DWORD exitCode = 0;
+        if (GetExitCodeProcess(static_cast<HANDLE>(jmeProcessHandle), &exitCode) && exitCode == STILL_ACTIVE)
+        {
+            TerminateProcess(static_cast<HANDLE>(jmeProcessHandle), 0);
+            printf("[VulkanApp] Terminated jMonkeyEngine process.\n");
+        }
+        CloseHandle(static_cast<HANDLE>(jmeProcessHandle));
+        jmeProcessHandle = nullptr;
+        jmeProcessId = 0;
+    }
+#endif
 }
 
 void VulkanApp::framebufferResizeCallback(GLFWwindow* window, int width, int height)
@@ -293,20 +447,11 @@ void VulkanApp::keyCallback(GLFWwindow* window, int key, int scancode, int actio
         {
             if (app->mode == AppMode::PLAY)
             {
-                app->mode = AppMode::EDIT;
-                app->updateWindowTitle();
-                app->scene.restoreEditModeState(&app->physEngine);
-                for (auto& obj : app->scene.getObjects())
-                    obj.luaInstances.clear();
+                app->stopPlayMode();
             }
             else
             {
-                app->mode = AppMode::PLAY;
-                app->updateWindowTitle();
-                app->scene.savePlayModeState();
-                app->scene.initPhysicsBodies(&app->physEngine);
-                app->scriptEngine.reloadLuaScripts(&app->scene);
-                app->gameScore = 0;
+                app->startPlayMode();
             }
         }
         else if (key == GLFW_KEY_F11)

@@ -39,6 +39,11 @@ private:
     void toggleGameFullscreen();
     void updateWindowTitle();
 
+    void startPlayMode();
+    void stopPlayMode();
+    void launchJmeProcess();
+    void terminateJmeProcess();
+
     // GLFW Callbacks
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -68,4 +73,6 @@ private:
     int savedWindowH = 720;
 
     float lastFrameTime = 0.0f;
+    void* jmeProcessHandle = nullptr;
+    unsigned long jmeProcessId = 0;
 };

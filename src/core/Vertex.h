@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <array>
+#include <string>
 #include <cstdint>
 
 struct Vertex
@@ -68,6 +69,7 @@ struct SubMesh
 
 struct Mesh
 {
+    std::string sourcePath = "";
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
     VkBuffer vertexBuffer = VK_NULL_HANDLE;
@@ -80,10 +82,15 @@ struct Mesh
     float defaultMetallic = 0.0f;
     bool isFoliage = false;
     std::vector<SubMesh> submeshes;
+    glm::vec3 pivotOffset = glm::vec3(0.0f);
+    float targetScale = 1.0f;
+    glm::vec3 originalMinB = glm::vec3(0.0f);
+    glm::vec3 originalMaxB = glm::vec3(0.0f);
 };
 
 struct Texture
 {
+    std::string sourcePath = "";
     VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
     VkImage image = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;

@@ -48,6 +48,8 @@ struct SceneObject
     // Rendering variables
     int meshId = -1;
     int textureId = -1;
+    std::string modelPath = "";
+    std::string texturePath = "";
 
     // Component helper methods
     template<typename T>
@@ -80,39 +82,67 @@ struct SceneObject
 
     void syncComponents()
     {
-        if (!hasComponent(ComponentType::TRANSFORM))
+        if (auto trans = getComponent<TransformComponent>())
         {
-            auto trans = std::make_shared<TransformComponent>();
             trans->position = position;
             trans->rotation = rotation;
             trans->scale = scale;
-            components.push_back(trans);
         }
-        if (meshId >= 0 && !hasComponent(ComponentType::MESH_RENDERER))
+        else
         {
-            auto mesh = std::make_shared<MeshRendererComponent>();
+            auto newTrans = std::make_shared<TransformComponent>();
+            newTrans->position = position;
+            newTrans->rotation = rotation;
+            newTrans->scale = scale;
+            components.push_back(newTrans);
+        }
+
+        if (auto mesh = getComponent<MeshRendererComponent>())
+        {
             mesh->meshId = meshId;
             mesh->textureId = textureId;
             mesh->color = color;
-            components.push_back(mesh);
         }
-        if (isPhysicsEnabled && !hasComponent(ComponentType::RIGIDBODY_PHYSICS))
+        else if (meshId >= 0)
         {
-            auto rb = std::make_shared<RigidBodyComponent>();
+            auto newMesh = std::make_shared<MeshRendererComponent>();
+            newMesh->meshId = meshId;
+            newMesh->textureId = textureId;
+            newMesh->color = color;
+            components.push_back(newMesh);
+        }
+
+        if (auto rb = getComponent<RigidBodyComponent>())
+        {
             rb->velocity = velocity;
-            components.push_back(rb);
         }
-        if (!luaScripts.empty() && !hasComponent(ComponentType::LUA_SCRIPT))
+        else if (isPhysicsEnabled)
         {
-            auto lua = std::make_shared<LuaScriptComponent>();
+            auto newRb = std::make_shared<RigidBodyComponent>();
+            newRb->velocity = velocity;
+            components.push_back(newRb);
+        }
+
+        if (auto lua = getComponent<LuaScriptComponent>())
+        {
             if (!luaScripts.empty()) lua->scriptContent = luaScripts[0];
-            components.push_back(lua);
         }
-        if (type == ObjectType::LIGHT && !hasComponent(ComponentType::LIGHT))
+        else if (!luaScripts.empty())
         {
-            auto light = std::make_shared<LightComponent>();
+            auto newLua = std::make_shared<LuaScriptComponent>();
+            newLua->scriptContent = luaScripts[0];
+            components.push_back(newLua);
+        }
+
+        if (auto light = getComponent<LightComponent>())
+        {
             light->color = color;
-            components.push_back(light);
+        }
+        else if (type == ObjectType::LIGHT)
+        {
+            auto newLight = std::make_shared<LightComponent>();
+            newLight->color = color;
+            components.push_back(newLight);
         }
     }
 };

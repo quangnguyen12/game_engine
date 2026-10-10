@@ -47,6 +47,9 @@ public:
     Texture* getTexture(int id);
     const Texture* getTexture(int id) const;
 
+    std::string getModelPath(int meshId) const;
+    std::string getTexturePath(int textureId) const;
+
     const Texture& getDefaultTexture() const { return defaultTexture; }
     VkSampler getTextureSampler() const { return textureSampler; }
 
