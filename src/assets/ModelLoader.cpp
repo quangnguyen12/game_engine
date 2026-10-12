@@ -710,6 +710,8 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
         } else if (lowerStem == "warehouse") {
             // warehouse.glb is modeled in 1:1 metric architectural scale (22.5m width x 11.3m height x 31.6m length)
             targetScale = 1.0f;
+        } else if (lowerStem.find("groud") != std::string::npos || lowerStem.find("ground") != std::string::npos) {
+            targetScale = 1.0f;
         } else {
             // General safeguard: if DCC unit was cm or mm (maxDim > 15m), normalize to 2.0m prop
             if (maxDim > 15.0f) {

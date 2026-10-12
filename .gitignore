@@ -26,3 +26,6 @@ assets/models/
 
 # ImGui cache
 imgui.ini
+
+# Screenshots
+Cam_View_*.png

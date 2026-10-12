@@ -699,6 +699,45 @@ void EditorUI::drawHierarchyPanel(Scene* scene, AssetManager* assetManager, Scri
                 sceneObjects.push_back(newObj);
                 scene->setSelectedObjectIndex(static_cast<int>(sceneObjects.size()) - 1);
             }
+            if (ImGui::MenuItem("3D Model (.glb, .gltf, .obj, .fbx)..."))
+            {
+                const char* filterPatterns[4] = { "*.glb", "*.gltf", "*.obj", "*.fbx" };
+                const char* filePath = tinyfd_openFileDialog("Thêm 3D Model (Tỉ lệ 1:1 Metric)", "", 4, filterPatterns, "3D Models", 0);
+                if (filePath)
+                {
+                    try {
+                        int meshId = assetManager->load3DModelAsset(filePath);
+                        if (meshId >= 0)
+                        {
+                            scene->saveHistory();
+                            SceneObject newObj;
+                            newObj.id = (int)sceneObjects.size();
+                            std::filesystem::path p(filePath);
+                            newObj.name = p.stem().string();
+                            newObj.type = ObjectType::CUBE;
+                            newObj.position = glm::vec3(0.0f, 0.0f, 0.0f);
+                            newObj.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+                            newObj.scale = glm::vec3(1.0f, 1.0f, 1.0f); // 1:1 Metric Scale!
+                            newObj.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+                            newObj.isPhysicsEnabled = false;
+                            newObj.meshId = meshId;
+                            newObj.modelPath = filePath;
+                            const auto& meshes = assetManager->getMeshes();
+                            if (meshId < static_cast<int>(meshes.size()) && meshes[meshId].defaultTextureId >= 0) {
+                                newObj.textureId = meshes[meshId].defaultTextureId;
+                                newObj.roughness = meshes[meshId].defaultRoughness;
+                                newObj.metallic = meshes[meshId].defaultMetallic;
+                            }
+                            newObj.syncComponents();
+                            sceneObjects.push_back(newObj);
+                            scene->setSelectedObjectIndex(static_cast<int>(sceneObjects.size()) - 1);
+                        }
+                    }
+                    catch (const std::exception& e) {
+                        tinyfd_messageBox("Lỗi nạp model", e.what(), "ok", "error", 1);
+                    }
+                }
+            }
             ImGui::Separator();
             if (ImGui::MenuItem("Sinh Cảnh 3D Tự Động..."))
             {

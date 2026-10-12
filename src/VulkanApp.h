@@ -74,5 +74,6 @@ private:
 
     float lastFrameTime = 0.0f;
     void* jmeProcessHandle = nullptr;
+    void* jmeJobHandle = nullptr;
     unsigned long jmeProcessId = 0;
 };

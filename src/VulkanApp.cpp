@@ -11,6 +11,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shellapi.h>
+#include <tlhelp32.h>
 extern "C" {
     __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
     __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
@@ -130,20 +131,82 @@ void VulkanApp::toggleGameFullscreen()
     }
 }
 
+#ifdef _WIN32
+static void terminateProcessTreeHelper(DWORD pid)
+{
+    if (pid == 0) return;
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnapshot != INVALID_HANDLE_VALUE)
+    {
+        PROCESSENTRY32W pe{};
+        pe.dwSize = sizeof(pe);
+        if (Process32FirstW(hSnapshot, &pe))
+        {
+            do
+            {
+                if (pe.th32ParentProcessID == pid)
+                {
+                    terminateProcessTreeHelper(pe.th32ProcessID);
+                }
+            } while (Process32NextW(hSnapshot, &pe));
+        }
+        CloseHandle(hSnapshot);
+    }
+    HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+    if (hProcess)
+    {
+        TerminateProcess(hProcess, 0);
+        CloseHandle(hProcess);
+    }
+}
+#endif
+
 void VulkanApp::update(float deltaTime)
 {
     if (mode == AppMode::PLAY)
     {
 #ifdef _WIN32
-        if (jmeProcessHandle)
+        static float jmeCheckTimer = 0.0f;
+        jmeCheckTimer += deltaTime;
+        if (jmeCheckTimer >= 0.5f)
         {
-            DWORD exitCode = 0;
-            if (GetExitCodeProcess(static_cast<HANDLE>(jmeProcessHandle), &exitCode) && exitCode != STILL_ACTIVE)
+            jmeCheckTimer = 0.0f;
+            bool jmeAlive = false;
+            if (jmeProcessHandle)
             {
-                printf("[VulkanApp] jMonkeyEngine window closed (exit code %lu), returning to EDIT mode.\n", exitCode);
-                CloseHandle(static_cast<HANDLE>(jmeProcessHandle));
-                jmeProcessHandle = nullptr;
-                jmeProcessId = 0;
+                DWORD exitCode = 0;
+                if (GetExitCodeProcess(static_cast<HANDLE>(jmeProcessHandle), &exitCode) && exitCode == STILL_ACTIVE)
+                {
+                    jmeAlive = true;
+                }
+            }
+            if (!jmeAlive)
+            {
+                HWND hJme = FindWindowW(NULL, L"jMonkeyEngine - Trình Diễn Sinh Cảnh 3D (Cam View 2.4m x 2.0m)");
+                if (!hJme)
+                {
+                    EnumWindows([](HWND hwnd, LPARAM lp) -> BOOL {
+                        wchar_t title[256];
+                        if (GetWindowTextW(hwnd, title, 256) > 0)
+                        {
+                            if (wcsstr(title, L"jMonkeyEngine") != nullptr)
+                            {
+                                *reinterpret_cast<bool*>(lp) = true;
+                                return FALSE;
+                            }
+                        }
+                        return TRUE;
+                    }, reinterpret_cast<LPARAM>(&jmeAlive));
+                }
+                else
+                {
+                    jmeAlive = true;
+                }
+            }
+
+            if (!jmeAlive)
+            {
+                printf("[VulkanApp] jMonkeyEngine window closed, returning to EDIT mode.\n");
                 stopPlayMode();
                 return;
             }
@@ -334,16 +397,15 @@ void VulkanApp::stopPlayMode()
 void VulkanApp::launchJmeProcess()
 {
 #ifdef _WIN32
-    if (jmeProcessHandle)
+    terminateJmeProcess();
+
+    HANDLE hJob = CreateJobObjectW(NULL, NULL);
+    if (hJob)
     {
-        DWORD exitCode = 0;
-        if (GetExitCodeProcess(static_cast<HANDLE>(jmeProcessHandle), &exitCode) && exitCode == STILL_ACTIVE)
-        {
-            return;
-        }
-        CloseHandle(static_cast<HANDLE>(jmeProcessHandle));
-        jmeProcessHandle = nullptr;
-        jmeProcessId = 0;
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli{};
+        jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK;
+        SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli));
+        jmeJobHandle = hJob;
     }
 
     std::filesystem::path jmeDir = "../Jme_scene";
@@ -376,8 +438,14 @@ void VulkanApp::launchJmeProcess()
         std::vector<wchar_t> cmdBuf(cmdStr.begin(), cmdStr.end());
         cmdBuf.push_back(L'\0');
 
-        if (CreateProcessW(NULL, cmdBuf.data(), NULL, NULL, FALSE, 0, NULL, workDirStr.c_str(), &si, &pi))
+        DWORD createFlags = CREATE_SUSPENDED;
+        if (CreateProcessW(NULL, cmdBuf.data(), NULL, NULL, FALSE, createFlags, NULL, workDirStr.c_str(), &si, &pi))
         {
+            if (jmeJobHandle)
+            {
+                AssignProcessToJobObject(static_cast<HANDLE>(jmeJobHandle), pi.hProcess);
+            }
+            ResumeThread(pi.hThread);
             jmeProcessHandle = pi.hProcess;
             jmeProcessId = pi.dwProcessId;
             CloseHandle(pi.hThread);
@@ -386,20 +454,27 @@ void VulkanApp::launchJmeProcess()
         }
     }
 
-    // Fallback: khởi chạy qua run_jme.bat
-    std::wstring batchCmd = L"/c cd /d \"" + workDirStr + L"\" && run_jme.bat";
-    SHELLEXECUTEINFOW sei{};
-    sei.cbSize = sizeof(sei);
-    sei.fMask = SEE_MASK_NOCLOSEPROCESS;
-    sei.lpVerb = L"open";
-    sei.lpFile = L"cmd.exe";
-    sei.lpParameters = batchCmd.c_str();
-    sei.nShow = SW_SHOW;
+    // Fallback: khởi chạy qua run_jme.bat bằng CreateProcessW
+    std::wstring batchCmd = L"cmd.exe /c run_jme.bat scene.json";
+    std::vector<wchar_t> batchBuf(batchCmd.begin(), batchCmd.end());
+    batchBuf.push_back(L'\0');
 
-    if (ShellExecuteExW(&sei))
+    STARTUPINFOW siBatch{};
+    PROCESS_INFORMATION piBatch{};
+    siBatch.cb = sizeof(siBatch);
+
+    if (CreateProcessW(NULL, batchBuf.data(), NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, workDirStr.c_str(), &siBatch, &piBatch))
     {
-        jmeProcessHandle = sei.hProcess;
-        printf("[VulkanApp] Launched jMonkeyEngine via batch script in %ls\n", workDirStr.c_str());
+        if (jmeJobHandle)
+        {
+            AssignProcessToJobObject(static_cast<HANDLE>(jmeJobHandle), piBatch.hProcess);
+        }
+        ResumeThread(piBatch.hThread);
+        jmeProcessHandle = piBatch.hProcess;
+        jmeProcessId = piBatch.dwProcessId;
+        CloseHandle(piBatch.hThread);
+        printf("[VulkanApp] Launched jMonkeyEngine via batch script in %ls (PID %lu)\n", workDirStr.c_str(), piBatch.dwProcessId);
+        return;
     }
     else
     {
@@ -411,18 +486,68 @@ void VulkanApp::launchJmeProcess()
 void VulkanApp::terminateJmeProcess()
 {
 #ifdef _WIN32
+    printf("[VulkanApp] Terminating jMonkeyEngine process tree and closing windows...\n");
+
+    // 1. Terminate Job Object if active (this kills all processes in the job tree at OS kernel level)
+    if (jmeJobHandle)
+    {
+        TerminateJobObject(static_cast<HANDLE>(jmeJobHandle), 0);
+        CloseHandle(static_cast<HANDLE>(jmeJobHandle));
+        jmeJobHandle = nullptr;
+    }
+
+    // 2. Terminate process tree via recursive Toolhelp32 & taskkill
+    if (jmeProcessId != 0)
+    {
+        terminateProcessTreeHelper(jmeProcessId);
+        std::wstring killCmd = L"taskkill /PID " + std::to_wstring(jmeProcessId) + L" /T /F >nul 2>&1";
+        _wsystem(killCmd.c_str());
+    }
+
+    // 3. Fallback direct handle kill
     if (jmeProcessHandle)
     {
         DWORD exitCode = 0;
         if (GetExitCodeProcess(static_cast<HANDLE>(jmeProcessHandle), &exitCode) && exitCode == STILL_ACTIVE)
         {
             TerminateProcess(static_cast<HANDLE>(jmeProcessHandle), 0);
-            printf("[VulkanApp] Terminated jMonkeyEngine process.\n");
         }
         CloseHandle(static_cast<HANDLE>(jmeProcessHandle));
         jmeProcessHandle = nullptr;
-        jmeProcessId = 0;
     }
+    jmeProcessId = 0;
+
+    // 4. Forcibly kill any running Jme_scene.exe
+    _wsystem(L"taskkill /IM Jme_scene.exe /T /F >nul 2>&1");
+
+    // 5. Find and terminate any jME windows by title
+    EnumWindows([](HWND hwnd, LPARAM) -> BOOL {
+        wchar_t title[512] = { 0 };
+        if (GetWindowTextW(hwnd, title, 512) > 0)
+        {
+            if (wcsstr(title, L"jMonkeyEngine") != nullptr || wcsstr(title, L"Cam View 2.4m x 2.0m") != nullptr)
+            {
+                DWORD pid = 0;
+                GetWindowThreadProcessId(hwnd, &pid);
+                if (pid != 0 && pid != GetCurrentProcessId())
+                {
+                    HANDLE hProc = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+                    if (hProc)
+                    {
+                        TerminateProcess(hProc, 0);
+                        CloseHandle(hProc);
+                    }
+                }
+                PostMessageW(hwnd, WM_CLOSE, 0, 0);
+            }
+        }
+        return TRUE;
+    }, 0);
+
+    // 6. Kill any Java/javaw process running com.mygame.Main or from Jme_scene
+    _wsystem(L"powershell -NoProfile -NonInteractive -Command \"Get-CimInstance Win32_Process | Where-Object { ($_.Name -like '*java*') -and ($_.CommandLine -match 'com.mygame.Main|Jme_scene|jme-scene|scene.json') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }\" >nul 2>&1");
+
+    printf("[VulkanApp] jMonkeyEngine completely terminated.\n");
 #endif
 }
 

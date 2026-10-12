@@ -24,7 +24,7 @@ if exist "%DIST_DIR%" rd /s /q "%DIST_DIR%"
 mkdir "%DIST_DIR%"
 mkdir "%DIST_DIR%\assets"
 
-echo [2/5] Sao chep file thuc thi, thu vien DLL va Shaders...
+echo [2/5] Sao chep file thuc thi, thu vien DLL, Shaders va Scene Configurations...
 copy /y "%BUILD_DIR%\ShapeRenderer.exe" "%DIST_DIR%\" >nul
 copy /y "%BUILD_DIR%\glfw3.dll" "%DIST_DIR%\" >nul
 copy /y "%BUILD_DIR%\lua.dll" "%DIST_DIR%\" >nul
@@ -32,6 +32,10 @@ copy /y "%BUILD_DIR%\vert.spv" "%DIST_DIR%\" >nul
 copy /y "%BUILD_DIR%\frag.spv" "%DIST_DIR%\" >nul
 copy /y "%BUILD_DIR%\shadow_vert.spv" "%DIST_DIR%\" >nul
 if exist "%BUILD_DIR%\imgui.ini" copy /y "%BUILD_DIR%\imgui.ini" "%DIST_DIR%\" >nul
+copy /y "%BUILD_DIR%\scene*.json" "%DIST_DIR%\" >nul
+if exist "scene.json" copy /y "scene.json" "%DIST_DIR%\" >nul
+if exist "scene_forest_clearing.json" copy /y "scene_forest_clearing.json" "%DIST_DIR%\" >nul
+if exist "scene_industrial_warehouse.json" copy /y "scene_industrial_warehouse.json" "%DIST_DIR%\" >nul
 
 echo [3/5] Sao chep thu muc tai nguyen assets...
 xcopy /e /i /y "assets" "%DIST_DIR%\assets" >nul
