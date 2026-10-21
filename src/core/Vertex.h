@@ -11,6 +11,7 @@
 #include <array>
 #include <string>
 #include <cstdint>
+#include <memory>
 
 struct Vertex
 {
@@ -18,6 +19,8 @@ struct Vertex
     glm::vec3 color;
     glm::vec3 normal;
     glm::vec2 texCoord;
+    glm::ivec4 boneIDs = glm::ivec4(-1, -1, -1, -1);
+    glm::vec4 weights = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
 
     static VkVertexInputBindingDescription getBindingDescription()
     {
@@ -28,9 +31,9 @@ struct Vertex
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions()
+    static std::array<VkVertexInputAttributeDescription, 6> getAttributeDescriptions()
     {
-        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
+        std::array<VkVertexInputAttributeDescription, 6> attributeDescriptions{};
 
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
@@ -52,6 +55,16 @@ struct Vertex
         attributeDescriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
         attributeDescriptions[3].offset = offsetof(Vertex, texCoord);
 
+        attributeDescriptions[4].binding = 0;
+        attributeDescriptions[4].location = 4;
+        attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SINT;
+        attributeDescriptions[4].offset = offsetof(Vertex, boneIDs);
+
+        attributeDescriptions[5].binding = 0;
+        attributeDescriptions[5].location = 5;
+        attributeDescriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        attributeDescriptions[5].offset = offsetof(Vertex, weights);
+
         return attributeDescriptions;
     }
 };
@@ -66,6 +79,9 @@ struct SubMesh
     bool isFoliage = false;
     bool twoSided = false;
 };
+
+class Skeleton;
+class AnimationClip;
 
 struct Mesh
 {
@@ -86,6 +102,10 @@ struct Mesh
     float targetScale = 1.0f;
     glm::vec3 originalMinB = glm::vec3(0.0f);
     glm::vec3 originalMaxB = glm::vec3(0.0f);
+
+    bool isSkinned = false;
+    std::shared_ptr<Skeleton> skeleton = nullptr;
+    std::vector<std::shared_ptr<AnimationClip>> defaultClips;
 };
 
 struct Texture

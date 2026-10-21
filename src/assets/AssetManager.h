@@ -19,6 +19,7 @@ public:
     void createMeshBuffers(Mesh& mesh);
     void createTextureFromRawPixels(const unsigned char* pixels, int texWidth, int texHeight, Texture& texture);
     void loadTexture(const std::string& path, Texture& texture);
+    int loadTextureFromMemory(const unsigned char* buffer, size_t bufferSize, const std::string& cacheKey);
     void createTextureSampler();
     void createDefaultTexture();
 

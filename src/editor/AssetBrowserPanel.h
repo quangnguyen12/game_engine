@@ -13,7 +13,10 @@ struct ImVec2;
 
 enum class AssetCategory {
     TARGETS,
+    ENEMIES,
+    ANIMATIONS,
     ALL_MODELS,
+    CITY,
     WAREHOUSE,
     NATURE,
     PROPS,
@@ -35,12 +38,16 @@ enum class AssetIconType {
     TARGET_POPPER_TALL,
     TARGET_BARRICADE,
     TARGET_GENERIC,
+    MODEL_CHARACTER,
     MODEL_TREE,
     MODEL_ROCK,
     MODEL_LOG,
     MODEL_FOLIAGE,
     MODEL_PROP,
     MODEL_WAREHOUSE,
+    MODEL_BUILDING,
+    MODEL_VEHICLE,
+    MODEL_STREET_PROP,
     PRIMITIVE_CUBE,
     PRIMITIVE_SPHERE,
     PRIMITIVE_PLANE,
@@ -48,6 +55,7 @@ enum class AssetIconType {
     PRIMITIVE_CONE,
     TEXTURE,
     SCRIPT,
+    ANIMATION_CLIP,
     GENERIC
 };
 

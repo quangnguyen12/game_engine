@@ -1,6 +1,7 @@
 #include "VulkanApp.h"
 #include "scene/Scene.h"
 #include "assets/ModelLoader.h"
+#include "animation/AnimationLoader.h"
 #include "editor/SceneGenerator.h"
 #include "assets/AssetManager.h"
 #include <iostream>
@@ -454,6 +455,105 @@ int main(int argc, char** argv)
     if (argc > 1 && std::string(argv[1]) == "--test-scene")
     {
         return runSceneSaveLoadTest() ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
+    if (argc > 1 && std::string(argv[1]) == "--test-fbx")
+    {
+        std::string path = (argc > 2) ? argv[2] : "C:/Users/nguye/Downloads/Basic Shooter Pack/tm_classy_black_guy.fbx";
+        std::cout << "[Test FBX] Loading: " << path << "\n";
+        Mesh mesh;
+        AssetManager assetMgr;
+        try {
+            ModelLoader::loadModel(path, mesh, &assetMgr);
+            std::cout << "[Test FBX] Vertices: " << mesh.vertices.size() << "\n";
+            std::cout << "[Test FBX] Indices: " << mesh.indices.size() << "\n";
+            std::cout << "[Test FBX] Submeshes: " << mesh.submeshes.size() << "\n";
+            std::cout << "[Test FBX] IsSkinned: " << mesh.isSkinned << "\n";
+            std::cout << "[Test FBX] BoneCount: " << (mesh.skeleton ? mesh.skeleton->getBoneCount() : 0) << "\n";
+            std::cout << "[Test FBX] DefaultTexId: " << mesh.defaultTextureId << "\n";
+            for (size_t si = 0; si < mesh.submeshes.size(); ++si) {
+                int tid = mesh.submeshes[si].textureId;
+                std::string tpath = assetMgr.getTexturePath(tid);
+                std::cout << "  Submesh " << si << ": tex=" << tid
+                          << " ('" << tpath << "')"
+                          << ", offset=" << mesh.submeshes[si].indexOffset
+                          << ", count=" << mesh.submeshes[si].indexCount << "\n";
+            }
+            glm::vec3 minB(1e9f), maxB(-1e9f);
+            for (const auto& v : mesh.vertices) {
+                minB = glm::min(minB, v.pos);
+                maxB = glm::max(maxB, v.pos);
+            }
+            std::cout << "[Test FBX] Loaded MinB: (" << minB.x << ", " << minB.y << ", " << minB.z << ")\n";
+            std::cout << "[Test FBX] Loaded MaxB: (" << maxB.x << ", " << maxB.y << ", " << maxB.z << ")\n";
+            std::cout << "[Test FBX] Loaded Size: (" << (maxB.x - minB.x) << ", " << (maxB.y - minB.y) << ", " << (maxB.z - minB.z) << ")\n";
+
+            if (mesh.isSkinned && mesh.skeleton) {
+                auto anim = std::make_shared<AnimatorComponent>();
+                anim->skeleton = mesh.skeleton;
+                for (auto& clip : mesh.defaultClips) anim->addClip(clip);
+                anim->update(0.0f);
+
+                glm::vec3 minDef(1e9f), maxDef(-1e9f);
+                for (const auto& v : mesh.vertices) {
+                    glm::mat4 bt(0.0f);
+                    if (v.boneIDs.x >= 0 && v.boneIDs.x < 128) bt += anim->finalBoneMatrices[v.boneIDs.x] * v.weights.x;
+                    if (v.boneIDs.y >= 0 && v.boneIDs.y < 128) bt += anim->finalBoneMatrices[v.boneIDs.y] * v.weights.y;
+                    if (v.boneIDs.z >= 0 && v.boneIDs.z < 128) bt += anim->finalBoneMatrices[v.boneIDs.z] * v.weights.z;
+                    if (v.boneIDs.w >= 0 && v.boneIDs.w < 128) bt += anim->finalBoneMatrices[v.boneIDs.w] * v.weights.w;
+
+                    glm::vec4 dp = bt * glm::vec4(v.pos, 1.0f);
+                    minDef = glm::min(minDef, glm::vec3(dp));
+                    maxDef = glm::max(maxDef, glm::vec3(dp));
+                }
+                std::cout << "[Test FBX] Rest Pose Deformed MinB: (" << minDef.x << ", " << minDef.y << ", " << minDef.z << ")\n";
+                std::cout << "[Test FBX] Rest Pose Deformed MaxB: (" << maxDef.x << ", " << maxDef.y << ", " << maxDef.z << ")\n";
+                std::cout << "[Test FBX] Rest Pose Deformed Size: (" << (maxDef.x - minDef.x) << ", " << (maxDef.y - minDef.y) << ", " << (maxDef.z - minDef.z) << ")\n";
+                // Test loading external animation clips
+                for (const std::string& clipFile : { "rifle aiming idle.fbx", "firing rifle.fbx" }) {
+                    std::string animClipPath = "C:/Users/nguye/Downloads/Basic Shooter Pack/" + clipFile;
+                    if (std::filesystem::exists(animClipPath)) {
+                        auto extClip = AnimationLoader::loadFBXClip(animClipPath, mesh.skeleton.get());
+                        if (extClip) {
+                            std::cout << "[Test FBX] Successfully loaded external clip: " << extClip->name
+                                      << " ('" << clipFile << "'), duration=" << extClip->duration << "s, tracks=" << extClip->tracks.size() << "\n";
+                            anim->addClip(extClip);
+                            anim->play(extClip->name, true);
+                            anim->update(0.5f);
+
+                            int rIdx = mesh.skeleton->findBoneIndex("CC_Base_R_Hand");
+                            int lIdx = mesh.skeleton->findBoneIndex("CC_Base_L_Hand");
+                            if (rIdx >= 0 && lIdx >= 0) {
+                                glm::vec3 posR = glm::vec3(anim->boneWorldTransforms[rIdx][3]);
+                                glm::vec3 posL = glm::vec3(anim->boneWorldTransforms[lIdx][3]);
+                                glm::vec3 forward = posL - posR;
+                                float dist = glm::length(forward);
+                                std::cout << "  -> posR (Right Hand): (" << posR.x << ", " << posR.y << ", " << posR.z << ")\n";
+                                std::cout << "  -> posL (Left Hand): (" << posL.x << ", " << posL.y << ", " << posL.z << ")\n";
+                                std::cout << "  -> Hand Distance: " << dist << "m\n";
+
+                                glm::vec3 fwdNorm = glm::normalize(forward);
+                                glm::vec3 refUp = glm::vec3(0.0f, 1.0f, 0.0f);
+                                glm::vec3 up = glm::normalize(refUp - glm::dot(refUp, fwdNorm) * fwdNorm);
+                                glm::vec3 right = glm::cross(fwdNorm, up);
+                                glm::mat4 rot2H(1.0f);
+                                rot2H[0] = glm::vec4(right, 0.0f);
+                                rot2H[1] = glm::vec4(-fwdNorm, 0.0f);
+                                rot2H[2] = glm::vec4(-up, 0.0f);
+                                glm::vec3 gripOffset(0.0f, 0.070f, 0.080f);
+                                glm::vec3 gunOrigin = posR - glm::vec3(rot2H * glm::vec4(gripOffset, 0.0f));
+                                rot2H[3] = glm::vec4(gunOrigin, 1.0f);
+                                std::cout << "  -> Gun Origin: (" << gunOrigin.x << ", " << gunOrigin.y << ", " << gunOrigin.z << ")\n";
+                                std::cout << "  -> Muzzle Pos: (" << (gunOrigin - fwdNorm * 0.5856f).x << ", " << (gunOrigin - fwdNorm * 0.5856f).y << ", " << (gunOrigin - fwdNorm * 0.5856f).z << ")\n";
+                            }
+                        }
+                    }
+                }
+            }
+            return EXIT_SUCCESS;
+        } catch (const std::exception& e) {
+            std::cerr << "[Test FBX ERROR] " << e.what() << "\n";
+            return EXIT_FAILURE;
+        }
     }
 
     VulkanApp app;

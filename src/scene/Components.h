@@ -11,7 +11,8 @@ enum class ComponentType
     MESH_RENDERER,
     RIGIDBODY_PHYSICS,
     LUA_SCRIPT,
-    LIGHT
+    LIGHT,
+    ANIMATOR
 };
 
 class Component

@@ -175,13 +175,13 @@ void main() {
             Lo += sssColor * radiance * backLight * sssStrength;
         }
 
-        // Ambient lighting with AO (boosted slightly for foliage)
-        float ambientScale = (push.foliageParams.y > 0.5) ? 0.12 : 0.05;
+        // Ambient lighting with AO (boosted for realistic outdoor skylight fill)
+        float ambientScale = (push.foliageParams.y > 0.5) ? 0.35 : 0.25;
         vec3 ambient = vec3(ambientScale) * albedo * ao;
         color = ambient + Lo;
     } else {
         // --- Legacy Blinn-Phong Model (Fallback) ---
-        vec3 ambient = 0.2 * ubo.lightColor;
+        vec3 ambient = 0.35 * ubo.lightColor;
         float diff = max(dot(N, L), 0.0);
         vec3 diffuse = diff * ubo.lightColor;
         

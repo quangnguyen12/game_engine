@@ -31,6 +31,9 @@
     {
       "id": 1,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Forest_Clearing_Terrain",
       "type": "terrain",
       "modelPath": "models/terrain.obj",
@@ -61,6 +64,9 @@
     {
       "id": 2,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪵 Forest_Log_Pile_1",
       "type": "model",
       "modelPath": "models/log_pile.glb",
@@ -76,7 +82,7 @@
         "texturePath": "models/log_pile.glb#img0",
         "pbr": true,
         "roughness": 1,
-        "metallic": 1,
+        "metallic": 0,
         "ambientOcclusion": 1
       },
       "submeshes": [
@@ -84,7 +90,7 @@
           "index": 0,
           "texturePath": "models/log_pile.glb#img0",
           "roughness": 1,
-          "metallic": 1,
+          "metallic": 0,
           "isFoliage": false,
           "twoSided": true
         }
@@ -101,6 +107,9 @@
     {
       "id": 3,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪵 Clearing_Log_Pile_2",
       "type": "model",
       "modelPath": "models/log_pile.glb",
@@ -116,7 +125,7 @@
         "texturePath": "models/log_pile.glb#img0",
         "pbr": true,
         "roughness": 1,
-        "metallic": 1,
+        "metallic": 0,
         "ambientOcclusion": 1
       },
       "submeshes": [
@@ -124,7 +133,7 @@
           "index": 0,
           "texturePath": "models/log_pile.glb#img0",
           "roughness": 1,
-          "metallic": 1,
+          "metallic": 0,
           "isFoliage": false,
           "twoSided": true
         }
@@ -141,6 +150,9 @@
     {
       "id": 4,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪵 Woodcutter_Log_Pile_3",
       "type": "model",
       "modelPath": "models/log_pile.glb",
@@ -156,7 +168,7 @@
         "texturePath": "models/log_pile.glb#img0",
         "pbr": true,
         "roughness": 1,
-        "metallic": 1,
+        "metallic": 0,
         "ambientOcclusion": 1
       },
       "submeshes": [
@@ -164,7 +176,7 @@
           "index": 0,
           "texturePath": "models/log_pile.glb#img0",
           "roughness": 1,
-          "metallic": 1,
+          "metallic": 0,
           "isFoliage": false,
           "twoSided": true
         }
@@ -181,6 +193,9 @@
     {
       "id": 5,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪵 Reserve_Log_Pile_4",
       "type": "model",
       "modelPath": "models/log_pile.glb",
@@ -196,7 +211,7 @@
         "texturePath": "models/log_pile.glb#img0",
         "pbr": true,
         "roughness": 1,
-        "metallic": 1,
+        "metallic": 0,
         "ambientOcclusion": 1
       },
       "submeshes": [
@@ -204,7 +219,7 @@
           "index": 0,
           "texturePath": "models/log_pile.glb#img0",
           "roughness": 1,
-          "metallic": 1,
+          "metallic": 0,
           "isFoliage": false,
           "twoSided": true
         }
@@ -221,6 +236,9 @@
     {
       "id": 6,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪵 Fallen_Tree_Log_1",
       "type": "model",
       "modelPath": "models/tree_log.glb",
@@ -261,6 +279,9 @@
     {
       "id": 7,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪵 Fallen_Tree_Log_2",
       "type": "model",
       "modelPath": "models/tree_log.glb",
@@ -301,6 +322,9 @@
     {
       "id": 8,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪵 Tactical_Fallen_Log_3",
       "type": "model",
       "modelPath": "models/tree_log.glb",
@@ -341,6 +365,9 @@
     {
       "id": 9,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪵 Mossy_Tree_Log_4",
       "type": "model",
       "modelPath": "models/tree_log.glb",
@@ -381,6 +408,9 @@
     {
       "id": 10,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪵 Forest_Tree_Log_5",
       "type": "model",
       "modelPath": "models/tree_log.glb",
@@ -421,6 +451,9 @@
     {
       "id": 11,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪵 Ridge_Tree_Log_6",
       "type": "model",
       "modelPath": "models/tree_log.glb",
@@ -461,6 +494,9 @@
     {
       "id": 12,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🎯 Forest_ShootingTarget_Center",
       "type": "model",
       "modelPath": "models/ShootingTarget.obj",
@@ -501,6 +537,9 @@
     {
       "id": 13,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🎯 Forest_ShootingTarget_LeftFlank",
       "type": "model",
       "modelPath": "models/ShootingTarget.obj",
@@ -541,6 +580,9 @@
     {
       "id": 14,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🎯 Forest_ShootingTarget_RightFlank",
       "type": "model",
       "modelPath": "models/ShootingTarget.obj",
@@ -581,6 +623,9 @@
     {
       "id": 15,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🎯 Forest_IPSC_Target_NearLeft",
       "type": "model",
       "modelPath": "models/IPSC_Metric_Target.obj",
@@ -593,7 +638,7 @@
       "scale": [1, 1, 1],
       "color": [1, 1, 1, 1],
       "material": {
-        "texturePath": "models/Bark___0.jpg",
+        "texturePath": "",
         "pbr": true,
         "roughness": 0.5,
         "metallic": 0,
@@ -637,6 +682,9 @@
     {
       "id": 16,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🎯 Forest_IPSC_Target_NearRight",
       "type": "model",
       "modelPath": "models/IPSC_Metric_Target.obj",
@@ -649,7 +697,7 @@
       "scale": [1, 1, 1],
       "color": [1, 1, 1, 1],
       "material": {
-        "texturePath": "models/Bark___0.jpg",
+        "texturePath": "",
         "pbr": true,
         "roughness": 0.5,
         "metallic": 0,
@@ -693,6 +741,9 @@
     {
       "id": 17,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🔘 Steel_Pepper_Popper_Left",
       "type": "model",
       "modelPath": "models/Pepper_Popper.obj",
@@ -705,7 +756,7 @@
       "scale": [1, 1, 1],
       "color": [0.92, 0.95, 0.98, 1],
       "material": {
-        "texturePath": "models/Bark___0.jpg",
+        "texturePath": "",
         "pbr": true,
         "roughness": 0.35,
         "metallic": 0.85,
@@ -741,6 +792,9 @@
     {
       "id": 18,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🔘 Steel_Pepper_Popper_Right",
       "type": "model",
       "modelPath": "models/Pepper_Popper.obj",
@@ -753,7 +807,7 @@
       "scale": [1, 1, 1],
       "color": [0.92, 0.95, 0.98, 1],
       "material": {
-        "texturePath": "models/Bark___0.jpg",
+        "texturePath": "",
         "pbr": true,
         "roughness": 0.35,
         "metallic": 0.85,
@@ -789,6 +843,9 @@
     {
       "id": 19,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🔘 Steel_Plate_Target_MidLeft",
       "type": "model",
       "modelPath": "models/Plate_A.obj",
@@ -801,7 +858,7 @@
       "scale": [1, 1, 1],
       "color": [0.95, 0.95, 0.95, 1],
       "material": {
-        "texturePath": "models/Bark___0.jpg",
+        "texturePath": "",
         "pbr": true,
         "roughness": 0.35,
         "metallic": 0.85,
@@ -837,6 +894,9 @@
     {
       "id": 20,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🔘 Steel_Plate_Target_MidRight",
       "type": "model",
       "modelPath": "models/Plate_A.obj",
@@ -849,7 +909,7 @@
       "scale": [1, 1, 1],
       "color": [0.95, 0.95, 0.95, 1],
       "material": {
-        "texturePath": "models/Bark___0.jpg",
+        "texturePath": "",
         "pbr": true,
         "roughness": 0.35,
         "metallic": 0.85,
@@ -885,6 +945,9 @@
     {
       "id": 21,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🛡️ Tactical_Shooting_Barricade",
       "type": "model",
       "modelPath": "models/Wall_Barricade.obj",
@@ -897,7 +960,7 @@
       "scale": [1, 1, 1],
       "color": [1, 1, 1, 1],
       "material": {
-        "texturePath": "models/Bark___0.jpg",
+        "texturePath": "",
         "pbr": true,
         "roughness": 0.5,
         "metallic": 0,
@@ -933,6 +996,9 @@
     {
       "id": 22,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_0",
       "type": "model",
       "modelPath": "models/tree_redwood.obj",
@@ -973,6 +1039,9 @@
     {
       "id": 23,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_1",
       "type": "model",
       "modelPath": "models/tree_redwood.obj",
@@ -1013,6 +1082,9 @@
     {
       "id": 24,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_2",
       "type": "model",
       "modelPath": "models/tree_mossy.obj",
@@ -1053,6 +1125,9 @@
     {
       "id": 25,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_3",
       "type": "model",
       "modelPath": "models/trees_and_bush_pack.glb",
@@ -1181,6 +1256,9 @@
     {
       "id": 26,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_4",
       "type": "model",
       "modelPath": "models/trees_and_bush_pack.glb",
@@ -1309,6 +1387,9 @@
     {
       "id": 27,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_5",
       "type": "model",
       "modelPath": "models/tree_cedar.obj",
@@ -1349,6 +1430,9 @@
     {
       "id": 28,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_6",
       "type": "model",
       "modelPath": "models/tree9.obj",
@@ -1397,6 +1481,9 @@
     {
       "id": 29,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_7",
       "type": "model",
       "modelPath": "models/tree_redwood.obj",
@@ -1437,6 +1524,9 @@
     {
       "id": 30,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_8",
       "type": "model",
       "modelPath": "models/tree9.obj",
@@ -1485,6 +1575,9 @@
     {
       "id": 31,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_9",
       "type": "model",
       "modelPath": "models/tree_pine.obj",
@@ -1525,6 +1618,9 @@
     {
       "id": 32,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_10",
       "type": "model",
       "modelPath": "models/tree_cedar.obj",
@@ -1565,6 +1661,9 @@
     {
       "id": 33,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Left_Forest_Tree_11",
       "type": "model",
       "modelPath": "models/trees_and_bush_pack.glb",
@@ -1693,6 +1792,9 @@
     {
       "id": 34,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_0",
       "type": "model",
       "modelPath": "models/tree_and_bush.glb",
@@ -1821,6 +1923,9 @@
     {
       "id": 35,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_1",
       "type": "model",
       "modelPath": "models/tree_and_bush.glb",
@@ -1949,6 +2054,9 @@
     {
       "id": 36,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_2",
       "type": "model",
       "modelPath": "models/tree_mossy.obj",
@@ -1989,6 +2097,9 @@
     {
       "id": 37,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_3",
       "type": "model",
       "modelPath": "models/tree_redwood.obj",
@@ -2029,6 +2140,9 @@
     {
       "id": 38,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_4",
       "type": "model",
       "modelPath": "models/tree_oak.obj",
@@ -2069,6 +2183,9 @@
     {
       "id": 39,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_5",
       "type": "model",
       "modelPath": "models/tree_cedar.obj",
@@ -2109,6 +2226,9 @@
     {
       "id": 40,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_6",
       "type": "model",
       "modelPath": "models/tree_redwood.obj",
@@ -2149,6 +2269,9 @@
     {
       "id": 41,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_7",
       "type": "model",
       "modelPath": "models/tree_and_bush.glb",
@@ -2277,6 +2400,9 @@
     {
       "id": 42,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_8",
       "type": "model",
       "modelPath": "models/tree_redwood.obj",
@@ -2317,6 +2443,9 @@
     {
       "id": 43,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_9",
       "type": "model",
       "modelPath": "models/tree9.obj",
@@ -2365,6 +2494,9 @@
     {
       "id": 44,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_10",
       "type": "model",
       "modelPath": "models/trees_and_bush_pack.glb",
@@ -2493,6 +2625,9 @@
     {
       "id": 45,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Right_Forest_Tree_11",
       "type": "model",
       "modelPath": "models/tree9.obj",
@@ -2541,6 +2676,9 @@
     {
       "id": 46,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_0",
       "type": "model",
       "modelPath": "models/tree9.obj",
@@ -2589,6 +2727,9 @@
     {
       "id": 47,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_1",
       "type": "model",
       "modelPath": "models/tree_cedar.obj",
@@ -2629,6 +2770,9 @@
     {
       "id": 48,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_2",
       "type": "model",
       "modelPath": "models/tree9.obj",
@@ -2677,6 +2821,9 @@
     {
       "id": 49,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_3",
       "type": "model",
       "modelPath": "models/trees_and_bush_pack.glb",
@@ -2805,6 +2952,9 @@
     {
       "id": 50,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_4",
       "type": "model",
       "modelPath": "models/tree_and_bush.glb",
@@ -2933,6 +3083,9 @@
     {
       "id": 51,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_5",
       "type": "model",
       "modelPath": "models/trees_and_bush_pack.glb",
@@ -3061,6 +3214,9 @@
     {
       "id": 52,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_6",
       "type": "model",
       "modelPath": "models/tree_cedar.obj",
@@ -3101,6 +3257,9 @@
     {
       "id": 53,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_7",
       "type": "model",
       "modelPath": "models/tree_cedar.obj",
@@ -3141,6 +3300,9 @@
     {
       "id": 54,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_8",
       "type": "model",
       "modelPath": "models/tree_oak.obj",
@@ -3181,6 +3343,9 @@
     {
       "id": 55,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_9",
       "type": "model",
       "modelPath": "models/tree_and_bush.glb",
@@ -3309,6 +3474,9 @@
     {
       "id": 56,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_10",
       "type": "model",
       "modelPath": "models/tree_and_bush.glb",
@@ -3437,6 +3605,9 @@
     {
       "id": 57,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_11",
       "type": "model",
       "modelPath": "models/tree_oak.obj",
@@ -3477,6 +3648,9 @@
     {
       "id": 58,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_12",
       "type": "model",
       "modelPath": "models/tree_mossy.obj",
@@ -3517,6 +3691,9 @@
     {
       "id": 59,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌲 Mountain_Ridge_Tree_13",
       "type": "model",
       "modelPath": "models/tree_mossy.obj",
@@ -3557,6 +3734,9 @@
     {
       "id": 60,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_0",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -3597,6 +3777,9 @@
     {
       "id": 61,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_1",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -3637,6 +3820,9 @@
     {
       "id": 62,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_2",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -3677,6 +3863,9 @@
     {
       "id": 63,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_3",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -3717,6 +3906,9 @@
     {
       "id": 64,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_4",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -3757,6 +3949,9 @@
     {
       "id": 65,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_5",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -3797,6 +3992,9 @@
     {
       "id": 66,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_6",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -3837,6 +4035,9 @@
     {
       "id": 67,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_7",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -3877,6 +4078,9 @@
     {
       "id": 68,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_8",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -3917,6 +4121,9 @@
     {
       "id": 69,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_9",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -3957,6 +4164,9 @@
     {
       "id": 70,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_10",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -3997,6 +4207,9 @@
     {
       "id": 71,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_11",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -4037,6 +4250,9 @@
     {
       "id": 72,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_12",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -4077,6 +4293,9 @@
     {
       "id": 73,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_13",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -4117,6 +4336,9 @@
     {
       "id": 74,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_14",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -4157,6 +4379,9 @@
     {
       "id": 75,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_15",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -4197,6 +4422,9 @@
     {
       "id": 76,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_16",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -4237,6 +4465,9 @@
     {
       "id": 77,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_17",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -4277,6 +4508,9 @@
     {
       "id": 78,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_18",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -4317,6 +4551,9 @@
     {
       "id": 79,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🌿 Meadow_Bush_19",
       "type": "model",
       "modelPath": "models/bush.glb",
@@ -4357,6 +4594,9 @@
     {
       "id": 80,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Boulder_0",
       "type": "model",
       "modelPath": "models/rock.glb",
@@ -4429,6 +4669,9 @@
     {
       "id": 81,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Stone_1",
       "type": "model",
       "modelPath": "models/stone.glb",
@@ -4501,6 +4744,9 @@
     {
       "id": 82,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Stone_2",
       "type": "model",
       "modelPath": "models/stone.glb",
@@ -4573,6 +4819,9 @@
     {
       "id": 83,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Boulder_3",
       "type": "model",
       "modelPath": "models/rock.glb",
@@ -4645,6 +4894,9 @@
     {
       "id": 84,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Stone_4",
       "type": "model",
       "modelPath": "models/stone.glb",
@@ -4717,6 +4969,9 @@
     {
       "id": 85,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Stone_5",
       "type": "model",
       "modelPath": "models/stone.glb",
@@ -4789,6 +5044,9 @@
     {
       "id": 86,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Boulder_6",
       "type": "model",
       "modelPath": "models/rock.glb",
@@ -4861,6 +5119,9 @@
     {
       "id": 87,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Stone_7",
       "type": "model",
       "modelPath": "models/stone.glb",
@@ -4933,6 +5194,9 @@
     {
       "id": 88,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Stone_8",
       "type": "model",
       "modelPath": "models/stone.glb",
@@ -5005,6 +5269,9 @@
     {
       "id": 89,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Boulder_9",
       "type": "model",
       "modelPath": "models/rock.glb",
@@ -5077,6 +5344,9 @@
     {
       "id": 90,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Stone_10",
       "type": "model",
       "modelPath": "models/stone.glb",
@@ -5149,6 +5419,9 @@
     {
       "id": 91,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Stone_11",
       "type": "model",
       "modelPath": "models/stone.glb",
@@ -5221,6 +5494,9 @@
     {
       "id": 92,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Boulder_12",
       "type": "model",
       "modelPath": "models/rock.glb",
@@ -5293,6 +5569,9 @@
     {
       "id": 93,
       "parentId": -1,
+      "parentBoneName": "",
+      "secondaryBoneName": "",
+      "enableTwoHandedAiming": false,
       "name": "🪨 Meadow_Stone_13",
       "type": "model",
       "modelPath": "models/stone.glb",

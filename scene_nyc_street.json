@@ -1,0 +1,811 @@
+# ShapeRenderer Scene File
+environment: NYC Street Scene
+# Camera Settings
+camera_scene: -0.5 1.5 -5.0 12 180 20
+camera_main: -0.5 1.62 15.0 -0.5 1.4 -5.0 60 0.1 500 0
+camera_photo_frame: 2.4 2 0 1
+scene_settings: -1 1 0 0 0
+
+object: ☀️ Sun Light (Main)
+id: 0
+parentId: -1
+type: 3
+position: 6 18 12
+rotation: 42 32 0
+scale: 0.5 0.5 0.5
+color: 1 0.96 0.88 1
+primitiveMesh: CUBE
+texture: none
+pbr: 1 0.5 0 1
+physics: 0
+hasRigidBody: 0
+light: 1 0.96 0.88 1 1.6
+luaScriptsCount: 0
+
+object: Street_Road_Asphalt
+id: 1
+parentId: -1
+type: 0
+position: 0.0 0.0 -5.0
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/street_road_asphalt.glb
+texture: none
+pbr: 1 0.85 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Sidewalk_Left_Curb
+id: 2
+parentId: -1
+type: 0
+position: -6.5 0.09 -5.0
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/sidewalk_curb.glb
+texture: none
+pbr: 1 0.75 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Sidewalk_Right_Curb
+id: 3
+parentId: -1
+type: 0
+position: 6.5 0.09 -5.0
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/sidewalk_curb.glb
+texture: none
+pbr: 1 0.75 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Waterfront_Pier_Promenade
+id: 4
+parentId: -1
+type: 0
+position: 0.0 0.09 -26.0
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/waterfront_pier.glb
+texture: none
+pbr: 1 0.75 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Waterfront_Pier_Railing
+id: 5
+parentId: -1
+type: 0
+position: 0.0 0.0 -27.8
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/waterfront_railing.glb
+texture: none
+pbr: 1 0.4 0.8 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_Taxi_4W92
+id: 6
+parentId: -1
+type: 0
+position: -2.2 0.0 6.0
+rotation: 0.0 180.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_taxi.glb
+texture: none
+pbr: 1 0.25 0.1 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYPD_Cruiser_1_Echo
+id: 7
+parentId: -1
+type: 0
+position: -1.6 0.0 -3.6
+rotation: 0.0 20.05 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nypd_cruiser.glb
+texture: none
+pbr: 1 0.25 0.1 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYPD_Cruiser_2_Bravo
+id: 8
+parentId: -1
+type: 0
+position: 2.0 0.0 -7.8
+rotation: 0.0 -17.19 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nypd_cruiser.glb
+texture: none
+pbr: 1 0.25 0.1 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYPD_Barricade_1
+id: 9
+parentId: -1
+type: 0
+position: 0.8 0.0 0.4
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nypd_barricade.glb
+texture: none
+pbr: 1 0.65 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYPD_Barricade_2
+id: 10
+parentId: -1
+type: 0
+position: 3.0 0.0 0.4
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nypd_barricade.glb
+texture: none
+pbr: 1 0.65 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYPD_Police_Cordon_Tape
+id: 11
+parentId: -1
+type: 0
+position: 1.04 0.0 1.19
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/police_cordon_tape.glb
+texture: none
+pbr: 1 0.35 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Police_TrafficCone_1
+id: 12
+parentId: -1
+type: 0
+position: -3.9 0.38 1.5
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/police_traffic_cone.glb
+texture: none
+pbr: 1 0.45 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Police_TrafficCone_2
+id: 13
+parentId: -1
+type: 0
+position: -2.6 0.38 1.5
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/police_traffic_cone.glb
+texture: none
+pbr: 1 0.45 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Police_TrafficCone_3
+id: 14
+parentId: -1
+type: 0
+position: -1.3 0.38 1.5
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/police_traffic_cone.glb
+texture: none
+pbr: 1 0.45 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Police_TrafficCone_4
+id: 15
+parentId: -1
+type: 0
+position: 0.0 0.38 1.5
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/police_traffic_cone.glb
+texture: none
+pbr: 1 0.45 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Police_TrafficCone_5
+id: 16
+parentId: -1
+type: 0
+position: 1.3 0.38 1.5
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/police_traffic_cone.glb
+texture: none
+pbr: 1 0.45 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Police_TrafficCone_6
+id: 17
+parentId: -1
+type: 0
+position: 2.6 0.38 1.5
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/police_traffic_cone.glb
+texture: none
+pbr: 1 0.45 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Police_TrafficCone_7
+id: 18
+parentId: -1
+type: 0
+position: 3.9 0.38 1.5
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/police_traffic_cone.glb
+texture: none
+pbr: 1 0.45 0.05 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_FireHydrant
+id: 19
+parentId: -1
+type: 0
+position: -4.85 0.18 6.5
+rotation: 0.0 90.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_fire_hydrant.glb
+texture: none
+pbr: 1 0.45 0.6 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_BusStop_Shelter
+id: 20
+parentId: -1
+type: 0
+position: 5.5 0.18 -2.5
+rotation: 0.0 180.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_bus_stop_shelter.glb
+texture: none
+pbr: 1 0.35 0.4 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_NewsBox_VarA
+id: 21
+parentId: -1
+type: 0
+position: -4.88 0.18 4.9
+rotation: 0.0 90.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_newsbox_a.glb
+texture: none
+pbr: 1 0.45 0.5 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_NewsBox_VarB
+id: 22
+parentId: -1
+type: 0
+position: -4.88 0.18 4.2
+rotation: 0.0 90.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_newsbox_b.glb
+texture: none
+pbr: 1 0.45 0.5 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_StreetSign_Left
+id: 23
+parentId: -1
+type: 0
+position: -4.85 0.18 1.8
+rotation: 0.0 45.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_street_sign.glb
+texture: none
+pbr: 1 0.45 0.5 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_StreetSign_Right
+id: 24
+parentId: -1
+type: 0
+position: 5.39 0.18 1.8
+rotation: 0.0 -45.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_street_sign.glb
+texture: none
+pbr: 1 0.45 0.5 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_Manhole_Cover
+id: 25
+parentId: -1
+type: 0
+position: -1.8 0.0 7.2
+rotation: 0.0 15.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_manhole_cover.glb
+texture: none
+pbr: 1 0.7 0.8 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_SewerGrate_Left
+id: 26
+parentId: -1
+type: 0
+position: -4.42 0.0 5.5
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_sewer_grate.glb
+texture: none
+pbr: 1 0.7 0.8 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_StreetTree_1
+id: 27
+parentId: -1
+type: 0
+position: -6.2 0.18 9.5
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_street_tree.glb
+texture: none
+pbr: 1 0.7 0.02 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_StreetTree_2
+id: 28
+parentId: -1
+type: 0
+position: -6.2 0.18 -2.5
+rotation: 0.0 120.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_street_tree.glb
+texture: none
+pbr: 1 0.7 0.02 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_StreetTree_3
+id: 29
+parentId: -1
+type: 0
+position: -6.2 0.18 -14.5
+rotation: 0.0 240.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_street_tree.glb
+texture: none
+pbr: 1 0.7 0.02 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_StreetTree_4
+id: 30
+parentId: -1
+type: 0
+position: 6.2 0.18 -8.5
+rotation: 0.0 45.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_street_tree.glb
+texture: none
+pbr: 1 0.7 0.02 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_StreetTree_5
+id: 31
+parentId: -1
+type: 0
+position: 6.2 0.18 -15.5
+rotation: 0.0 180.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_street_tree.glb
+texture: none
+pbr: 1 0.7 0.02 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_Lamppost_Left_1
+id: 32
+parentId: -1
+type: 0
+position: -4.0 0.18 11.0
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_lamppost.glb
+texture: none
+pbr: 1 0.35 0.7 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_Lamppost_Left_2
+id: 33
+parentId: -1
+type: 0
+position: -4.0 0.18 -7.0
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_lamppost.glb
+texture: none
+pbr: 1 0.35 0.7 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_Lamppost_Right_1
+id: 34
+parentId: -1
+type: 0
+position: 4.0 0.18 7.5
+rotation: 0.0 180.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_lamppost.glb
+texture: none
+pbr: 1 0.35 0.7 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NYC_Lamppost_Right_2
+id: 35
+parentId: -1
+type: 0
+position: 4.85 0.18 -12.0
+rotation: 0.0 180.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/nyc_lamppost.glb
+texture: none
+pbr: 1 0.35 0.7 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Building_Left_Front
+id: 36
+parentId: -1
+type: 0
+position: -10.0 0.18 12.0
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/building_left_near.glb
+texture: none
+pbr: 1 0.5 0.0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Building_Left_Back
+id: 37
+parentId: -1
+type: 0
+position: -10.0 0.18 -12.0
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/building_left_far.glb
+texture: none
+pbr: 1 0.5 0.0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Building_Right_Front
+id: 38
+parentId: -1
+type: 0
+position: 10.0 0.18 12.0
+rotation: 0.0 180.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/building_right_near.glb
+texture: none
+pbr: 1 0.5 0.0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Building_Right_Mid
+id: 39
+parentId: -1
+type: 0
+position: 10.0 0.18 -12.0
+rotation: 0.0 180.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/building_right_near.glb
+texture: none
+pbr: 1 0.5 0.0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Building_Right_Far
+id: 40
+parentId: -1
+type: 0
+position: 10.0 0.18 -36.0
+rotation: 0.0 180.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/building_right_far.glb
+texture: none
+pbr: 1 0.5 0.0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Bld_Right_Depth_MidRise
+id: 41
+parentId: -1
+type: 0
+position: 45.0 0.18 -26.0
+rotation: 0.0 180.0 0.0
+scale: 1.2 1.2 1.2
+color: 1 1 1 1
+model: assets/models/nyc_street/building_depth_midrise.glb
+texture: none
+pbr: 1 0.5 0.0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Bld_Right_Depth_Small
+id: 42
+parentId: -1
+type: 0
+position: 45.0 0.18 -44.0
+rotation: 0.0 180.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/building_depth_small.glb
+texture: none
+pbr: 1 0.5 0.0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: Bld_Right_Depth_Tower
+id: 43
+parentId: -1
+type: 0
+position: 45.0 0.18 -8.0
+rotation: 0.0 90.0 0.0
+scale: 0.7 0.7 0.7
+color: 1 1 1 1
+model: assets/models/nyc_street/building_depth_tower.glb
+texture: none
+pbr: 1 0.5 0.0 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: NewYork_Manhattan_Skyline
+id: 44
+parentId: -1
+type: 0
+position: 0.0 0.0 0.0
+rotation: 0.0 0.0 0.0
+scale: 1.0 1.0 1.0
+color: 1 1 1 1
+model: assets/models/nyc_street/background_manhattan.glb
+texture: none
+pbr: 1 0.8 0.1 1
+physics: 0
+hasRigidBody: 0
+luaScriptsCount: 0
+
+object: 💡 Lamppost_Light_1
+id: 45
+parentId: -1
+type: 3
+position: -4.0 4.18 11.0
+rotation: 0 0 0
+scale: 0.2 0.2 0.2
+color: 1.0 0.9 0.75 1.0
+primitiveMesh: SPHERE
+texture: none
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+light: 1.0 0.9 0.75 1.0 2.5
+luaScriptsCount: 0
+
+object: 💡 Lamppost_Light_2
+id: 46
+parentId: -1
+type: 3
+position: -4.0 4.18 -7.0
+rotation: 0 0 0
+scale: 0.2 0.2 0.2
+color: 1.0 0.9 0.75 1.0
+primitiveMesh: SPHERE
+texture: none
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+light: 1.0 0.9 0.75 1.0 2.5
+luaScriptsCount: 0
+
+object: 💡 Lamppost_Light_3
+id: 47
+parentId: -1
+type: 3
+position: 4.0 4.18 7.5
+rotation: 0 0 0
+scale: 0.2 0.2 0.2
+color: 1.0 0.9 0.75 1.0
+primitiveMesh: SPHERE
+texture: none
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+light: 1.0 0.9 0.75 1.0 2.5
+luaScriptsCount: 0
+
+object: 💡 Lamppost_Light_4
+id: 48
+parentId: -1
+type: 3
+position: 4.0 4.18 -12.0
+rotation: 0 0 0
+scale: 0.2 0.2 0.2
+color: 1.0 0.9 0.75 1.0
+primitiveMesh: SPHERE
+texture: none
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+light: 1.0 0.9 0.75 1.0 2.5
+luaScriptsCount: 0
+
+object: 💡 Police_1_Red
+id: 49
+parentId: -1
+type: 3
+position: -1.85 1.95 -3.2
+rotation: 0 0 0
+scale: 0.2 0.2 0.2
+color: 1.0 0.05 0.05 1.0
+primitiveMesh: SPHERE
+texture: none
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+light: 1.0 0.05 0.05 1.0 3.5
+luaScriptsCount: 0
+
+object: 💡 Police_1_Blue
+id: 50
+parentId: -1
+type: 3
+position: -1.35 1.95 -3.2
+rotation: 0 0 0
+scale: 0.2 0.2 0.2
+color: 0.05 0.25 1.0 1.0
+primitiveMesh: SPHERE
+texture: none
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+light: 0.05 0.25 1.0 1.0 3.5
+luaScriptsCount: 0
+
+object: 💡 Police_2_Red
+id: 51
+parentId: -1
+type: 3
+position: 1.75 1.95 -7.4
+rotation: 0 0 0
+scale: 0.2 0.2 0.2
+color: 1.0 0.05 0.05 1.0
+primitiveMesh: SPHERE
+texture: none
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+light: 1.0 0.05 0.05 1.0 3.5
+luaScriptsCount: 0
+
+object: 💡 Police_2_Blue
+id: 52
+parentId: -1
+type: 3
+position: 2.25 1.95 -7.4
+rotation: 0 0 0
+scale: 0.2 0.2 0.2
+color: 0.05 0.25 1.0 1.0
+primitiveMesh: SPHERE
+texture: none
+pbr: 1 0.05 0 1
+physics: 0
+hasRigidBody: 0
+light: 0.05 0.25 1.0 1.0 3.5
+luaScriptsCount: 0

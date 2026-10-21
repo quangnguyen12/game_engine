@@ -631,7 +631,7 @@ rotation: 0 10 0
 scale: 1 1 1
 color: 1 1 1 1
 model: assets/models/IPSC_Metric_Target.obj
-texture: assets/models/Bark___0.jpg
+texture: assets/models/warehouse.png
 pbr: 1 0.5 0 1
 physics: 0
 hasRigidBody: 0
@@ -646,7 +646,7 @@ rotation: 0 -15 0
 scale: 1 1 1
 color: 1 1 1 1
 model: assets/models/IPSC_Metric_Target.obj
-texture: assets/models/Bark___0.jpg
+texture: assets/models/warehouse.png
 pbr: 1 0.5 0 1
 physics: 0
 hasRigidBody: 0
@@ -661,7 +661,7 @@ rotation: 0 0 0
 scale: 1 1 1
 color: 1 1 1 1
 model: assets/models/IPSC_Metric_Target.obj
-texture: assets/models/Bark___0.jpg
+texture: assets/models/warehouse.png
 pbr: 1 0.5 0 1
 physics: 0
 hasRigidBody: 0
@@ -676,7 +676,7 @@ rotation: 0 0 0
 scale: 1 1 1
 color: 0.92 0.95 0.98 1
 model: assets/models/Pepper_Popper.obj
-texture: assets/models/Bark___0.jpg
+texture: none
 pbr: 1 0.4 0.8 1
 physics: 0
 hasRigidBody: 0
@@ -691,7 +691,7 @@ rotation: 0 0 0
 scale: 1 1 1
 color: 0.92 0.95 0.98 1
 model: assets/models/Pepper_Popper.obj
-texture: assets/models/Bark___0.jpg
+texture: none
 pbr: 1 0.4 0.8 1
 physics: 0
 hasRigidBody: 0

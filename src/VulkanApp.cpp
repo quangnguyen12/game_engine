@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <vector>
 #include <glm/gtc/matrix_transform.hpp>
+#include "editor/SceneGenerator.h"
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -68,15 +69,35 @@ void VulkanApp::initEngine()
 
 void VulkanApp::initializeDefaultScene()
 {
-    int groundTexId = assetManager.getOrLoadTextureAsset("assets/grass.jpg");
-    scene.initializeDefaultScene(
-        assetManager.getCubeMeshId(),
-        assetManager.getSphereMeshId(),
-        assetManager.getPlaneMeshId(),
-        groundTexId,
-        &physEngine
-    );
-    gizmoSystem.frameScenicPhotoView(scene, 0);
+    std::string defaultPath = "scene.json";
+    if (!std::filesystem::exists(defaultPath))
+    {
+        std::vector<std::string> candidates = {
+            "build/Release/scene.json",
+            "dist/UnityHub3D_Vulkan/scene.json",
+            "../scene.json",
+            "../../scene.json"
+        };
+        for (const auto& c : candidates)
+        {
+            if (std::filesystem::exists(c))
+            {
+                defaultPath = c;
+                break;
+            }
+        }
+    }
+
+    if (std::filesystem::exists(defaultPath))
+    {
+        scene.loadScene(defaultPath, &assetManager, assetManager.getCubeMeshId(), assetManager.getSphereMeshId(), assetManager.getPlaneMeshId(), &gizmoSystem, &renderer, &physEngine);
+        return;
+    }
+
+    // Default fallback: Clean scene with a white plane
+    printf("[VulkanApp] Initializing default scene with a white plane...\n");
+    scene.initializeDefaultScene(assetManager.getCubeMeshId(), assetManager.getSphereMeshId(), assetManager.getPlaneMeshId(), -1, &physEngine);
+    scene.saveScene("scene.json", &assetManager, &gizmoSystem, &renderer);
 }
 
 void VulkanApp::updateWindowTitle()
@@ -163,6 +184,9 @@ static void terminateProcessTreeHelper(DWORD pid)
 
 void VulkanApp::update(float deltaTime)
 {
+    float dt = (deltaTime > 0.1f) ? 0.1f : deltaTime;
+    scene.updateAnimations(dt);
+
     if (mode == AppMode::PLAY)
     {
 #ifdef _WIN32
@@ -233,7 +257,7 @@ void VulkanApp::update(float deltaTime)
 void VulkanApp::render()
 {
     CameraData sceneCam;
-    sceneCam.proj = glm::perspective(glm::radians(45.0f), (float)VulkanRenderer::WIDTH / (float)VulkanRenderer::HEIGHT, 0.1f, 100.0f);
+    sceneCam.proj = glm::perspective(glm::radians(45.0f), (float)VulkanRenderer::WIDTH / (float)VulkanRenderer::HEIGHT, 0.1f, 500.0f);
     sceneCam.proj[1][1] *= -1;
 
     glm::vec3 offset(
@@ -285,7 +309,8 @@ void VulkanApp::render()
             },
             // onResetScene
             [this]() {
-                initializeDefaultScene();
+                scene.initializeDefaultScene(assetManager.getCubeMeshId(), assetManager.getSphereMeshId(), assetManager.getPlaneMeshId(), -1, &physEngine);
+                scene.saveScene("scene.json", &assetManager, &gizmoSystem, &renderer);
                 gameScore = 0;
             },
             // onSaveScene
@@ -296,11 +321,6 @@ void VulkanApp::render()
                     targetPath = Scene::getEnvironmentFileName(scene.getCurrentEnvironmentName());
                 }
                 scene.saveScene(targetPath, &assetManager, &gizmoSystem, &renderer);
-                if (targetPath != "scene.json")
-                {
-                    scene.saveScene("scene.json", &assetManager, &gizmoSystem, &renderer);
-                    scene.setCurrentScenePath(targetPath);
-                }
             },
             // onLoadScene
             [this]() {

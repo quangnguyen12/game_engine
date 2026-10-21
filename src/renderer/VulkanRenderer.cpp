@@ -88,6 +88,7 @@ void VulkanRenderer::init(GLFWwindow* win)
     createImageViews();
     createRenderPass();
     createDescriptorSetLayout();
+    createBoneDescriptorSetLayout();
     createGraphicsPipeline();
     createCommandPool();
     createDepthResources();
@@ -95,6 +96,7 @@ void VulkanRenderer::init(GLFWwindow* win)
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
+    createBoneResources();
     createCommandBuffers();
     createSyncObjects();
 
@@ -521,6 +523,131 @@ void VulkanRenderer::createDescriptorSetLayout()
     }
 }
 
+void VulkanRenderer::createBoneDescriptorSetLayout()
+{
+    VkDescriptorSetLayoutBinding boneLayoutBinding{};
+    boneLayoutBinding.binding = 0;
+    boneLayoutBinding.descriptorCount = 1;
+    boneLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    boneLayoutBinding.pImmutableSamplers = nullptr;
+    boneLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &boneLayoutBinding;
+
+    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &boneSetLayout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create bone descriptor set layout!");
+    }
+}
+
+struct BoneBufferObject {
+    glm::mat4 bones[128];
+    int isSkinned = 0;
+    int pad[3] = {0, 0, 0};
+};
+
+void VulkanRenderer::createBoneResources()
+{
+    // 1. Default Bone Buffer (Static objects)
+    createBuffer(sizeof(BoneBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 defaultBoneBuffer, defaultBoneBufferMemory);
+
+    BoneBufferObject defBbo{};
+    for (int i = 0; i < 128; ++i) defBbo.bones[i] = glm::mat4(1.0f);
+    defBbo.isSkinned = 0;
+
+    void* data = nullptr;
+    vkMapMemory(device, defaultBoneBufferMemory, 0, sizeof(BoneBufferObject), 0, &data);
+    memcpy(data, &defBbo, sizeof(BoneBufferObject));
+    vkUnmapMemory(device, defaultBoneBufferMemory);
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &boneSetLayout;
+
+    if (vkAllocateDescriptorSets(device, &allocInfo, &defaultBoneDescriptorSet) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to allocate default bone descriptor set!");
+    }
+
+    VkDescriptorBufferInfo bufferInfo{ defaultBoneBuffer, 0, sizeof(BoneBufferObject) };
+    VkWriteDescriptorSet dw{};
+    dw.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    dw.dstSet = defaultBoneDescriptorSet;
+    dw.dstBinding = 0;
+    dw.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    dw.descriptorCount = 1;
+    dw.pBufferInfo = &bufferInfo;
+    vkUpdateDescriptorSets(device, 1, &dw, 0, nullptr);
+
+    // 2. Instance Bone Buffers for Skinned Meshes
+    for (size_t f = 0; f < MAX_FRAMES_IN_FLIGHT; ++f) {
+        for (size_t s = 0; s < MAX_SKINNED_OBJECTS; ++s) {
+            createBuffer(sizeof(BoneBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                         instanceBoneBuffers[f][s], instanceBoneBufferMemories[f][s]);
+
+            void* instData = nullptr;
+            vkMapMemory(device, instanceBoneBufferMemories[f][s], 0, sizeof(BoneBufferObject), 0, &instData);
+            memcpy(instData, &defBbo, sizeof(BoneBufferObject));
+            vkUnmapMemory(device, instanceBoneBufferMemories[f][s]);
+
+            VkDescriptorSetAllocateInfo instAlloc{};
+            instAlloc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            instAlloc.descriptorPool = descriptorPool;
+            instAlloc.descriptorSetCount = 1;
+            instAlloc.pSetLayouts = &boneSetLayout;
+
+            if (vkAllocateDescriptorSets(device, &instAlloc, &instanceBoneDescriptorSets[f][s]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to allocate instance bone descriptor set!");
+            }
+
+            VkDescriptorBufferInfo instBufInfo{ instanceBoneBuffers[f][s], 0, sizeof(BoneBufferObject) };
+            VkWriteDescriptorSet instDw{};
+            instDw.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            instDw.dstSet = instanceBoneDescriptorSets[f][s];
+            instDw.dstBinding = 0;
+            instDw.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            instDw.descriptorCount = 1;
+            instDw.pBufferInfo = &instBufInfo;
+            vkUpdateDescriptorSets(device, 1, &instDw, 0, nullptr);
+        }
+    }
+}
+
+void VulkanRenderer::cleanupBoneResources()
+{
+    for (size_t f = 0; f < MAX_FRAMES_IN_FLIGHT; ++f) {
+        for (size_t s = 0; s < MAX_SKINNED_OBJECTS; ++s) {
+            if (instanceBoneBuffers[f][s] != VK_NULL_HANDLE) {
+                vkDestroyBuffer(device, instanceBoneBuffers[f][s], nullptr);
+                instanceBoneBuffers[f][s] = VK_NULL_HANDLE;
+            }
+            if (instanceBoneBufferMemories[f][s] != VK_NULL_HANDLE) {
+                vkFreeMemory(device, instanceBoneBufferMemories[f][s], nullptr);
+                instanceBoneBufferMemories[f][s] = VK_NULL_HANDLE;
+            }
+        }
+    }
+    if (defaultBoneBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, defaultBoneBuffer, nullptr);
+        defaultBoneBuffer = VK_NULL_HANDLE;
+    }
+    if (defaultBoneBufferMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, defaultBoneBufferMemory, nullptr);
+        defaultBoneBufferMemory = VK_NULL_HANDLE;
+    }
+    if (boneSetLayout != VK_NULL_HANDLE) {
+        vkDestroyDescriptorSetLayout(device, boneSetLayout, nullptr);
+        boneSetLayout = VK_NULL_HANDLE;
+    }
+}
+
 void VulkanRenderer::createGraphicsPipeline()
 {
     std::vector<char> vertShaderCode;
@@ -633,7 +760,7 @@ void VulkanRenderer::createGraphicsPipeline()
     pushConstantRange.offset = 0;
     pushConstantRange.size = sizeof(PushConstants);
 
-    std::array<VkDescriptorSetLayout, 2> setLayouts = { uboSetLayout, textureSetLayout };
+    std::array<VkDescriptorSetLayout, 3> setLayouts = { uboSetLayout, textureSetLayout, boneSetLayout };
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1016,7 +1143,7 @@ void VulkanRenderer::createDescriptorPool()
 {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2;
+    poolSizes[0].descriptorCount = 500;
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[1].descriptorCount = 1000;
 
@@ -1024,7 +1151,7 @@ void VulkanRenderer::createDescriptorPool()
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2 + 1000;
+    poolInfo.maxSets = 2000;
 
     if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
     {
@@ -1424,10 +1551,12 @@ void VulkanRenderer::createShadowPipeline()
     pushConstantRange[0].offset = 0;
     pushConstantRange[0].size = sizeof(glm::mat4);
 
+    std::array<VkDescriptorSetLayout, 2> shadowSetLayouts = { uboSetLayout, boneSetLayout };
+
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &uboSetLayout;
+    pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(shadowSetLayouts.size());
+    pipelineLayoutInfo.pSetLayouts = shadowSetLayouts.data();
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = pushConstantRange.data();
 
@@ -1552,6 +1681,33 @@ void VulkanRenderer::drawFrame(const Scene& scene, const AssetManager& assetMana
     const auto& textures = assetManager.getTextures();
     const auto& defaultTexture = assetManager.getDefaultTexture();
 
+    // 0. Update Bone Uniform Buffers for Animated / Skinned Objects
+    std::unordered_map<int, VkDescriptorSet> objectBoneDescriptorSets;
+    uint32_t skinnedCount = 0;
+    for (size_t i = 0; i < sceneObjects.size(); ++i) {
+        if (auto anim = sceneObjects[i].getAnimator()) {
+            if (skinnedCount < MAX_SKINNED_OBJECTS) {
+                BoneBufferObject bbo{};
+                size_t bCount = std::min(anim->finalBoneMatrices.size(), static_cast<size_t>(128));
+                for (size_t b = 0; b < bCount; ++b) {
+                    bbo.bones[b] = anim->finalBoneMatrices[b];
+                }
+                for (size_t b = bCount; b < 128; ++b) {
+                    bbo.bones[b] = glm::mat4(1.0f);
+                }
+                bbo.isSkinned = 1;
+
+                void* data = nullptr;
+                vkMapMemory(device, instanceBoneBufferMemories[currentFrame][skinnedCount], 0, sizeof(BoneBufferObject), 0, &data);
+                memcpy(data, &bbo, sizeof(BoneBufferObject));
+                vkUnmapMemory(device, instanceBoneBufferMemories[currentFrame][skinnedCount]);
+
+                objectBoneDescriptorSets[static_cast<int>(i)] = instanceBoneDescriptorSets[currentFrame][skinnedCount];
+                skinnedCount++;
+            }
+        }
+    }
+
     // 0. Shadow Pass
     VkRenderPassBeginInfo shadowPassInfo{};
     shadowPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1591,6 +1747,11 @@ void VulkanRenderer::drawFrame(const Scene& scene, const AssetManager& assetMana
             if (obj.meshId >= 0 && obj.meshId < static_cast<int>(meshes.size())) {
                 glm::mat4 model = scene.getWorldMatrix(static_cast<int>(i));
                 vkCmdPushConstants(commandBuffers[currentFrame], shadowPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &model);
+
+                VkDescriptorSet boneSet = defaultBoneDescriptorSet;
+                auto itBone = objectBoneDescriptorSets.find(static_cast<int>(i));
+                if (itBone != objectBoneDescriptorSets.end()) boneSet = itBone->second;
+                vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPipelineLayout, 1, 1, &boneSet, 0, nullptr);
 
                 VkBuffer vertexBuffers[] = {meshes[obj.meshId].vertexBuffer};
                 VkDeviceSize offsets[] = {0};
@@ -1645,6 +1806,11 @@ void VulkanRenderer::drawFrame(const Scene& scene, const AssetManager& assetMana
         vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, vertexBuffers, offsets);
         vkCmdBindIndexBuffer(commandBuffers[currentFrame], currentMesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
+        VkDescriptorSet boneSet = defaultBoneDescriptorSet;
+        auto itBone = objectBoneDescriptorSets.find(static_cast<int>(i));
+        if (itBone != objectBoneDescriptorSets.end()) boneSet = itBone->second;
+        vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 2, 1, &boneSet, 0, nullptr);
+
         if (currentMesh.submeshes.empty()) {
             PushConstants push{};
             push.model = scene.getWorldMatrix(static_cast<int>(i));
@@ -1660,6 +1826,11 @@ void VulkanRenderer::drawFrame(const Scene& scene, const AssetManager& assetMana
             vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texSet, 0, nullptr);
             vkCmdDrawIndexed(commandBuffers[currentFrame], currentMesh.indexCount, 1, 0, 0, 0);
         } else {
+            bool allSubmeshesUntextured = true;
+            for (const auto& sm : currentMesh.submeshes) {
+                if (sm.textureId >= 0) { allSubmeshesUntextured = false; break; }
+            }
+
             for (const auto& sub : currentMesh.submeshes) {
                 bool isSubFoliage = currentMesh.submeshes.empty() ? isMeshFoliage : sub.isFoliage;
                 float subRoughness = sub.roughness > 0.0f ? sub.roughness : sceneObjects[i].roughness;
@@ -1673,10 +1844,9 @@ void VulkanRenderer::drawFrame(const Scene& scene, const AssetManager& assetMana
                 vkCmdPushConstants(commandBuffers[currentFrame], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &subPush);
 
                 int activeTexId = sub.textureId;
-                if (sceneObjects[i].textureId >= 0 && sceneObjects[i].textureId != currentMesh.defaultTextureId) {
-                    activeTexId = sceneObjects[i].textureId;
+                if (currentMesh.submeshes.size() <= 1 || allSubmeshesUntextured) {
+                    activeTexId = sceneObjects[i].textureId >= 0 ? sceneObjects[i].textureId : currentMesh.defaultTextureId;
                 }
-                if (activeTexId < 0) activeTexId = currentMesh.defaultTextureId;
                 VkDescriptorSet texSet = defaultTexture.descriptorSet;
                 if (activeTexId >= 0 && activeTexId < static_cast<int>(textures.size())) {
                     texSet = textures[activeTexId].descriptorSet;
@@ -1719,6 +1889,11 @@ void VulkanRenderer::drawFrame(const Scene& scene, const AssetManager& assetMana
         vkCmdBindVertexBuffers(commandBuffers[currentFrame], 0, 1, vbs, offs);
         vkCmdBindIndexBuffer(commandBuffers[currentFrame], currentMesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
+        VkDescriptorSet boneSet = defaultBoneDescriptorSet;
+        auto itBone = objectBoneDescriptorSets.find(static_cast<int>(i));
+        if (itBone != objectBoneDescriptorSets.end()) boneSet = itBone->second;
+        vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 2, 1, &boneSet, 0, nullptr);
+
         if (currentMesh.submeshes.empty()) {
             PushConstants push{};
             push.model = scene.getWorldMatrix(static_cast<int>(i));
@@ -1734,6 +1909,11 @@ void VulkanRenderer::drawFrame(const Scene& scene, const AssetManager& assetMana
             vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texSet, 0, nullptr);
             vkCmdDrawIndexed(commandBuffers[currentFrame], currentMesh.indexCount, 1, 0, 0, 0);
         } else {
+            bool allSubmeshesUntextured = true;
+            for (const auto& sm : currentMesh.submeshes) {
+                if (sm.textureId >= 0) { allSubmeshesUntextured = false; break; }
+            }
+
             for (const auto& sub : currentMesh.submeshes) {
                 bool isSubFoliage = currentMesh.submeshes.empty() ? isMeshFoliage : sub.isFoliage;
                 float subRoughness = sub.roughness > 0.0f ? sub.roughness : sceneObjects[i].roughness;
@@ -1747,10 +1927,9 @@ void VulkanRenderer::drawFrame(const Scene& scene, const AssetManager& assetMana
                 vkCmdPushConstants(commandBuffers[currentFrame], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &subPush);
 
                 int activeTexId = sub.textureId;
-                if (sceneObjects[i].textureId >= 0 && sceneObjects[i].textureId != currentMesh.defaultTextureId) {
-                    activeTexId = sceneObjects[i].textureId;
+                if (currentMesh.submeshes.size() <= 1 || allSubmeshesUntextured) {
+                    activeTexId = sceneObjects[i].textureId >= 0 ? sceneObjects[i].textureId : currentMesh.defaultTextureId;
                 }
-                if (activeTexId < 0) activeTexId = currentMesh.defaultTextureId;
                 VkDescriptorSet texSet = defaultTexture.descriptorSet;
                 if (activeTexId >= 0 && activeTexId < static_cast<int>(textures.size())) {
                     texSet = textures[activeTexId].descriptorSet;
@@ -1898,6 +2077,7 @@ void VulkanRenderer::cleanup()
     if (descriptorPool != VK_NULL_HANDLE) vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     if (uboSetLayout != VK_NULL_HANDLE) vkDestroyDescriptorSetLayout(device, uboSetLayout, nullptr);
     if (textureSetLayout != VK_NULL_HANDLE) vkDestroyDescriptorSetLayout(device, textureSetLayout, nullptr);
+    cleanupBoneResources();
 
     // Game view resources
     if (gameFramebuffer != VK_NULL_HANDLE) vkDestroyFramebuffer(device, gameFramebuffer, nullptr);

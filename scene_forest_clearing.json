@@ -47,7 +47,7 @@ scale: 1 1 1
 color: 1 1 1 1
 model: assets/models/log_pile.glb
 texture: assets/models/log_pile.glb#img0
-pbr: 1 1 1 1
+pbr: 1 1 0 1
 physics: 0
 hasRigidBody: 0
 luaScriptsCount: 0
@@ -62,7 +62,7 @@ scale: 1 1 1
 color: 1 1 1 1
 model: assets/models/log_pile.glb
 texture: assets/models/log_pile.glb#img0
-pbr: 1 1 1 1
+pbr: 1 1 0 1
 physics: 0
 hasRigidBody: 0
 luaScriptsCount: 0
@@ -77,7 +77,7 @@ scale: 1 1 1
 color: 1 1 1 1
 model: assets/models/log_pile.glb
 texture: assets/models/log_pile.glb#img0
-pbr: 1 1 1 1
+pbr: 1 1 0 1
 physics: 0
 hasRigidBody: 0
 luaScriptsCount: 0
@@ -92,7 +92,7 @@ scale: 1 1 1
 color: 1 1 1 1
 model: assets/models/log_pile.glb
 texture: assets/models/log_pile.glb#img0
-pbr: 1 1 1 1
+pbr: 1 1 0 1
 physics: 0
 hasRigidBody: 0
 luaScriptsCount: 0
@@ -241,7 +241,7 @@ rotation: 0 175 0
 scale: 1 1 1
 color: 1 1 1 1
 model: assets/models/IPSC_Metric_Target.obj
-texture: assets/models/Bark___0.jpg
+texture: none
 pbr: 1 0.5 0 1
 physics: 0
 hasRigidBody: 0
@@ -256,7 +256,7 @@ rotation: 0 185 0
 scale: 1 1 1
 color: 1 1 1 1
 model: assets/models/IPSC_Metric_Target.obj
-texture: assets/models/Bark___0.jpg
+texture: none
 pbr: 1 0.5 0 1
 physics: 0
 hasRigidBody: 0
@@ -271,7 +271,7 @@ rotation: 0 165 0
 scale: 1 1 1
 color: 0.92 0.95 0.98 1
 model: assets/models/Pepper_Popper.obj
-texture: assets/models/Bark___0.jpg
+texture: none
 pbr: 1 0.35 0.85 1
 physics: 0
 hasRigidBody: 0
@@ -286,7 +286,7 @@ rotation: 0 195 0
 scale: 1 1 1
 color: 0.92 0.95 0.98 1
 model: assets/models/Pepper_Popper.obj
-texture: assets/models/Bark___0.jpg
+texture: none
 pbr: 1 0.35 0.85 1
 physics: 0
 hasRigidBody: 0
@@ -301,7 +301,7 @@ rotation: 0 180 0
 scale: 1 1 1
 color: 0.95 0.95 0.95 1
 model: assets/models/Plate_A.obj
-texture: assets/models/Bark___0.jpg
+texture: none
 pbr: 1 0.35 0.85 1
 physics: 0
 hasRigidBody: 0
@@ -316,7 +316,7 @@ rotation: 0 180 0
 scale: 1 1 1
 color: 0.95 0.95 0.95 1
 model: assets/models/Plate_A.obj
-texture: assets/models/Bark___0.jpg
+texture: none
 pbr: 1 0.35 0.85 1
 physics: 0
 hasRigidBody: 0
@@ -331,7 +331,7 @@ rotation: 0 15 0
 scale: 1 1 1
 color: 1 1 1 1
 model: assets/models/Wall_Barricade.obj
-texture: assets/models/Bark___0.jpg
+texture: none
 pbr: 1 0.5 0 1
 physics: 0
 hasRigidBody: 0

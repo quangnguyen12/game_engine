@@ -88,6 +88,9 @@ void AssetManager::cleanup()
 void AssetManager::createMeshBuffers(Mesh& mesh)
 {
     if (!renderer) return;
+    if (mesh.vertices.empty()) {
+        throw std::runtime_error("Mesh has 0 vertices! Model file may be empty or unsupported: " + mesh.sourcePath);
+    }
     VkDevice device = renderer->getDevice();
 
     VkDeviceSize vertexBufferSize = sizeof(mesh.vertices[0]) * mesh.vertices.size();
@@ -174,6 +177,7 @@ void AssetManager::loadTexture(const std::string& path, Texture& texture)
     {
         std::filesystem::path p(path);
         std::string filename = p.filename().string();
+        std::string parentName = p.parent_path().filename().string();
         std::vector<std::string> searchPaths = {
             path,
             "assets/" + filename,
@@ -193,6 +197,13 @@ void AssetManager::loadTexture(const std::string& path, Texture& texture)
             "build/Release/" + path,
             "build/Release/assets/" + filename
         };
+        if (!parentName.empty()) {
+            searchPaths.push_back("assets/source/" + parentName + "/" + filename);
+            searchPaths.push_back("assets/models/" + parentName + "/" + filename);
+            searchPaths.push_back("assets/" + parentName + "/" + filename);
+            searchPaths.push_back("../assets/source/" + parentName + "/" + filename);
+            searchPaths.push_back("../../assets/source/" + parentName + "/" + filename);
+        }
         for (const auto& sp : searchPaths)
         {
             if (std::filesystem::exists(sp))
@@ -211,6 +222,33 @@ void AssetManager::loadTexture(const std::string& path, Texture& texture)
     }
     createTextureFromRawPixels(pixels, texWidth, texHeight, texture);
     stbi_image_free(pixels);
+}
+
+int AssetManager::loadTextureFromMemory(const unsigned char* buffer, size_t bufferSize, const std::string& cacheKey)
+{
+    if (!buffer || bufferSize == 0) return -1;
+    if (!cacheKey.empty() && cachedTextureIds.find(cacheKey) != cachedTextureIds.end()) {
+        return cachedTextureIds[cacheKey];
+    }
+
+    int texWidth = 0, texHeight = 0, texChannels = 0;
+    stbi_uc* pixels = stbi_load_from_memory(buffer, static_cast<int>(bufferSize), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    if (!pixels) {
+        printf("[AssetManager] Failed to decode image from memory for '%s'\n", cacheKey.c_str());
+        return -1;
+    }
+
+    Texture tex;
+    createTextureFromRawPixels(pixels, texWidth, texHeight, tex);
+    stbi_image_free(pixels);
+
+    tex.sourcePath = cacheKey;
+    textures.push_back(tex);
+    int newId = static_cast<int>(textures.size()) - 1;
+    if (!cacheKey.empty()) {
+        cachedTextureIds[cacheKey] = newId;
+    }
+    return newId;
 }
 
 void AssetManager::createTextureSampler()
@@ -364,6 +402,11 @@ int AssetManager::load3DModelAsset(const std::string& filePath)
         return id;
     }
     catch (const std::exception& e) {
+        std::string err = e.what();
+        if (err.rfind("ANIMATION_ONLY_FBX:", 0) == 0) {
+            printf("[AssetManager] Note: '%s' is an animation-only FBX file (no 3D mesh).\n", filePath.c_str());
+            throw;
+        }
         printf("Error loading 3D Model Asset (%s): %s\n", filePath.c_str(), e.what());
         return -1;
     }

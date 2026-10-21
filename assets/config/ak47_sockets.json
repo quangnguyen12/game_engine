@@ -1,0 +1,41 @@
+{
+  "weapon_id": "AK47_GameReady",
+  "barrel_length_meters": 0.877,
+  "description": "Standard 1:1 metric AK-47 assault rifle with glTF/FBX socket references",
+  "sockets": {
+    "grip_r": {
+      "bone_attach": "CC_Base_R_Hand",
+      "position": [0.0, -0.090, -0.110],
+      "rotation_euler_deg": [0.0, 0.0, 0.0],
+      "description": "Center of pistol grip where palm contacts"
+    },
+    "trigger_r": {
+      "position": [0.0, -0.045, -0.055],
+      "finger_contact": "CC_Base_R_Index2",
+      "description": "Trigger bow contact point"
+    },
+    "handguard_l_cradle": {
+      "bone_target": "CC_Base_L_Hand",
+      "position": [0.0, 0.038, 0.082],
+      "rotation_euler_deg": [-15.0, -35.0, -25.0],
+      "grip_style": "cradle",
+      "description": "Underhand cradle grip resting below wooden handguard"
+    },
+    "handguard_l_c_clamp": {
+      "bone_target": "CC_Base_L_Hand",
+      "position": [-0.022, 0.068, 0.085],
+      "rotation_euler_deg": [10.0, -20.0, -45.0],
+      "grip_style": "c_clamp",
+      "description": "Modern tactical C-clamp grip with thumb over top gas tube"
+    },
+    "stock_butt": {
+      "position": [0.0, -0.002, -0.585],
+      "shoulder_rest_target": "CC_Base_R_Clavicle",
+      "description": "Buttplate resting firmly into right shoulder pocket"
+    },
+    "muzzle": {
+      "position": [0.0, 0.062, 0.291],
+      "description": "Muzzle tip for muzzle flash, projectile spawn, and smoke"
+    }
+  }
+}

@@ -1,5 +1,6 @@
 #include "assets/ModelLoader.h"
 #include "assets/AssetManager.h"
+#include "animation/AnimationLoader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "vendor/stb_image.h"
@@ -45,13 +46,51 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
     for (auto& c : ext) c = static_cast<char>(tolower(c));
 
     if (ext == "fbx") {
+        std::shared_ptr<Skeleton> skeleton;
+        std::vector<std::shared_ptr<AnimationClip>> clips;
+        auto texLoader = [assetManager](const std::string& p) -> int {
+            return assetManager ? assetManager->getOrLoadTextureAsset(p) : -1;
+        };
+        auto memTexLoader = [assetManager](const unsigned char* buf, size_t sz, const std::string& key) -> int {
+            return assetManager ? assetManager->loadTextureFromMemory(buf, sz, key) : -1;
+        };
+        bool loaded = AnimationLoader::loadFBXModel(actualPath, mesh, skeleton, clips, texLoader, memTexLoader);
+        if (loaded) {
+            glm::vec3 minP(1e9f), maxP(-1e9f);
+            for (auto& v : mesh.vertices) {
+                minP = glm::min(minP, v.pos);
+                maxP = glm::max(maxP, v.pos);
+            }
+            std::cout << "[ModelLoader] " << actualPath << " Bounds min: (" << minP.x << ", " << minP.y << ", " << minP.z << ") max: (" << maxP.x << ", " << maxP.y << ", " << maxP.z << ")" << std::endl;
+            mesh.sourcePath = path;
+            if (skeleton && skeleton->getBoneCount() > 0) {
+                mesh.isSkinned = true;
+                mesh.skeleton = skeleton;
+                mesh.defaultClips = clips;
+            }
+            if (mesh.vertices.empty()) {
+                if (!clips.empty() || (skeleton && skeleton->getBoneCount() > 0)) {
+                    throw std::runtime_error("ANIMATION_ONLY_FBX:" + actualPath);
+                }
+                throw std::runtime_error("FBX model contains 0 vertices and no animation: " + actualPath);
+            }
+            return;
+        }
+
         std::filesystem::path fbxP(actualPath);
+        std::filesystem::path glbP = fbxP.parent_path() / (fbxP.stem().string() + ".glb");
+        if (std::filesystem::exists(glbP)) {
+            loadModel(glbP.string(), mesh, assetManager);
+            mesh.sourcePath = path;
+            return;
+        }
         std::filesystem::path objP = fbxP.parent_path() / (fbxP.stem().string() + ".obj");
         if (std::filesystem::exists(objP)) {
             loadModel(objP.string(), mesh, assetManager);
             mesh.sourcePath = path;
             return;
         }
+        throw std::runtime_error("Failed to parse FBX model: " + actualPath);
     }
 
     if (ext == "glb" || ext == "gltf") {
@@ -258,6 +297,19 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
                                 sub.metallic = static_cast<float>(mat.pbrMetallicRoughness.metallicFactor);
                             if (mat.doubleSided) sub.twoSided = true;
 
+                            if (mat.pbrMetallicRoughness.baseColorFactor.size() >= 3) {
+                                glm::vec3 col(
+                                    static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[0]),
+                                    static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[1]),
+                                    static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[2])
+                                );
+                                if (col != glm::vec3(1.0f)) {
+                                    for (size_t vIdx = vertexStart; vIdx < mesh.vertices.size(); ++vIdx) {
+                                        mesh.vertices[vIdx].color = col;
+                                    }
+                                }
+                            }
+
                             // Resolve material texture
                             int texIndex = mat.pbrMetallicRoughness.baseColorTexture.index;
                             int imgIndex = -1;
@@ -301,22 +353,46 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
                             }
 
                             if (isEmissive) {
-                                // Fluorescent ceiling lights glow brightly
+                                // Fluorescent ceiling lights & emergency strobes glow brightly
                                 sub.roughness = 0.05f;
                                 sub.metallic = 0.0f;
                                 for (size_t vIdx = vertexStart; vIdx < mesh.vertices.size(); ++vIdx) {
                                     mesh.vertices[vIdx].color = glm::vec3(2.5f, 2.7f, 3.0f);
                                 }
-                            } else if (mName.find("wet") != std::string::npos || mName.find("concrete") != std::string::npos) {
-                                // Wet concrete reflective ground puddles (Glossy Wet Surface)
+                            } else if (mName.find("window") != std::string::npos || mName.find("glass") != std::string::npos || mName.find("storewindow") != std::string::npos) {
+                                // Architectural glass & storefront windows: smooth reflective glass, pure dielectric
+                                sub.roughness = 0.15f;
+                                sub.metallic = 0.0f;
+                            } else if (mName.find("brick") != std::string::npos) {
+                                // Red/brown clay brick masonry: matte surface, zero metallic
+                                sub.roughness = 0.75f;
+                                sub.metallic = 0.0f;
+                            } else if (mName.find("plaster") != std::string::npos) {
+                                // Stucco / painted plaster facade: warm matte finish
+                                sub.roughness = 0.70f;
+                                sub.metallic = 0.0f;
+                            } else if (mName.find("concrete") != std::string::npos || mName.find("sidewalk") != std::string::npos || mName.find("curb") != std::string::npos) {
+                                // Limestone & architectural concrete trims: solid dielectric masonry
+                                sub.roughness = 0.80f;
+                                sub.metallic = 0.0f;
+                            } else if (mName.find("asphalt") != std::string::npos || mName.find("road") != std::string::npos) {
+                                sub.roughness = 0.85f;
+                                sub.metallic = 0.0f;
+                            } else if (mName.find("wet") != std::string::npos) {
+                                // Wet reflective ground puddles
                                 sub.roughness = 0.16f;
-                                sub.metallic = 0.35f;
-                            } else if (mName.find("metal") != std::string::npos) {
-                                // Corrugated steel siding & industrial trusses
-                                sub.roughness = 0.40f;
-                                sub.metallic = 0.70f;
+                                sub.metallic = 0.05f;
+                            } else if (mName.find("metal") != std::string::npos || mName.find("steel") != std::string::npos || mName.find("chrome") != std::string::npos || mName.find("grille") != std::string::npos) {
+                                // Industrial trusses, metal bumpers, chrome grilles
+                                sub.roughness = 0.35f;
+                                sub.metallic = 0.85f;
                                 if (sub.textureId < 0 && !companionTex.empty() && assetManager) {
                                     sub.textureId = assetManager->getOrLoadTextureAsset(companionTex);
+                                }
+                            } else {
+                                // General dielectric safety clamp: if not explicitly metallic / car paint, ensure metallic doesn't blackout albedo
+                                if (sub.metallic > 0.2f && mName.find("car") == std::string::npos && mName.find("body") == std::string::npos) {
+                                    sub.metallic = 0.0f;
                                 }
                             }
 
@@ -528,7 +604,14 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
                     vertex.normal = {0.0f, 0.0f, 0.0f};
                 }
 
-                vertex.color = {1.0f, 1.0f, 1.0f};
+                if (mat_id >= 0 && mat_id < static_cast<int>(materials.size())) {
+                    vertex.color = glm::vec3(materials[mat_id].diffuse[0], materials[mat_id].diffuse[1], materials[mat_id].diffuse[2]);
+                    if (glm::length(vertex.color) < 0.01f && matTexIds[mat_id] < 0) {
+                        vertex.color = glm::vec3(0.8f, 0.8f, 0.8f);
+                    }
+                } else {
+                    vertex.color = {1.0f, 1.0f, 1.0f};
+                }
 
                 mesh.vertices.push_back(vertex);
                 mesh.indices.push_back(static_cast<uint32_t>(mesh.vertices.size()) - 1);
@@ -635,7 +718,10 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
                 if (std::filesystem::exists("assets/Texture/Bark___0.jpg")) texName = "assets/Texture/Bark___0.jpg";
                 else if (std::filesystem::exists("assets/Texture/Oak_Leav.jpg")) texName = "assets/Texture/Oak_Leav.jpg";
             }
-            if (texName.empty() && std::filesystem::exists(parentDir)) {
+            std::string normParent = parentDir;
+            std::replace(normParent.begin(), normParent.end(), '\\', '/');
+            bool isSharedDir = (normParent == "assets/models" || normParent == "assets" || normParent == "." || normParent == "build/Release/assets/models");
+            if (texName.empty() && !isSharedDir && std::filesystem::exists(parentDir)) {
                 for (const auto& entry : std::filesystem::directory_iterator(parentDir)) {
                     if (entry.is_regular_file()) {
                         std::string ext = entry.path().extension().string();
@@ -668,70 +754,89 @@ void ModelLoader::loadModel(const std::string& path, Mesh& mesh, AssetManager* a
         std::string stem = p.stem().string();
         std::string lowerStem = stem;
         for (auto& c : lowerStem) c = static_cast<char>(tolower(c));
-
         float targetScale = 1.0f;
-        if (lowerStem == "fox") {
-            targetScale = 1.1f / std::max(maxDim, 0.001f);
-        } else if (lowerStem == "duck") {
-            targetScale = 0.5f / std::max(maxDim, 0.001f);
-        } else if (lowerStem == "lantern") {
-            targetScale = 0.5f / std::max(maxDim, 0.001f);
-        } else if (lowerStem == "rock" || lowerStem == "flatrock" || lowerStem == "boulder") {
-            targetScale = 1.6f / std::max(maxDim, 0.001f);
-        } else if (lowerStem == "stone") {
-            targetScale = 0.65f / std::max(maxDim, 0.001f);
-        } else if (lowerStem == "bush") {
-            targetScale = 1.1f / std::max(maxDim, 0.001f);
-        } else if (lowerStem == "tree_and_bush" || lowerStem == "trees_and_bush_pack") {
-            targetScale = 2.6f / std::max(maxDim, 0.001f);
-        } else if (lowerStem == "damagedhelmet") {
-            targetScale = 0.6f / std::max(maxDim, 0.001f);
-        } else if (lowerStem == "cesiumman") {
-            targetScale = 1.7f / std::max(maxDim, 0.001f);
-        } else if (lowerStem == "avocado") {
-            targetScale = 0.3f / std::max(maxDim, 0.001f);
-        } else if (lowerStem == "log_pile") {
-            // log_pile was exported in cm (X: ~310cm, Y: ~58cm, Z: ~111cm) -> 1:1 metric scale is 0.01 (3.1m x 0.58m x 1.1m)
-            targetScale = 0.01f;
-        } else if (lowerStem == "tree_log") {
-            // tree_log was modeled in meters (1.79m x 0.38m x 0.62m) -> 1:1 metric scale
+        bool isNycStreet = (path.find("nyc_street") != std::string::npos ||
+                            lowerStem.find("nyc_") != std::string::npos ||
+                            lowerStem.find("building_") != std::string::npos ||
+                            lowerStem.find("background_") != std::string::npos ||
+                            lowerStem.find("street_") != std::string::npos ||
+                            lowerStem.find("sidewalk_") != std::string::npos ||
+                            lowerStem.find("waterfront_") != std::string::npos ||
+                            lowerStem.find("nypd_") != std::string::npos ||
+                            lowerStem.find("taxi") != std::string::npos ||
+                            lowerStem.find("police_") != std::string::npos);
+
+        if (isNycStreet) {
             targetScale = 1.0f;
-        } else if (lowerStem == "trees9") {
-            targetScale = 5.5f / std::max(maxDim, 0.001f);
-        } else if (lowerStem.find("tree") != std::string::npos) {
-            if (maxDim > 12.0f) targetScale = 5.5f / std::max(maxDim, 0.001f);
-            else if (maxDim < 1.0f) targetScale = 4.5f / std::max(maxDim, 0.001f);
-            else targetScale = 1.0f;
-        } else if (lowerStem == "box") {
-            targetScale = 1.0f;
-        } else if (lowerStem == "shootingtarget" || lowerStem == "shootingtarget_01") {
-            // shootingtarget was modeled in 1:1 metric scale (width 0.80m, depth 0.03m, height 1.75m)
-            targetScale = 1.0f;
-        } else if (lowerStem == "warehouse") {
-            // warehouse.glb is modeled in 1:1 metric architectural scale (22.5m width x 11.3m height x 31.6m length)
-            targetScale = 1.0f;
-        } else if (lowerStem.find("groud") != std::string::npos || lowerStem.find("ground") != std::string::npos) {
-            targetScale = 1.0f;
+            mesh.pivotOffset = glm::vec3(0.0f);
+            mesh.targetScale = 1.0f;
+            mesh.originalMinB = minB;
+            mesh.originalMaxB = maxB;
+            // Preserves 1:1 metric scale and exact authored coordinates
         } else {
-            // General safeguard: if DCC unit was cm or mm (maxDim > 15m), normalize to 2.0m prop
-            if (maxDim > 15.0f) {
-                targetScale = 2.0f / maxDim;
-            } else {
+            if (lowerStem == "fox") {
+                targetScale = 1.1f / std::max(maxDim, 0.001f);
+            } else if (lowerStem == "duck") {
+                targetScale = 0.5f / std::max(maxDim, 0.001f);
+            } else if (lowerStem == "lantern") {
+                targetScale = 0.5f / std::max(maxDim, 0.001f);
+            } else if (lowerStem == "rock" || lowerStem == "flatrock" || lowerStem == "boulder") {
+                targetScale = 1.6f / std::max(maxDim, 0.001f);
+            } else if (lowerStem == "stone") {
+                targetScale = 0.65f / std::max(maxDim, 0.001f);
+            } else if (lowerStem == "bush") {
+                targetScale = 1.1f / std::max(maxDim, 0.001f);
+            } else if (lowerStem == "tree_and_bush" || lowerStem == "trees_and_bush_pack") {
+                targetScale = 2.6f / std::max(maxDim, 0.001f);
+            } else if (lowerStem == "damagedhelmet") {
+                targetScale = 0.6f / std::max(maxDim, 0.001f);
+            } else if (lowerStem == "cesiumman") {
+                targetScale = 1.7f / std::max(maxDim, 0.001f);
+            } else if (lowerStem == "avocado") {
+                targetScale = 0.3f / std::max(maxDim, 0.001f);
+            } else if (lowerStem == "log_pile") {
+                // log_pile was exported in cm (X: ~310cm, Y: ~58cm, Z: ~111cm) -> 1:1 metric scale is 0.01 (3.1m x 0.58m x 1.1m)
+                targetScale = 0.01f;
+            } else if (lowerStem == "tree_log") {
+                // tree_log was modeled in meters (1.79m x 0.38m x 0.62m) -> 1:1 metric scale
                 targetScale = 1.0f;
+            } else if (lowerStem == "trees9") {
+                targetScale = 5.5f / std::max(maxDim, 0.001f);
+            } else if (lowerStem.find("tree") != std::string::npos) {
+                if (maxDim > 12.0f) targetScale = 5.5f / std::max(maxDim, 0.001f);
+                else if (maxDim < 1.0f) targetScale = 4.5f / std::max(maxDim, 0.001f);
+                else targetScale = 1.0f;
+            } else if (lowerStem == "box") {
+                targetScale = 1.0f;
+            } else if (lowerStem == "shootingtarget" || lowerStem == "shootingtarget_01") {
+                // shootingtarget was modeled in 1:1 metric scale (width 0.80m, depth 0.03m, height 1.75m)
+                targetScale = 1.0f;
+            } else if (lowerStem == "warehouse") {
+                // warehouse.glb is modeled in 1:1 metric architectural scale (22.5m width x 11.3m height x 31.6m length)
+                targetScale = 1.0f;
+            } else if (lowerStem.find("groud") != std::string::npos || lowerStem.find("ground") != std::string::npos) {
+                targetScale = 1.0f;
+            } else {
+                // General safeguard: if DCC unit was cm or mm (maxDim > 15m), normalize to 2.0m prop
+                if (maxDim > 15.0f) {
+                    targetScale = 2.0f / maxDim;
+                } else {
+                    targetScale = 1.0f;
+                }
             }
-        }
 
-        glm::vec3 centerXZ = glm::vec3((minB.x + maxB.x) * 0.5f, (lowerStem == "box") ? ((minB.y + maxB.y) * 0.5f) : minB.y, (minB.z + maxB.z) * 0.5f);
-        for (auto& v : mesh.vertices) {
-            v.pos.x = (v.pos.x - centerXZ.x) * targetScale;
-            v.pos.y = (v.pos.y - centerXZ.y) * targetScale;
-            v.pos.z = (v.pos.z - centerXZ.z) * targetScale;
-        }
+            glm::vec3 centerXZ = glm::vec3((minB.x + maxB.x) * 0.5f, (lowerStem == "box") ? ((minB.y + maxB.y) * 0.5f) : minB.y, (minB.z + maxB.z) * 0.5f);
+            for (auto& v : mesh.vertices) {
+                v.pos.x = (v.pos.x - centerXZ.x) * targetScale;
+                v.pos.y = (v.pos.y - centerXZ.y) * targetScale;
+                v.pos.z = (v.pos.z - centerXZ.z) * targetScale;
+            }
 
-        mesh.pivotOffset = centerXZ;
-        mesh.targetScale = targetScale;
-        mesh.originalMinB = minB;
-        mesh.originalMaxB = maxB;
+            mesh.pivotOffset = centerXZ;
+            mesh.targetScale = targetScale;
+            mesh.originalMinB = minB;
+            mesh.originalMaxB = maxB;
+        }
     }
 
     mesh.indexCount = static_cast<uint32_t>(mesh.indices.size());

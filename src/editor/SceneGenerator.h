@@ -22,7 +22,7 @@ public:
 private:
     bool showSceneGeneratorPanel = true;
     bool genUseReal3DModels = true;
-    int genPreset = 0; // 0: Tactical Outpost, 1: Forest Clearing (Biotope 2), 2: Desert, 3: Cyberpunk City, 4: Medieval Village, 5: Floating Islands, 6: 3D Maze, 7: Industrial Warehouse
+    int genPreset = 0; // 0: Tactical Outpost, 1: Forest Clearing (Biotope 2), 2: Desert, 3: Cyberpunk City, 4: Medieval Village, 5: Floating Islands, 6: 3D Maze, 7: Industrial Warehouse, 8: Urban Street (NYC Street Scene)
     int genSeed = 42;
     int genGridSize = 35;
     float genHeightScale = 5.0f;

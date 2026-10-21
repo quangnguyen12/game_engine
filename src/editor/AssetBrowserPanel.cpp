@@ -1,6 +1,7 @@
 #include "editor/AssetBrowserPanel.h"
 #include "assets/AssetManager.h"
 #include "scene/Scene.h"
+#include "animation/AnimationLoader.h"
 #include "imgui.h"
 
 #ifdef _WIN32
@@ -61,9 +62,12 @@ static std::string formatCleanName(const std::string& stem)
     if (lower == "plate_b") return "Plate B";
     if (lower == "plate_c") return "Plate C";
     if (lower == "plate_d") return "Plate D";
-    if (lower == "popper") return "Popper";
-    if (lower == "wall_barricade") return "Wall Barricade";
     if (lower == "shootingtarget") return "Shooting Target";
+    if (lower.find("target_vinashoot_swivel_fold") != std::string::npos || lower.find("vinashoot_swivel_fold") != std::string::npos) return "VINASHOOT Swiveling & Folding Target";
+    if (lower.find("target_portable_motorized") != std::string::npos || lower.find("portable_motorized") != std::string::npos) return "Portable Motorized Target (VINASHOOT)";
+    if (lower.find("biaso4") != std::string::npos) return "Vietnam Military Target - Bia So 4";
+    if (lower.find("biaso7_tripod") != std::string::npos) return "Vietnam Military Target - Bia So 7 (Tripod)";
+    if (lower.find("biaso7") != std::string::npos) return "Vietnam Military Target - Bia So 7";
     if (lower.find("hyster_forklift") != std::string::npos) return "Hyster Forklift";
     if (lower.find("pallet_wood") != std::string::npos) return "Wooden Pallet";
     if (lower.find("plasticbarrel") != std::string::npos) return "Plastic Barrel";
@@ -99,6 +103,53 @@ static std::string formatCleanName(const std::string& stem)
     if (lower == "cesiumman") return "Cesium Man";
     if (lower == "avocado") return "Avocado";
     if (lower == "box") return "Shipping Box";
+
+    // Enemy Characters / Bank Robbers
+    if (lower == "tm_classy_bank_robber") return "Bank Robber Classic";
+    if (lower == "tm_classy_bank_robber2") return "Bank Robber Var 1";
+    if (lower == "tm_classy_bank_robber3") return "Bank Robber Var 2";
+    if (lower == "tm_classy_bank_robber_leader") return "Bank Robber Leader";
+    if (lower == "tm_classy_black_guy") return "Bank Robber Var 4";
+    if (lower == "tm_classy_bank_robber_ak47") return "Bank Robber Classic (AK-47 Rigged)";
+    if (lower == "test_ak47") return "Enemy Var 4 (AK-47 Rigged)";
+
+    // Weapons
+    if (lower == "ak47") return "AK-47 Assault Rifle (Ultra PBR)";
+    if (lower == "ak47_gameready") return "AK-47 (Game-Ready 18k)";
+
+    // City & NYC Urban Street Models
+    if (lower == "nyc_taxi" || lower == "taxi") return "NYC Yellow Taxi";
+    if (lower == "nypd_cruiser" || lower == "police_car") return "NYPD Cruiser";
+    if (lower == "nyc_lamppost") return "NYC Lamppost";
+    if (lower == "nyc_fire_hydrant") return "Fire Hydrant";
+    if (lower == "nyc_bus_stop_shelter") return "Bus Stop Shelter";
+    if (lower == "nyc_street_sign") return "Street Sign";
+    if (lower == "nyc_newsbox_a") return "News Box A";
+    if (lower == "nyc_newsbox_b") return "News Box B";
+    if (lower == "nyc_manhole_cover") return "Manhole Cover";
+    if (lower == "nyc_sewer_grate") return "Sewer Grate";
+    if (lower == "nyc_street_tree") return "NYC Street Tree";
+    if (lower == "nypd_barricade") return "NYPD Barricade";
+    if (lower == "police_traffic_cone") return "Traffic Cone";
+    if (lower == "police_cordon_tape") return "Police Cordon Tape";
+    if (lower == "street_road_asphalt") return "Asphalt Road";
+    if (lower == "sidewalk_curb") return "Sidewalk & Curb";
+    if (lower == "waterfront_pier") return "Waterfront Pier";
+    if (lower == "waterfront_railing") return "Waterfront Railing";
+    if (lower == "background_manhattan") return "Manhattan Skyline";
+    if (lower == "building_left_near") return "Building Left Near";
+    if (lower == "building_left_far") return "Building Left Far";
+    if (lower == "building_right_near") return "Building Right Near";
+    if (lower == "building_right_far") return "Building Right Far";
+    if (lower == "building_modular_bottom") return "Modular Base";
+    if (lower == "building_modular_mid") return "Modular Mid";
+    if (lower == "building_modular_top") return "Modular Top";
+    if (lower == "building_depth_midrise") return "Depth Midrise";
+    if (lower == "building_depth_small") return "Depth Small";
+    if (lower == "building_depth_tower") return "Depth Tower";
+    if (lower == "building_5story") return "Building 5-Story";
+    if (lower == "building_6story") return "Building 6-Story";
+    if (lower == "building_7story") return "Building 7-Story";
 
     return s;
 }
@@ -152,11 +203,14 @@ void AssetBrowserPanel::refreshAssetRegistry(AssetManager* assetManager)
     // 2. Discover ALL 3D Models (Both OBJ and GLB/FBX without deduplicating or dropping)
     std::unordered_set<std::string> visitedPaths;
     std::vector<AssetItem> targetItems;
+    std::vector<AssetItem> enemyItems;
+    std::vector<AssetItem> animationItems;
+    std::vector<AssetItem> cityItems;
     std::vector<AssetItem> warehouseItems;
     std::vector<AssetItem> natureItems;
     std::vector<AssetItem> propItems;
 
-    std::vector<std::string> searchDirs = { "assets/models", "assets" };
+    std::vector<std::string> searchDirs = { "assets/models", "assets/animations", "assets" };
 
     for (const auto& dir : searchDirs)
     {
@@ -201,7 +255,75 @@ void AssetBrowserPanel::refreshAssetRegistry(AssetManager* assetManager)
                 std::string lowerPath = pStr;
                 for (auto& c : lowerPath) c = (char)tolower(c);
 
-                if (lowerStem.find("ipsc_metric") != std::string::npos) {
+                bool isAnimation = false;
+                if (ext == ".fbx")
+                {
+                    if (lowerPath.find("/animations/") != std::string::npos ||
+                        lowerPath.find("/anim/") != std::string::npos ||
+                        lowerPath.find("/motion/") != std::string::npos)
+                    {
+                        isAnimation = true;
+                    }
+                    else if (AnimationLoader::isAnimationOnlyFBX(pStr))
+                    {
+                        isAnimation = true;
+                    }
+                }
+
+                if (isAnimation)
+                {
+                    item.category = AssetCategory::ANIMATIONS;
+                    item.displayExt = "ANIM";
+                    item.iconType = AssetIconType::ANIMATION_CLIP;
+                    animationItems.push_back(item);
+                    continue;
+                }
+
+                bool isCity = (lowerPath.find("nyc_street") != std::string::npos ||
+                               lowerPath.find("/nyc") != std::string::npos ||
+                               lowerStem.rfind("nyc_", 0) == 0 ||
+                               lowerStem.rfind("nypd_", 0) == 0 ||
+                               lowerStem == "taxi" || lowerStem == "police_car" ||
+                               lowerStem.rfind("building_", 0) == 0 ||
+                               lowerStem.rfind("sidewalk_", 0) == 0 ||
+                               lowerStem.rfind("street_road", 0) == 0 ||
+                               lowerStem.rfind("waterfront_", 0) == 0 ||
+                               lowerStem.rfind("police_traffic", 0) == 0 ||
+                               lowerStem.rfind("police_cordon", 0) == 0 ||
+                               lowerStem == "background_manhattan" ||
+                               lowerStem == "test_hydrant" || lowerStem == "test_taxi");
+
+                bool isEnemy = (lowerStem.find("tm_classy") != std::string::npos ||
+                                lowerStem.find("bank_robber") != std::string::npos ||
+                                lowerStem.find("black_guy") != std::string::npos ||
+                                lowerStem.find("enemy") != std::string::npos);
+
+                if (isCity) {
+                    item.category = AssetCategory::CITY;
+                    if (lowerStem.find("building") != std::string::npos || lowerStem.find("manhattan") != std::string::npos) {
+                        item.iconType = AssetIconType::MODEL_BUILDING;
+                    } else if (lowerStem.find("taxi") != std::string::npos || lowerStem.find("cruiser") != std::string::npos || lowerStem.find("police_car") != std::string::npos) {
+                        item.iconType = AssetIconType::MODEL_VEHICLE;
+                    } else if (lowerStem.find("tree") != std::string::npos) {
+                        item.iconType = AssetIconType::MODEL_TREE;
+                    } else {
+                        item.iconType = AssetIconType::MODEL_STREET_PROP;
+                    }
+                } else if (isEnemy) {
+                    item.category = AssetCategory::ENEMIES;
+                    item.iconType = AssetIconType::MODEL_CHARACTER;
+                    if (lowerStem == "tm_classy_bank_robber" || lowerStem == "tm_classy_bank_robber_ak47") {
+                        item.texturePath = "assets/textures/tm_professional_head_variantd.jpg";
+                    } else if (lowerStem == "tm_classy_bank_robber2") {
+                        item.texturePath = "assets/textures/tm_professional_head_varainta.jpg";
+                    } else if (lowerStem == "tm_classy_bank_robber3") {
+                        item.texturePath = "assets/textures/tm_professional_head_variantb.jpg";
+                    } else if (lowerStem == "tm_classy_bank_robber_leader") {
+                        item.texturePath = "assets/textures/tm_professional_head_varainta.jpg";
+                    } else if (lowerStem == "tm_classy_black_guy" || lowerStem == "test_ak47") {
+                        item.texturePath = "assets/textures/tm_professional_head_variante.jpg";
+                    }
+                } else if (lowerStem.find("ipsc_metric") != std::string::npos) {
                     item.category = AssetCategory::TARGETS;
                     item.iconType = AssetIconType::TARGET_IPSC_METRIC;
                 } else if (lowerStem.find("ipsc_target_mini") != std::string::npos) {
@@ -237,7 +359,19 @@ void AssetBrowserPanel::refreshAssetRegistry(AssetManager* assetManager)
                 } else if (lowerStem.find("shootingtarget") != std::string::npos || lowerStem.find("target") != std::string::npos) {
                     item.category = AssetCategory::TARGETS;
                     item.iconType = AssetIconType::TARGET_GENERIC;
-                    item.texturePath = "assets/models/ShootingTarget.png";
+                    if (lowerStem.find("biaso4") != std::string::npos) {
+                        item.texturePath = "assets/models/Target_BiaSo4_Cardboard.png";
+                    } else if (lowerStem.find("biaso7_tripod") != std::string::npos) {
+                        item.texturePath = "assets/models/Target_BiaSo7_Tripod_Paper.png";
+                    } else if (lowerStem.find("biaso7") != std::string::npos) {
+                        item.texturePath = "assets/models/Target_BiaSo7_BoardFace_V5.png";
+                    } else if (lowerStem.find("swivel_fold") != std::string::npos || lowerStem.find("vinashoot_swivel") != std::string::npos) {
+                        item.texturePath = "assets/models/tex_new_target_front.png";
+                    } else if (lowerStem.find("portable") != std::string::npos || lowerStem.find("motorized") != std::string::npos) {
+                        item.texturePath = "assets/models/soldier_target_board.png";
+                    } else if (lowerStem.find("shootingtarget") != std::string::npos) {
+                        item.texturePath = "assets/models/ShootingTarget.png";
+                    }
                 } else if (lowerPath.find("warehouse") != std::string::npos || lowerStem.find("warehouse") != std::string::npos ||
                            lowerStem.find("forklift") != std::string::npos || lowerStem.find("pallet") != std::string::npos ||
                            lowerStem.find("aisle") != std::string::npos || lowerStem.find("barrel") != std::string::npos ||
@@ -261,6 +395,10 @@ void AssetBrowserPanel::refreshAssetRegistry(AssetManager* assetManager)
                 } else if (lowerStem.find("log") != std::string::npos) {
                     item.category = AssetCategory::NATURE;
                     item.iconType = AssetIconType::MODEL_LOG;
+                } else if (lowerStem.find("ak47") != std::string::npos || lowerStem.find("weapon") != std::string::npos) {
+                    item.category = AssetCategory::PROPS;
+                    item.iconType = AssetIconType::MODEL_PROP;
+                    item.texturePath = "assets/textures/AK_Base_color.png";
                 } else {
                     item.category = AssetCategory::PROPS;
                     item.iconType = AssetIconType::MODEL_PROP;
@@ -268,17 +406,34 @@ void AssetBrowserPanel::refreshAssetRegistry(AssetManager* assetManager)
 
                 // Check for matching texture file
                 if (item.texturePath.empty()) {
-                    std::string parentDir = entry.path().parent_path().string();
-                    std::string candPng = parentDir + "/" + stem + ".png";
-                    std::string candJpg = parentDir + "/" + stem + ".jpg";
-                    if (std::filesystem::exists(candPng)) item.texturePath = candPng;
-                    else if (std::filesystem::exists(candJpg)) item.texturePath = candJpg;
-                    else if (std::filesystem::exists(parentDir + "/Stylized_Industrial_TextureMap_V02.png")) {
-                        item.texturePath = parentDir + "/Stylized_Industrial_TextureMap_V02.png";
+                    if (item.category == AssetCategory::CITY) {
+                        if (lowerStem.find("taxi") != std::string::npos && std::filesystem::exists("assets/textures/tex_taxi_body_diffuse.png"))
+                            item.texturePath = "assets/textures/tex_taxi_body_diffuse.png";
+                        else if (lowerStem.find("cruiser") != std::string::npos && std::filesystem::exists("assets/textures/tex_nypd_cruiser_diffuse.png"))
+                            item.texturePath = "assets/textures/tex_nypd_cruiser_diffuse.png";
+                        else if (lowerStem.find("traffic_cone") != std::string::npos && std::filesystem::exists("assets/textures/tex_traffic_cone.png"))
+                            item.texturePath = "assets/textures/tex_traffic_cone.png";
+                        else if (lowerStem.find("barricade") != std::string::npos && std::filesystem::exists("assets/textures/tex_barricade_nypd_beam.png"))
+                            item.texturePath = "assets/textures/tex_barricade_nypd_beam.png";
+                        else if (lowerStem.find("street_road") != std::string::npos && std::filesystem::exists("assets/textures/tex_nyc_asphalt_road.png"))
+                            item.texturePath = "assets/textures/tex_nyc_asphalt_road.png";
+                    }
+
+                    if (item.texturePath.empty()) {
+                        std::string parentDir = entry.path().parent_path().string();
+                        std::string candPng = parentDir + "/" + stem + ".png";
+                        std::string candJpg = parentDir + "/" + stem + ".jpg";
+                        if (std::filesystem::exists(candPng)) item.texturePath = candPng;
+                        else if (std::filesystem::exists(candJpg)) item.texturePath = candJpg;
+                        else if (std::filesystem::exists(parentDir + "/Stylized_Industrial_TextureMap_V02.png")) {
+                            item.texturePath = parentDir + "/Stylized_Industrial_TextureMap_V02.png";
+                        }
                     }
                 }
 
                 if (item.category == AssetCategory::TARGETS) targetItems.push_back(item);
+                else if (item.category == AssetCategory::ENEMIES) enemyItems.push_back(item);
+                else if (item.category == AssetCategory::CITY) cityItems.push_back(item);
                 else if (item.category == AssetCategory::WAREHOUSE) warehouseItems.push_back(item);
                 else if (item.category == AssetCategory::NATURE) natureItems.push_back(item);
                 else propItems.push_back(item);
@@ -288,6 +443,7 @@ void AssetBrowserPanel::refreshAssetRegistry(AssetManager* assetManager)
 
     // Sort target models so they appear in clean logical order matching New_UI.jpg
     std::vector<std::string> targetOrder = {
+        "target_biaso4", "target_biaso7_tripod", "target_biaso7",
         "ipsc_metric_target", "ipsc_target", "ipsc_target_mini", "shootingtarget",
         "pepper_popper", "pepper_popper_mini", "popper",
         "plate_a", "plate_b", "plate_c", "plate_d", "wall_barricade"
@@ -311,6 +467,70 @@ void AssetBrowserPanel::refreshAssetRegistry(AssetManager* assetManager)
         }
     }
     for (const auto& item : targetItems) cachedAssets.push_back(item);
+
+    // Sort city models so they appear in clean logical order (vehicles, street props, infrastructure, buildings)
+    std::vector<std::string> cityOrder = {
+        "nyc_taxi", "taxi", "nypd_cruiser", "police_car",
+        "nyc_lamppost", "nyc_fire_hydrant", "nyc_bus_stop_shelter",
+        "nyc_street_sign", "nyc_newsbox_a", "nyc_newsbox_b",
+        "nypd_barricade", "police_traffic_cone", "police_cordon_tape",
+        "nyc_manhole_cover", "nyc_sewer_grate", "nyc_street_tree",
+        "street_road_asphalt", "sidewalk_curb", "waterfront_pier", "waterfront_railing",
+        "building_left_near", "building_left_far", "building_right_near", "building_right_far",
+        "building_modular_bottom", "building_modular_mid", "building_modular_top",
+        "building_5story", "building_6story", "building_7story",
+        "building_depth_midrise", "building_depth_small", "building_depth_tower",
+        "background_manhattan"
+    };
+
+    for (const auto& cKey : cityOrder)
+    {
+        for (auto it = cityItems.begin(); it != cityItems.end(); )
+        {
+            std::string lStem = it->filename;
+            for (auto& c : lStem) c = (char)tolower(c);
+            if (lStem.find(cKey) != std::string::npos)
+            {
+                cachedAssets.push_back(*it);
+                it = cityItems.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+    }
+    for (const auto& item : cityItems) cachedAssets.push_back(item);
+
+    // Sort enemy models in logical order
+    std::vector<std::string> enemyOrder = {
+        "tm_classy_bank_robber_leader",
+        "tm_classy_bank_robber",
+        "tm_classy_bank_robber2",
+        "tm_classy_bank_robber3",
+        "tm_classy_black_guy"
+    };
+
+    for (const auto& eKey : enemyOrder)
+    {
+        for (auto it = enemyItems.begin(); it != enemyItems.end(); )
+        {
+            std::string lStem = it->filename;
+            for (auto& c : lStem) c = (char)tolower(c);
+            if (lStem.find(eKey) != std::string::npos)
+            {
+                cachedAssets.push_back(*it);
+                it = enemyItems.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+    }
+    for (const auto& item : enemyItems) cachedAssets.push_back(item);
+    for (const auto& item : animationItems) cachedAssets.push_back(item);
+
     for (const auto& item : warehouseItems) cachedAssets.push_back(item);
     for (const auto& item : natureItems) cachedAssets.push_back(item);
     for (const auto& item : propItems) cachedAssets.push_back(item);
@@ -511,6 +731,26 @@ void AssetBrowserPanel::drawIconSilhouette(ImDrawList* drawList, const ImVec2& m
         break;
     }
 
+    case AssetIconType::MODEL_CHARACTER:
+    {
+        // Dark tactical silhouette: Head and torso
+        float rHead = 10.0f;
+        float yHead = cy - 10.0f;
+        drawList->AddCircleFilled(ImVec2(cx, yHead), rHead, IM_COL32(230, 80, 80, 240));
+        drawList->AddCircle(ImVec2(cx, yHead), rHead, IM_COL32(255, 255, 255, 200), 0, 1.5f);
+
+        // Shoulders / torso trapezoid
+        ImVec2 torsoPts[4] = {
+            ImVec2(cx - 7.0f, yHead + rHead * 0.8f),
+            ImVec2(cx + 7.0f, yHead + rHead * 0.8f),
+            ImVec2(cx + 18.0f, maxP.y - 8.0f),
+            ImVec2(cx - 18.0f, maxP.y - 8.0f)
+        };
+        drawList->AddConvexPolyFilled(torsoPts, 4, IM_COL32(180, 45, 45, 230));
+        drawList->AddPolyline(torsoPts, 4, IM_COL32(255, 120, 120, 220), ImDrawFlags_Closed, 1.5f);
+        break;
+    }
+
     case AssetIconType::MODEL_TREE:
     {
         // Trunk
@@ -610,6 +850,79 @@ void AssetBrowserPanel::drawIconSilhouette(ImDrawList* drawList, const ImVec2& m
         // Goods / Boxes on shelves
         drawList->AddRectFilled(ImVec2(cx - 13.0f, cy - 10.0f), ImVec2(cx - 1.0f, cy + 4.0f), IM_COL32(175, 130, 75, 255), 1.0f);
         drawList->AddRectFilled(ImVec2(cx + 2.0f, cy - 6.0f), ImVec2(cx + 13.0f, cy + 4.0f), IM_COL32(145, 105, 60, 255), 1.0f);
+        break;
+    }
+
+    case AssetIconType::MODEL_BUILDING:
+    {
+        // High-rise city building silhouette with illuminated windows
+        drawList->AddRectFilled(ImVec2(cx - 16.0f, cy - 22.0f), ImVec2(cx + 16.0f, cy + 22.0f), IM_COL32(45, 65, 88, 255), 2.0f);
+        drawList->AddRect(ImVec2(cx - 16.0f, cy - 22.0f), ImVec2(cx + 16.0f, cy + 22.0f), IM_COL32(80, 115, 150, 255), 2.0f, 0, 1.2f);
+        // Rooftop antenna / spire
+        drawList->AddLine(ImVec2(cx, cy - 22.0f), ImVec2(cx, cy - 28.0f), IM_COL32(180, 205, 230, 255), 1.5f);
+        // Windows grid
+        for (int row = -2; row <= 2; ++row) {
+            float wy = cy + row * 8.0f;
+            drawList->AddRectFilled(ImVec2(cx - 11.0f, wy - 2.0f), ImVec2(cx - 5.0f, wy + 2.0f), IM_COL32(245, 215, 110, 230), 1.0f);
+            drawList->AddRectFilled(ImVec2(cx - 2.0f, wy - 2.0f), ImVec2(cx + 4.0f, wy + 2.0f), IM_COL32(180, 220, 255, 230), 1.0f);
+            drawList->AddRectFilled(ImVec2(cx + 7.0f, wy - 2.0f), ImVec2(cx + 11.0f, wy + 2.0f), IM_COL32(245, 215, 110, 230), 1.0f);
+        }
+        break;
+    }
+
+    case AssetIconType::MODEL_VEHICLE:
+    {
+        // City vehicle (cab/cruiser) silhouette
+        ImVec2 roofPts[4] = {
+            ImVec2(cx - 11.0f, cy - 8.0f),
+            ImVec2(cx + 9.0f, cy - 8.0f),
+            ImVec2(cx + 18.0f, cy + 3.0f),
+            ImVec2(cx - 18.0f, cy + 3.0f)
+        };
+        drawList->AddConvexPolyFilled(roofPts, 4, IM_COL32(235, 180, 45, 255));
+        drawList->AddRectFilled(ImVec2(cx - 22.0f, cy + 3.0f), ImVec2(cx + 22.0f, cy + 13.0f), IM_COL32(215, 155, 30, 255), 2.0f);
+        // Wheels
+        drawList->AddCircleFilled(ImVec2(cx - 13.0f, cy + 14.0f), 5.0f, IM_COL32(30, 32, 38, 255));
+        drawList->AddCircleFilled(ImVec2(cx - 13.0f, cy + 14.0f), 2.0f, IM_COL32(170, 175, 185, 255));
+        drawList->AddCircleFilled(ImVec2(cx + 13.0f, cy + 14.0f), 5.0f, IM_COL32(30, 32, 38, 255));
+        drawList->AddCircleFilled(ImVec2(cx + 13.0f, cy + 14.0f), 2.0f, IM_COL32(170, 175, 185, 255));
+        // Windshield & windows
+        drawList->AddRectFilled(ImVec2(cx - 8.0f, cy - 6.0f), ImVec2(cx + 6.0f, cy + 1.0f), IM_COL32(65, 130, 195, 230), 1.0f);
+        // Taxi roof sign / police siren
+        drawList->AddRectFilled(ImVec2(cx - 4.0f, cy - 12.0f), ImVec2(cx + 4.0f, cy - 8.0f), IM_COL32(255, 235, 120, 255), 1.0f);
+        break;
+    }
+
+    case AssetIconType::MODEL_STREET_PROP:
+    {
+        // Street lamp & furniture silhouette
+        drawList->AddRectFilled(ImVec2(cx - 2.0f, cy - 16.0f), ImVec2(cx + 2.0f, cy + 18.0f), IM_COL32(140, 150, 165, 255));
+        drawList->AddRectFilled(ImVec2(cx - 6.0f, cy + 16.0f), ImVec2(cx + 6.0f, cy + 20.0f), IM_COL32(95, 105, 120, 255), 1.0f);
+        // Curved overhanging arm
+        drawList->AddLine(ImVec2(cx, cy - 16.0f), ImVec2(cx + 13.0f, cy - 20.0f), IM_COL32(140, 150, 165, 255), 2.5f);
+        // Glowing lantern head
+        drawList->AddTriangleFilled(ImVec2(cx + 13.0f, cy - 22.0f), ImVec2(cx + 8.0f, cy - 16.0f), ImVec2(cx + 18.0f, cy - 16.0f), IM_COL32(245, 205, 60, 255));
+        drawList->AddCircleFilled(ImVec2(cx + 13.0f, cy - 15.0f), 3.0f, IM_COL32(255, 255, 210, 255));
+        break;
+    }
+
+    case AssetIconType::ANIMATION_CLIP:
+    {
+        // Film clapper / Runner silhouette with cyan & teal styling
+        drawList->AddRectFilled(ImVec2(cx - 18.0f, cy - 14.0f), ImVec2(cx + 18.0f, cy + 14.0f), IM_COL32(25, 38, 55, 255), 3.0f);
+        drawList->AddRect(ImVec2(cx - 18.0f, cy - 14.0f), ImVec2(cx + 18.0f, cy + 14.0f), IM_COL32(50, 185, 230, 255), 3.0f, 0, 1.5f);
+        // Play triangle
+        ImVec2 triPts[3] = {
+            ImVec2(cx - 5.0f, cy - 8.0f),
+            ImVec2(cx + 8.0f, cy),
+            ImVec2(cx - 5.0f, cy + 8.0f)
+        };
+        drawList->AddConvexPolyFilled(triPts, 3, IM_COL32(50, 225, 165, 255));
+        // Film sprocket notches
+        for (int sp = -2; sp <= 2; ++sp) {
+            drawList->AddRectFilled(ImVec2(cx + sp * 7.0f - 1.5f, cy - 12.0f), ImVec2(cx + sp * 7.0f + 1.5f, cy - 9.0f), IM_COL32(180, 220, 255, 200));
+            drawList->AddRectFilled(ImVec2(cx + sp * 7.0f - 1.5f, cy + 9.0f), ImVec2(cx + sp * 7.0f + 1.5f, cy + 12.0f), IM_COL32(180, 220, 255, 200));
+        }
         break;
     }
 
@@ -755,6 +1068,11 @@ void AssetBrowserPanel::renderAssetCard(const AssetItem& item, AssetManager* ass
             ImGui::SetDragDropPayload("DND_ASSET_LUA", item.path.c_str(), item.path.size() + 1);
             ImGui::Text("📜 Dragging Script '%s'\nDrop to attach!", item.name.c_str());
         }
+        else if (item.category == AssetCategory::ANIMATIONS)
+        {
+            ImGui::SetDragDropPayload("DND_ASSET_ANIM", item.path.c_str(), item.path.size() + 1);
+            ImGui::Text("🎬 Dragging Animation '%s'\nDrop onto Character with Animator to attach & play!", item.name.c_str());
+        }
         else
         {
             ImGui::SetDragDropPayload("DND_ASSET_MODEL", item.path.c_str(), item.path.size() + 1);
@@ -763,7 +1081,7 @@ void AssetBrowserPanel::renderAssetCard(const AssetItem& item, AssetManager* ass
         ImGui::EndDragDropSource();
     }
 
-    // Double-Click: Instant Spawning in Scene
+    // Double-Click: Instant Spawning or Animation Application
     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
     {
         if (item.isPrimitive)
@@ -781,6 +1099,24 @@ void AssetBrowserPanel::renderAssetCard(const AssetItem& item, AssetManager* ass
             newObj.syncComponents();
             scene->getObjects().push_back(newObj);
             scene->setSelectedObjectIndex(static_cast<int>(scene->getObjects().size()) - 1);
+        }
+        else if (item.category == AssetCategory::ANIMATIONS)
+        {
+            auto selectedObj = scene->getSelectedObject();
+            if (selectedObj)
+            {
+                selectedObj->autoAttachAnimatorIfSkinned(assetManager->getMeshes());
+                auto animComp = selectedObj->getAnimator();
+                if (animComp)
+                {
+                    auto clip = AnimationLoader::loadFBXClip(item.path, animComp->skeleton.get());
+                    if (clip)
+                    {
+                        animComp->addClip(clip);
+                        animComp->play(clip->name, true);
+                    }
+                }
+            }
         }
         else if (item.category != AssetCategory::TEXTURES && item.category != AssetCategory::SCRIPTS)
         {
@@ -802,14 +1138,16 @@ void AssetBrowserPanel::renderAssetCard(const AssetItem& item, AssetManager* ass
                 newObj.modelPath = item.path;
 
                 const auto& meshes = assetManager->getMeshes();
+                bool isMultiMaterial = false;
                 if (meshId < static_cast<int>(meshes.size()))
                 {
-                    newObj.textureId = meshes[meshId].defaultTextureId;
+                    isMultiMaterial = (meshes[meshId].submeshes.size() > 1);
+                    newObj.textureId = isMultiMaterial ? -1 : meshes[meshId].defaultTextureId;
                     newObj.roughness = meshes[meshId].defaultRoughness;
                     newObj.metallic = meshes[meshId].defaultMetallic;
                 }
 
-                if (!item.texturePath.empty())
+                if (!item.texturePath.empty() && !isMultiMaterial)
                 {
                     int texId = assetManager->getOrLoadTextureAsset(item.texturePath);
                     if (texId >= 0) {
@@ -819,6 +1157,7 @@ void AssetBrowserPanel::renderAssetCard(const AssetItem& item, AssetManager* ass
                 }
 
                 newObj.syncComponents();
+                newObj.autoAttachAnimatorIfSkinned(assetManager->getMeshes());
                 scene->getObjects().push_back(newObj);
                 scene->setSelectedObjectIndex(static_cast<int>(scene->getObjects().size()) - 1);
             }
@@ -831,7 +1170,28 @@ void AssetBrowserPanel::renderAssetCard(const AssetItem& item, AssetManager* ass
         ImGui::TextDisabled("Asset: %s", item.name.c_str());
         ImGui::Separator();
 
-        if (ImGui::MenuItem("➕ Spawn in Scene (At Origin)"))
+        if (item.category == AssetCategory::ANIMATIONS)
+        {
+            if (ImGui::MenuItem("🏃 Apply Animation to Selected Character"))
+            {
+                auto selectedObj = scene->getSelectedObject();
+                if (selectedObj)
+                {
+                    selectedObj->autoAttachAnimatorIfSkinned(assetManager->getMeshes());
+                    auto animComp = selectedObj->getAnimator();
+                    if (animComp)
+                    {
+                        auto clip = AnimationLoader::loadFBXClip(item.path, animComp->skeleton.get());
+                        if (clip)
+                        {
+                            animComp->addClip(clip);
+                            animComp->play(clip->name, true);
+                        }
+                    }
+                }
+            }
+        }
+        else if (ImGui::MenuItem("➕ Spawn in Scene (At Origin)"))
         {
             int meshId = assetManager->load3DModelAsset(item.path);
             if (meshId >= 0)
@@ -847,7 +1207,14 @@ void AssetBrowserPanel::renderAssetCard(const AssetItem& item, AssetManager* ass
                 newObj.color = glm::vec4(1.0f);
                 newObj.meshId = meshId;
                 newObj.modelPath = item.path;
-                if (!item.texturePath.empty()) {
+                const auto& curMeshes = assetManager->getMeshes();
+                bool isMultiMatDnd = (meshId >= 0 && meshId < static_cast<int>(curMeshes.size()) && curMeshes[meshId].submeshes.size() > 1);
+                if (meshId >= 0 && meshId < static_cast<int>(curMeshes.size())) {
+                    newObj.textureId = isMultiMatDnd ? -1 : curMeshes[meshId].defaultTextureId;
+                    newObj.roughness = curMeshes[meshId].defaultRoughness;
+                    newObj.metallic = curMeshes[meshId].defaultMetallic;
+                }
+                if (!item.texturePath.empty() && !isMultiMatDnd) {
                     int texId = assetManager->getOrLoadTextureAsset(item.texturePath);
                     if (texId >= 0) {
                         newObj.textureId = texId;
@@ -855,6 +1222,7 @@ void AssetBrowserPanel::renderAssetCard(const AssetItem& item, AssetManager* ass
                     }
                 }
                 newObj.syncComponents();
+                newObj.autoAttachAnimatorIfSkinned(assetManager->getMeshes());
                 scene->getObjects().push_back(newObj);
                 scene->setSelectedObjectIndex(static_cast<int>(scene->getObjects().size()) - 1);
             }
@@ -888,8 +1256,13 @@ void AssetBrowserPanel::renderAssetCard(const AssetItem& item, AssetManager* ass
             }
         }
         ImGui::Separator();
-        ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.4f, 1.0f), "🖱️ Double-click: Spawn in Scene");
-        ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "✋ Drag & Drop: Place into Viewport");
+        if (item.category == AssetCategory::ANIMATIONS) {
+            ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.4f, 1.0f), "🖱️ Double-click: Apply to Selected Character");
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "✋ Drag & Drop: Drop onto Character to Play");
+        } else {
+            ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.4f, 1.0f), "🖱️ Double-click: Spawn in Scene");
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "✋ Drag & Drop: Place into Viewport");
+        }
         ImGui::EndTooltip();
     }
 
@@ -939,6 +1312,9 @@ void AssetBrowserPanel::draw(AssetManager* assetManager, Scene* scene, float win
         };
 
         renderCategoryBtn("🎯 TARGETS", AssetCategory::TARGETS);
+        renderCategoryBtn("👤 ENEMIES", AssetCategory::ENEMIES);
+        renderCategoryBtn("🎬 ANIMATIONS", AssetCategory::ANIMATIONS);
+        renderCategoryBtn("🏙️ THÀNH PHỐ", AssetCategory::CITY);
         renderCategoryBtn("🏭 WAREHOUSE", AssetCategory::WAREHOUSE);
         renderCategoryBtn("📦 ALL 3D (OBJ/GLB)", AssetCategory::ALL_MODELS);
         renderCategoryBtn("🌲 NATURE", AssetCategory::NATURE);
@@ -998,7 +1374,7 @@ void AssetBrowserPanel::draw(AssetManager* assetManager, Scene* scene, float win
             // Category filter: ALL_MODELS shows all 3D mesh assets (OBJ, GLB, FBX, PRIM)
             if (selectedCategory == AssetCategory::ALL_MODELS)
             {
-                if (item.category == AssetCategory::TEXTURES || item.category == AssetCategory::SCRIPTS)
+                if (item.category == AssetCategory::TEXTURES || item.category == AssetCategory::SCRIPTS || item.category == AssetCategory::ANIMATIONS)
                     continue;
             }
             else if (selectedCategory != item.category)

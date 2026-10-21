@@ -1917,6 +1917,168 @@ void SceneGenerator::generate3DScene(Scene* scene, AssetManager* assetManager, G
             }
         }
     }
+    else if (genPreset == 8) // Đường Phố Đô Thị (NYC Urban Street - 1:1 Scale & Realistic Textures)
+    {
+        auto placeStreetModel = [&](const std::string& relPath, const std::string& name, const glm::vec3& pos, const glm::vec3& rot = glm::vec3(0.0f), const glm::vec3& scl = glm::vec3(1.0f), float roughness = 0.5f, float metallic = 0.0f) {
+            std::string actualPath = relPath;
+            if (!std::filesystem::exists(actualPath)) {
+                if (std::filesystem::exists("build/Release/" + relPath)) actualPath = "build/Release/" + relPath;
+                else if (std::filesystem::exists("assets/models/" + relPath)) actualPath = "assets/models/" + relPath;
+                else return;
+            }
+            int mId = assetManager->getOrLoadModelAsset(actualPath);
+            if (mId < 0) return;
+
+            SceneObject item;
+            item.id = static_cast<int>(sceneObjects.size());
+            item.name = name;
+            item.type = ObjectType::CUBE;
+            item.position = pos;
+            item.rotation = rot;
+            item.scale = scl;
+            item.color = glm::vec4(1.0f);
+            item.meshId = mId;
+            item.modelPath = relPath;
+            item.usePBR = true;
+            item.roughness = roughness;
+            item.metallic = metallic;
+
+            const Mesh* meshPtr = assetManager->getMesh(mId);
+            if (meshPtr) {
+                item.textureId = meshPtr->defaultTextureId;
+                if (meshPtr->defaultRoughness > 0.0f || meshPtr->defaultMetallic > 0.0f) {
+                    item.roughness = meshPtr->defaultRoughness;
+                    item.metallic = meshPtr->defaultMetallic;
+                }
+                if (item.textureId >= 0 && assetManager) {
+                    item.texturePath = assetManager->getTexturePath(item.textureId);
+                }
+            }
+            sceneObjects.push_back(item);
+        };
+
+        struct StreetProp {
+            const char* model;
+            const char* name;
+            glm::vec3 pos;
+            glm::vec3 rot;
+            glm::vec3 scl;
+            float roughness;
+            float metallic;
+            int category; // 0: core, 1: tree, 2: building
+        };
+
+        static const StreetProp streetProps[] = {
+            // Core Street Infrastructure (1:1 Metric Scale)
+            { "assets/models/nyc_street/street_road_asphalt.glb", "Street_Road_Asphalt", glm::vec3(0.0f, 0.0f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.85f, 0.05f, 0 },
+            { "assets/models/nyc_street/sidewalk_curb.glb", "Sidewalk_Left_Curb", glm::vec3(-6.5f, 0.09f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.75f, 0.05f, 0 },
+            { "assets/models/nyc_street/sidewalk_curb.glb", "Sidewalk_Right_Curb", glm::vec3(6.5f, 0.09f, -5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.75f, 0.05f, 0 },
+            { "assets/models/nyc_street/waterfront_pier.glb", "Waterfront_Pier_Promenade", glm::vec3(0.0f, 0.09f, -26.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.75f, 0.05f, 0 },
+            { "assets/models/nyc_street/waterfront_railing.glb", "Waterfront_Pier_Railing", glm::vec3(0.0f, 0.0f, -27.8f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.40f, 0.80f, 0 },
+
+            // Vehicles (Calibrated Shooting Lane Clearances) - Grounded at Y=0.0f on road
+            { "assets/models/nyc_street/nyc_taxi.glb", "NYC_Taxi_4W92", glm::vec3(-2.2f, 0.0f, 6.0f), glm::vec3(0.0f, 180.0f, 0.0f), glm::vec3(1.0f), 0.25f, 0.10f, 0 },
+            { "assets/models/nyc_street/nypd_cruiser.glb", "NYPD_Cruiser_1_Echo", glm::vec3(-1.6f, 0.0f, -3.6f), glm::vec3(0.0f, 20.05f, 0.0f), glm::vec3(1.0f), 0.25f, 0.10f, 0 },
+            { "assets/models/nyc_street/nypd_cruiser.glb", "NYPD_Cruiser_2_Bravo", glm::vec3(2.0f, 0.0f, -7.8f), glm::vec3(0.0f, -17.19f, 0.0f), glm::vec3(1.0f), 0.25f, 0.10f, 0 },
+
+            // Police Barricades & Cordon Line
+            { "assets/models/nyc_street/nypd_barricade.glb", "NYPD_Barricade_1", glm::vec3(0.8f, 0.0f, 0.4f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.65f, 0.05f, 0 },
+            { "assets/models/nyc_street/nypd_barricade.glb", "NYPD_Barricade_2", glm::vec3(3.0f, 0.0f, 0.4f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.65f, 0.05f, 0 },
+            { "assets/models/nyc_street/police_cordon_tape.glb", "NYPD_Police_Cordon_Tape", glm::vec3(1.04f, 0.0f, 1.19f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.35f, 0.05f, 0 },
+
+            // High-Visibility Traffic Cones
+            { "assets/models/nyc_street/police_traffic_cone.glb", "Police_TrafficCone_1", glm::vec3(-3.9f, 0.38f, 1.5f), glm::vec3(0.0f), glm::vec3(1.0f), 0.45f, 0.05f, 0 },
+            { "assets/models/nyc_street/police_traffic_cone.glb", "Police_TrafficCone_2", glm::vec3(-2.6f, 0.38f, 1.5f), glm::vec3(0.0f), glm::vec3(1.0f), 0.45f, 0.05f, 0 },
+            { "assets/models/nyc_street/police_traffic_cone.glb", "Police_TrafficCone_3", glm::vec3(-1.3f, 0.38f, 1.5f), glm::vec3(0.0f), glm::vec3(1.0f), 0.45f, 0.05f, 0 },
+            { "assets/models/nyc_street/police_traffic_cone.glb", "Police_TrafficCone_4", glm::vec3(0.0f, 0.38f, 1.5f), glm::vec3(0.0f), glm::vec3(1.0f), 0.45f, 0.05f, 0 },
+            { "assets/models/nyc_street/police_traffic_cone.glb", "Police_TrafficCone_5", glm::vec3(1.3f, 0.38f, 1.5f), glm::vec3(0.0f), glm::vec3(1.0f), 0.45f, 0.05f, 0 },
+            { "assets/models/nyc_street/police_traffic_cone.glb", "Police_TrafficCone_6", glm::vec3(2.6f, 0.38f, 1.5f), glm::vec3(0.0f), glm::vec3(1.0f), 0.45f, 0.05f, 0 },
+            { "assets/models/nyc_street/police_traffic_cone.glb", "Police_TrafficCone_7", glm::vec3(3.9f, 0.38f, 1.5f), glm::vec3(0.0f), glm::vec3(1.0f), 0.45f, 0.05f, 0 },
+
+            // Sidewalk Furniture & Street Props
+            { "assets/models/nyc_street/nyc_fire_hydrant.glb", "NYC_FireHydrant", glm::vec3(-4.85f, 0.18f, 6.5f), glm::vec3(0.0f, 90.0f, 0.0f), glm::vec3(1.0f), 0.45f, 0.60f, 0 },
+            { "assets/models/nyc_street/nyc_bus_stop_shelter.glb", "NYC_BusStop_Shelter", glm::vec3(5.5f, 0.18f, -2.5f), glm::vec3(0.0f, 180.0f, 0.0f), glm::vec3(1.0f), 0.35f, 0.40f, 0 },
+            { "assets/models/nyc_street/nyc_newsbox_a.glb", "NYC_NewsBox_VarA", glm::vec3(-4.88f, 0.18f, 4.9f), glm::vec3(0.0f, 90.0f, 0.0f), glm::vec3(1.0f), 0.45f, 0.50f, 0 },
+            { "assets/models/nyc_street/nyc_newsbox_b.glb", "NYC_NewsBox_VarB", glm::vec3(-4.88f, 0.18f, 4.2f), glm::vec3(0.0f, 90.0f, 0.0f), glm::vec3(1.0f), 0.45f, 0.50f, 0 },
+            { "assets/models/nyc_street/nyc_street_sign.glb", "NYC_StreetSign_Left", glm::vec3(-4.85f, 0.18f, 1.8f), glm::vec3(0.0f, 45.0f, 0.0f), glm::vec3(1.0f), 0.45f, 0.50f, 0 },
+            { "assets/models/nyc_street/nyc_street_sign.glb", "NYC_StreetSign_Right", glm::vec3(5.39f, 0.18f, 1.8f), glm::vec3(0.0f, -45.0f, 0.0f), glm::vec3(1.0f), 0.45f, 0.50f, 0 },
+            { "assets/models/nyc_street/nyc_manhole_cover.glb", "NYC_Manhole_Cover", glm::vec3(-1.8f, 0.0f, 7.2f), glm::vec3(0.0f, 15.0f, 0.0f), glm::vec3(1.0f), 0.70f, 0.80f, 0 },
+            { "assets/models/nyc_street/nyc_sewer_grate.glb", "NYC_SewerGrate_Left", glm::vec3(-4.42f, 0.0f, 5.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.70f, 0.80f, 0 },
+
+            // Street Trees (category 1)
+            { "assets/models/nyc_street/nyc_street_tree.glb", "NYC_StreetTree_1", glm::vec3(-6.2f, 0.18f, 9.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.70f, 0.02f, 1 },
+            { "assets/models/nyc_street/nyc_street_tree.glb", "NYC_StreetTree_2", glm::vec3(-6.2f, 0.18f, -2.5f), glm::vec3(0.0f, 120.0f, 0.0f), glm::vec3(1.0f), 0.70f, 0.02f, 1 },
+            { "assets/models/nyc_street/nyc_street_tree.glb", "NYC_StreetTree_3", glm::vec3(-6.2f, 0.18f, -14.5f), glm::vec3(0.0f, 240.0f, 0.0f), glm::vec3(1.0f), 0.70f, 0.02f, 1 },
+            { "assets/models/nyc_street/nyc_street_tree.glb", "NYC_StreetTree_4", glm::vec3(6.2f, 0.18f, -8.5f), glm::vec3(0.0f, 45.0f, 0.0f), glm::vec3(1.0f), 0.70f, 0.02f, 1 },
+            { "assets/models/nyc_street/nyc_street_tree.glb", "NYC_StreetTree_5", glm::vec3(6.2f, 0.18f, -15.5f), glm::vec3(0.0f, 180.0f, 0.0f), glm::vec3(1.0f), 0.70f, 0.02f, 1 },
+
+            // Street Lampposts
+            { "assets/models/nyc_street/nyc_lamppost.glb", "NYC_Lamppost_Left_1", glm::vec3(-4.0f, 0.18f, 11.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.35f, 0.70f, 0 },
+            { "assets/models/nyc_street/nyc_lamppost.glb", "NYC_Lamppost_Left_2", glm::vec3(-4.0f, 0.18f, -7.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f), 0.35f, 0.70f, 0 },
+            { "assets/models/nyc_street/nyc_lamppost.glb", "NYC_Lamppost_Right_1", glm::vec3(4.0f, 0.18f, 7.5f), glm::vec3(0.0f, 180.0f, 0.0f), glm::vec3(1.0f), 0.35f, 0.70f, 0 },
+            { "assets/models/nyc_street/nyc_lamppost.glb", "NYC_Lamppost_Right_2", glm::vec3(4.85f, 0.18f, -12.0f), glm::vec3(0.0f, 180.0f, 0.0f), glm::vec3(1.0f), 0.35f, 0.70f, 0 },
+
+            // Merged Street Buildings (category 2)
+            { "assets/models/nyc_street/building_left_near.glb", "Building_Left_Front", glm::vec3(-10.0f, 0.18f, 12.0f), glm::vec3(0.0f), glm::vec3(1.0f), 0.5f, 0.0f, 2 },
+            { "assets/models/nyc_street/building_left_far.glb", "Building_Left_Back", glm::vec3(-10.0f, 0.18f, -12.0f), glm::vec3(0.0f), glm::vec3(1.0f), 0.5f, 0.0f, 2 },
+            { "assets/models/nyc_street/building_right_near.glb", "Building_Right_Front", glm::vec3(10.0f, 0.18f, 12.0f), glm::vec3(0.0f, 180.0f, 0.0f), glm::vec3(1.0f), 0.5f, 0.0f, 2 },
+            { "assets/models/nyc_street/building_right_near.glb", "Building_Right_Mid", glm::vec3(10.0f, 0.18f, -12.0f), glm::vec3(0.0f, 180.0f, 0.0f), glm::vec3(1.0f), 0.5f, 0.0f, 2 },
+            { "assets/models/nyc_street/building_right_far.glb", "Building_Right_Far", glm::vec3(10.0f, 0.18f, -36.0f), glm::vec3(0.0f, 180.0f, 0.0f), glm::vec3(1.0f), 0.5f, 0.0f, 2 },
+
+            // Depth Buildings (from 03_Street_Buildings in Blender)
+            { "assets/models/nyc_street/building_depth_midrise.glb", "Bld_Right_Depth_MidRise", glm::vec3(45.0f, 0.18f, -26.0f), glm::vec3(0.0f, 180.0f, 0.0f), glm::vec3(1.2f), 0.5f, 0.0f, 2 },
+            { "assets/models/nyc_street/building_depth_small.glb", "Bld_Right_Depth_Small", glm::vec3(45.0f, 0.18f, -44.0f), glm::vec3(0.0f, 180.0f, 0.0f), glm::vec3(1.0f), 0.5f, 0.0f, 2 },
+            { "assets/models/nyc_street/building_depth_tower.glb", "Bld_Right_Depth_Tower", glm::vec3(45.0f, 0.18f, -8.0f), glm::vec3(0.0f, 90.0f, 0.0f), glm::vec3(0.7f), 0.5f, 0.0f, 2 },
+
+            // Background Manhattan Skyline Panorama
+            { "assets/models/nyc_street/background_manhattan.glb", "NewYork_Manhattan_Skyline", glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(1.0f), 0.8f, 0.1f, 2 }
+        };
+
+        for (const auto& sp : streetProps)
+        {
+            if (sp.category == 1 && !genIncludeTrees) continue;
+            if (sp.category == 2 && !genIncludeBuildings) continue;
+            placeStreetModel(sp.model, sp.name, sp.pos, sp.rot, sp.scl, sp.roughness, sp.metallic);
+        }
+
+        // Night / Evening Point Lights (Streetlights and Police Emergency Strobes)
+        if (genIncludeLights)
+        {
+            struct StreetLightDef {
+                const char* name;
+                glm::vec3 pos;
+                glm::vec4 color;
+                float intensity;
+            };
+            static const StreetLightDef lights[] = {
+                { "💡 Lamppost_Light_1", glm::vec3(-4.0f, 4.18f, 11.0f), glm::vec4(1.0f, 0.90f, 0.75f, 1.0f), 2.5f },
+                { "💡 Lamppost_Light_2", glm::vec3(-4.0f, 4.18f, -7.0f), glm::vec4(1.0f, 0.90f, 0.75f, 1.0f), 2.5f },
+                { "💡 Lamppost_Light_3", glm::vec3(4.0f, 4.18f, 7.5f),   glm::vec4(1.0f, 0.90f, 0.75f, 1.0f), 2.5f },
+                { "💡 Lamppost_Light_4", glm::vec3(4.0f, 4.18f, -12.0f), glm::vec4(1.0f, 0.90f, 0.75f, 1.0f), 2.5f },
+                { "💡 Police_1_Red",     glm::vec3(-1.85f, 1.95f, -3.2f), glm::vec4(1.0f, 0.05f, 0.05f, 1.0f), 3.5f },
+                { "💡 Police_1_Blue",    glm::vec3(-1.35f, 1.95f, -3.2f), glm::vec4(0.05f, 0.25f, 1.0f, 1.0f), 3.5f },
+                { "💡 Police_2_Red",     glm::vec3(1.75f, 1.95f, -7.4f),  glm::vec4(1.0f, 0.05f, 0.05f, 1.0f), 3.5f },
+                { "💡 Police_2_Blue",    glm::vec3(2.25f, 1.95f, -7.4f),  glm::vec4(0.05f, 0.25f, 1.0f, 1.0f), 3.5f }
+            };
+
+            for (const auto& lt : lights)
+            {
+                SceneObject lObj;
+                lObj.id = static_cast<int>(sceneObjects.size());
+                lObj.name = lt.name;
+                lObj.type = ObjectType::LIGHT;
+                lObj.position = lt.pos;
+                lObj.scale = glm::vec3(0.2f);
+                lObj.color = lt.color;
+                lObj.meshId = primitiveCubeMeshId;
+                auto lComp = std::make_shared<LightComponent>();
+                lComp->color = lObj.color;
+                lComp->intensity = lt.intensity;
+                lObj.components.push_back(lComp);
+                sceneObjects.push_back(lObj);
+            }
+        }
+    }
 
     glm::vec3 mainCamP(0.0f, 3.2f, 14.5f);
     glm::vec3 mainCamT(0.0f, 1.2f, 0.0f);
@@ -1936,15 +2098,28 @@ void SceneGenerator::generate3DScene(Scene* scene, AssetManager* assetManager, G
         sceneRotY = 0.0f;
         scene->setPlayerStartPos(glm::vec3(0.0f, 0.0f, 17.0f));
     }
+    else if (genPreset == 8)
+    {
+        // NYC Urban Street View: Calibrated eye-level shooting lane looking down the street toward the bay
+        mainCamP = glm::vec3(-0.5f, 1.62f, 15.0f);
+        mainCamT = glm::vec3(-0.5f, 1.40f, -5.0f);
+        sceneCamT = glm::vec3(-0.5f, 1.50f, -5.0f);
+        sceneCamDist = 20.0f;
+        sceneRotX = 16.0f;
+        sceneRotY = 0.0f;
+        scene->setPlayerStartPos(glm::vec3(-0.5f, 0.0f, 14.5f));
+    }
 
+    float mainCamFarDist = (genPreset == 8) ? 500.0f : 120.0f;
+    float mainCamFov = (genPreset == 8) ? 60.0f : 45.0f;
     if (gizmoSystem)
     {
         // Preserve and set user's calibrated camera settings for the 2.4m x 2.0m screen
         gizmoSystem->mainCameraPos = mainCamP;
         gizmoSystem->mainCameraTarget = mainCamT;
-        gizmoSystem->mainCameraFov = 45.0f;
+        gizmoSystem->mainCameraFov = mainCamFov;
         gizmoSystem->mainCameraNear = 0.1f;
-        gizmoSystem->mainCameraFar = 120.0f;
+        gizmoSystem->mainCameraFar = mainCamFarDist;
         gizmoSystem->gameAspectRatioMode = GameViewAspectRatioMode::PHOTO_2M4_X_2M;
 
         gizmoSystem->sceneCameraTarget = sceneCamT;
@@ -1956,9 +2131,9 @@ void SceneGenerator::generate3DScene(Scene* scene, AssetManager* assetManager, G
     auto& cam = scene->getCameraSettings();
     cam.mainCameraPos = mainCamP;
     cam.mainCameraTarget = mainCamT;
-    cam.mainCameraFov = 45.0f;
+    cam.mainCameraFov = mainCamFov;
     cam.mainCameraNear = 0.1f;
-    cam.mainCameraFar = 120.0f;
+    cam.mainCameraFar = mainCamFarDist;
     cam.aspectRatioMode = 0; // PHOTO_2M4_X_2M
     cam.sceneCameraTarget = sceneCamT;
     cam.sceneRotationX = sceneRotX;
@@ -1975,13 +2150,17 @@ void SceneGenerator::generate3DScene(Scene* scene, AssetManager* assetManager, G
     else if (genPreset == 5) envName = "Floating Islands";
     else if (genPreset == 6) envName = "3D Maze";
     else if (genPreset == 7) envName = "Industrial Warehouse";
+    else if (genPreset == 8) envName = "NYC Street Scene";
 
     scene->setCurrentEnvironmentName(envName);
     std::string envFileName = Scene::getEnvironmentFileName(envName);
     scene->setCurrentScenePath(envFileName);
 
     scene->saveScene(envFileName, assetManager, gizmoSystem);
-    scene->saveScene("scene.json", assetManager, gizmoSystem);
+    if (genPreset == 8)
+    {
+        scene->saveScene("scene_nyc_street.json", assetManager, gizmoSystem);
+    }
     scene->exportToJMonkeyEngine("scene_jme.json", assetManager, gizmoSystem);
 
     printf("[3D Scene Generator] Created & saved scene '%s' (%s) with %zu entities!\n", envName.c_str(), envFileName.c_str(), sceneObjects.size());
@@ -2005,7 +2184,8 @@ void SceneGenerator::drawSceneGeneratorPanel(Scene* scene, AssetManager* assetMa
             "🏰 5. Ngôi Làng & Lâu Đài (Medieval Citadel)",
             "🌌 6. Quần Đảo Phao (Floating Archipelago)",
             "🌀 7. Mê Cung 3D (3D Dungeon Maze)",
-            "🏭 8. Kho Hàng Thực Tế (Industrial Warehouse - warehouse.glb)"
+            "🏭 8. Kho Hàng Thực Tế (Industrial Warehouse - warehouse.glb)",
+            "🏙️ 9. Đường Phố Đô Thị (NYC Urban Street - 1:1 Scale & Realistic Textures)"
         };
         ImGui::Combo("Preset Mẫu", &genPreset, presets, IM_ARRAYSIZE(presets));
 
@@ -2065,7 +2245,8 @@ void SceneGenerator::drawSceneGeneratorPanel(Scene* scene, AssetManager* assetMa
                                        (genPreset == 3) ? "Cyberpunk City" :
                                        (genPreset == 4) ? "Medieval Citadel" :
                                        (genPreset == 5) ? "Floating Islands" :
-                                       (genPreset == 6) ? "3D Maze" : "Industrial Warehouse";
+                                       (genPreset == 6) ? "3D Maze" :
+                                       (genPreset == 7) ? "Industrial Warehouse" : "NYC Street Scene";
         std::string currentEnvFile = Scene::getEnvironmentFileName(currentPresetEnv);
         ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.5f, 1.0f), "💾 File Môi Trường: %s", currentEnvFile.c_str());
 
@@ -2074,7 +2255,10 @@ void SceneGenerator::drawSceneGeneratorPanel(Scene* scene, AssetManager* assetMa
             scene->setCurrentEnvironmentName(currentPresetEnv);
             scene->setCurrentScenePath(currentEnvFile);
             scene->saveScene(currentEnvFile, assetManager, gizmoSystem);
-            scene->saveScene("scene.json", assetManager, gizmoSystem);
+            if (genPreset == 8)
+            {
+                scene->saveScene("scene_nyc_street.json", assetManager, gizmoSystem);
+            }
             scene->exportToJMonkeyEngine("scene_jme.json", assetManager, gizmoSystem);
         }
 

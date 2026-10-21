@@ -1,0 +1,52 @@
+{
+  "weapon": "AK47",
+  "targetBone": "CC_Base_R_Hand",
+  "secondaryBone": "CC_Base_L_Hand",
+  "socketBone": "Socket_Weapon_R",
+  "enableTwoHandedAiming": true,
+  "gripPivot": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "handguardContact": [
+    0.0,
+    -0.035,
+    -0.28
+  ],
+  "stockContact": [
+    0.0,
+    -0.04,
+    0.291
+  ],
+  "muzzlePoint": [
+    0.0,
+    0.012,
+    -0.585
+  ],
+  "dimensions": [
+    0.07051012851297855,
+    0.27125533670186996,
+    0.8767602145671844
+  ],
+  "massKg": 3.47,
+  "offsetPosition": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "offsetRotation": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "offsetScale": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "modelPath": "assets/models/AK47.glb",
+  "modelPathGameReady": "assets/models/AK47_GameReady.glb",
+  "texturePath": "assets/textures/AK_Base_color.png",
+  "description": "glTF 2.0 Standard: Forward -Z (Barrel), Up +Y (Sights), Right +X (Handle). Pivot at Grip Tang behind Trigger."
+}

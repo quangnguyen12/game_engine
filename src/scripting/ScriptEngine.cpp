@@ -1,6 +1,7 @@
 #include "scripting/ScriptEngine.h"
 #include "scene/Scene.h"
 #include "physics/PhysicsSystem.h"
+#include "animation/AnimatorComponent.h"
 #include <iostream>
 
 ScriptEngine::ScriptEngine()
@@ -19,13 +20,50 @@ void ScriptEngine::init(GLFWwindow* win, Scene* scene, int* gameScore, int* high
 
     luaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string);
 
+    // Bind AnimatorComponent to Lua
+    luaState.new_usertype<AnimatorComponent>("AnimatorComponent",
+        "play", &AnimatorComponent::play,
+        "crossFade", &AnimatorComponent::crossFade,
+        "pause", &AnimatorComponent::pause,
+        "resume", &AnimatorComponent::resume,
+        "stop", &AnimatorComponent::stop,
+        "seek", &AnimatorComponent::seek,
+        "onHit", &AnimatorComponent::onHit,
+        "resetTarget", &AnimatorComponent::resetTarget,
+        "isPlaying", &AnimatorComponent::isPlaying,
+        "isLooping", &AnimatorComponent::isLooping,
+        "speed", &AnimatorComponent::playbackSpeed,
+        "currentTime", &AnimatorComponent::currentTime,
+        "currentClip", &AnimatorComponent::currentClipName
+    );
+
     // Bind SceneObject to Lua
     luaState.new_usertype<SceneObject>("SceneObject",
         "name", &SceneObject::name,
         "position", &SceneObject::position,
         "rotation", &SceneObject::rotation,
         "scale", &SceneObject::scale,
-        "velocity", &SceneObject::velocity
+        "velocity", &SceneObject::velocity,
+        "getAnimator", [](SceneObject& obj) -> AnimatorComponent* {
+            auto anim = obj.getAnimator();
+            return anim ? anim.get() : nullptr;
+        },
+        "playAnimation", [](SceneObject& obj, const std::string& clip, sol::optional<bool> loop) {
+            auto anim = obj.getAnimator();
+            if (anim) anim->play(clip, loop.value_or(true));
+        },
+        "crossFadeAnimation", [](SceneObject& obj, const std::string& clip, float duration, sol::optional<bool> loop) {
+            auto anim = obj.getAnimator();
+            if (anim) anim->crossFade(clip, duration, loop.value_or(true));
+        },
+        "onTargetHit", [](SceneObject& obj) {
+            auto anim = obj.getAnimator();
+            if (anim) anim->onHit();
+        },
+        "resetTarget", [](SceneObject& obj) {
+            auto anim = obj.getAnimator();
+            if (anim) anim->resetTarget();
+        }
     );
 
     // Bind glm::vec3

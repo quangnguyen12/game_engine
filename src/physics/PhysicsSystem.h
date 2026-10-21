@@ -32,6 +32,14 @@ struct PhysicsBodyData {
     BodyMotionType motionType = BodyMotionType::DYNAMIC;
 };
 
+struct RayCastHit {
+    bool hasHit = false;
+    glm::vec3 hitPoint = glm::vec3(0.0f);
+    glm::vec3 hitNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+    float hitDistance = 0.0f;
+    uint32_t bodyId = 0;
+};
+
 class PhysEngine {
 public:
     PhysEngine();
@@ -78,6 +86,9 @@ public:
 
     // Body activation
     void activateBody(PhysicsBodyData* bodyData);
+
+    // Raycast Query (NarrowPhase collision detection)
+    bool castRay(glm::vec3 origin, glm::vec3 direction, float maxDistance, RayCastHit& outHit);
 
 private:
     JPH::PhysicsSystem* physicsSystem = nullptr;

@@ -114,6 +114,9 @@ private:
     void createShadowRenderPass();
     void createShadowResources();
     void createShadowPipeline();
+    void createBoneDescriptorSetLayout();
+    void createBoneResources();
+    void cleanupBoneResources();
 
     bool isDeviceSuitable(VkPhysicalDevice dev);
     bool checkDeviceExtensionSupport(VkPhysicalDevice dev);
@@ -142,6 +145,17 @@ private:
     VkRenderPass renderPass = VK_NULL_HANDLE;
     VkDescriptorSetLayout uboSetLayout = VK_NULL_HANDLE;
     VkDescriptorSetLayout textureSetLayout = VK_NULL_HANDLE;
+    VkDescriptorSetLayout boneSetLayout = VK_NULL_HANDLE;
+
+    // Bone skinning resources (128 bones per instance, up to 64 skinned objects per frame)
+    static constexpr size_t MAX_SKINNED_OBJECTS = 64;
+    VkBuffer defaultBoneBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory defaultBoneBufferMemory = VK_NULL_HANDLE;
+    VkDescriptorSet defaultBoneDescriptorSet = VK_NULL_HANDLE;
+
+    VkBuffer instanceBoneBuffers[MAX_FRAMES_IN_FLIGHT][MAX_SKINNED_OBJECTS] = {};
+    VkDeviceMemory instanceBoneBufferMemories[MAX_FRAMES_IN_FLIGHT][MAX_SKINNED_OBJECTS] = {};
+    VkDescriptorSet instanceBoneDescriptorSets[MAX_FRAMES_IN_FLIGHT][MAX_SKINNED_OBJECTS] = {};
 
     // Offscreen Resources (Scene View)
     VkImage offscreenColorImage = VK_NULL_HANDLE;

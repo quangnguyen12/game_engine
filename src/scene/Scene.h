@@ -77,6 +77,7 @@ public:
 
     void initPhysicsBodies(PhysEngine* physEngine);
     void syncPhysicsToTransform(PhysEngine* physEngine);
+    void updateAnimations(float dt);
 
     const std::string& getCurrentScenePath() const { return currentScenePath; }
     void setCurrentScenePath(const std::string& path) { currentScenePath = path; }

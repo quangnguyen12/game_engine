@@ -29,3 +29,10 @@ imgui.ini
 
 # Screenshots
 Cam_View_*.png
+
+# Screenshots and temporary test files
+bug*.png
+crop_*.png
+new_bug*.png
+*.obj
+test_*.cpp

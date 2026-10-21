@@ -1,7 +1,11 @@
 #pragma once
 
 #include "core/Types.h"
+#include "core/Vertex.h"
 #include "scene/Components.h"
+#include "animation/Skeleton.h"
+#include "animation/AnimationClip.h"
+#include "animation/AnimatorComponent.h"
 #include "physics/PhysicsSystem.h"
 #include <sol/sol.hpp>
 #include <vector>
@@ -13,6 +17,13 @@ struct SceneObject
 {
     int id = -1;
     int parentId = -1;
+    std::string parentBoneName = "";      // Primary bone (e.g. "CC_Base_R_Hand" - Grip / Trigger)
+    std::string secondaryBoneName = "";   // Secondary bone (e.g. "CC_Base_L_Hand" - Handguard / Muzzle)
+    bool enableTwoHandedAiming = false;   // Dynamic 2-handed lock (barrel points at secondary bone)
+    bool enableDynamicWeaponSockets = true; // Auto-switch between Hand & Chest based on animation (Reload -> R_Hand, Grenade -> Chest)
+    std::string chestBoneName = "CC_Base_Spine02"; // Chest bone for grenade toss / slung carry
+    glm::vec3 chestOffsetPosition = glm::vec3(0.05f, 0.05f, 0.16f);
+    glm::vec3 chestOffsetRotation = glm::vec3(45.0f, -30.0f, 135.0f);
     std::vector<int> children;
 
     std::string name;
@@ -61,6 +72,11 @@ struct SceneObject
                 return casted;
         }
         return nullptr;
+    }
+
+    std::shared_ptr<AnimatorComponent> getAnimator() const
+    {
+        return getComponent<AnimatorComponent>();
     }
 
     bool hasComponent(ComponentType compType) const
@@ -143,6 +159,34 @@ struct SceneObject
             auto newLight = std::make_shared<LightComponent>();
             newLight->color = color;
             components.push_back(newLight);
+        }
+    }
+
+    void autoAttachAnimatorIfSkinned(const std::vector<Mesh>& meshes)
+    {
+        if (meshId >= 0 && meshId < static_cast<int>(meshes.size()))
+        {
+            const auto& m = meshes[meshId];
+            if (m.isSkinned && m.skeleton)
+            {
+                auto animComp = getAnimator();
+                if (!animComp)
+                {
+                    animComp = std::make_shared<AnimatorComponent>();
+                    components.push_back(animComp);
+                }
+                animComp->skeleton = m.skeleton;
+                for (const auto& clip : m.defaultClips)
+                {
+                    if (clip) {
+                        animComp->addClip(clip);
+                    }
+                }
+                if (!m.defaultClips.empty() && !animComp->isPlaying)
+                {
+                    animComp->play(m.defaultClips[0]->name, true);
+                }
+            }
         }
     }
 };

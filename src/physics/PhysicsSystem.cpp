@@ -16,6 +16,9 @@
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
 
 JPH_SUPPRESS_WARNINGS
 
@@ -328,4 +331,33 @@ void PhysEngine::activateBody(PhysicsBodyData* bodyData) {
     if (!bodyData || !bodyData->bodyId || !physicsSystem) return;
     BodyInterface& body_interface = physicsSystem->GetBodyInterface();
     body_interface.ActivateBody(*bodyData->bodyId);
+}
+
+bool PhysEngine::castRay(glm::vec3 origin, glm::vec3 direction, float maxDistance, RayCastHit& outHit) {
+    if (!physicsSystem) return false;
+
+    glm::vec3 dirNorm = glm::length(direction) > 0.0001f ? glm::normalize(direction) : glm::vec3(0.0f, 0.0f, -1.0f);
+    RRayCast ray(
+        RVec3(origin.x, origin.y, origin.z),
+        Vec3(dirNorm.x * maxDistance, dirNorm.y * maxDistance, dirNorm.z * maxDistance)
+    );
+
+    RayCastResult result;
+    bool hit = physicsSystem->GetNarrowPhaseQuery().CastRay(ray, result);
+    if (hit) {
+        outHit.hasHit = true;
+        outHit.hitDistance = result.mFraction * maxDistance;
+        RVec3 hitPos = ray.GetPointOnRay(result.mFraction);
+        outHit.hitPoint = glm::vec3(hitPos.GetX(), hitPos.GetY(), hitPos.GetZ());
+        outHit.bodyId = result.mBodyID.GetIndexAndSequenceNumber();
+
+        BodyLockRead lock(physicsSystem->GetBodyLockInterface(), result.mBodyID);
+        if (lock.Succeeded()) {
+            const Body& body = lock.GetBody();
+            Vec3 norm = body.GetWorldSpaceSurfaceNormal(result.mSubShapeID2, hitPos);
+            outHit.hitNormal = glm::vec3(norm.GetX(), norm.GetY(), norm.GetZ());
+        }
+        return true;
+    }
+    return false;
 }

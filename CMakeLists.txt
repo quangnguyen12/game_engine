@@ -4,6 +4,7 @@ project(ShapeRenderer)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -76,13 +77,19 @@ add_executable(ShapeRenderer
     src/editor/SceneGenerator.cpp
     src/editor/ModelDownloader.cpp
     src/editor/EditorUI.cpp
+    src/vendor/ufbx/ufbx.c
+    src/animation/Skeleton.cpp
+    src/animation/AnimationClip.cpp
+    src/animation/AnimatorComponent.cpp
+    src/animation/AnimationLoader.cpp
 )
 
 add_dependencies(ShapeRenderer CompileShaders)
 
 if (MSVC)
-    target_compile_options(ShapeRenderer PRIVATE /bigobj)
+    target_compile_options(ShapeRenderer PRIVATE /bigobj /MP)
     set_source_files_properties(src/assets/ModelLoader.cpp PROPERTIES COMPILE_FLAGS "/O1 /Ob1")
+    set_source_files_properties(src/editor/EditorUI.cpp PROPERTIES COMPILE_FLAGS "/O1 /Ob1")
 endif()
 
 add_custom_command(
@@ -110,6 +117,7 @@ target_include_directories(ShapeRenderer
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor/ufbx
     ${CMAKE_CURRENT_SOURCE_DIR}/src/physics
     ${LUA_INCLUDE_DIR}
     ${glm_SOURCE_DIR}

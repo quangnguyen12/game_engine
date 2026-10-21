@@ -3,6 +3,7 @@
 #include "assets/AssetManager.h"
 #include "renderer/VulkanRenderer.h"
 #include "vendor/tinyfiledialogs.h"
+#include "animation/AnimationLoader.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/constants.hpp>
 #include <algorithm>
@@ -152,7 +153,7 @@ void GizmoSystem::drawSceneView(Scene* scene, AssetManager* assetManager, VkDesc
     drawList->AddRectFilled(windowPos, ImVec2(windowPos.x + windowSize.x, windowPos.y + windowSize.y), IM_COL32(40, 40, 40, 255));
 
     // Calculate Camera Matrices
-    glm::mat4 proj = glm::perspective(glm::radians(45.0f), windowSize.x / (windowSize.y > 0.0f ? windowSize.y : 1.0f), 0.1f, 100.0f);
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), windowSize.x / (windowSize.y > 0.0f ? windowSize.y : 1.0f), 0.1f, 500.0f);
     glm::vec3 offset(
         sceneCameraDistance * cos(glm::radians(sceneRotationX)) * sin(glm::radians(sceneRotationY)),
         sceneCameraDistance * sin(glm::radians(sceneRotationX)),
@@ -185,11 +186,20 @@ void GizmoSystem::drawSceneView(Scene* scene, AssetManager* assetManager, VkDesc
     }
     drawList->AddText(ImVec2(windowPos.x + 20, windowPos.y + 15), IM_COL32(255, 255, 255, 255), toolStr);
 
-    // Get selected object's 3D position
+    // Get selected object's 3D position (World Position for attached / socket objects)
     glm::vec3 pivotPos(0.0f);
     if (hasSelection)
     {
-        pivotPos = (selectedObjectIndex == -1) ? mainCameraPos : sceneObjects[selectedObjectIndex].position;
+        if (selectedObjectIndex == -1) {
+            pivotPos = mainCameraPos;
+        } else {
+            const auto& selObj = sceneObjects[selectedObjectIndex];
+            if (selObj.parentId >= 0) {
+                pivotPos = glm::vec3(scene->getWorldMatrix(selectedObjectIndex)[3]);
+            } else {
+                pivotPos = selObj.position;
+            }
+        }
     }
 
     // Project selected object center and axis handles
@@ -1215,7 +1225,38 @@ void GizmoSystem::drawSceneView(Scene* scene, AssetManager* assetManager, VkDesc
         const ImGuiPayload* payloadModel = ImGui::AcceptDragDropPayload("DND_ASSET_MODEL");
         const ImGuiPayload* payloadTex = ImGui::AcceptDragDropPayload("DND_ASSET_TEXTURE");
         const ImGuiPayload* payloadLua = ImGui::AcceptDragDropPayload("DND_ASSET_LUA");
+        const ImGuiPayload* payloadAnim = ImGui::AcceptDragDropPayload("DND_ASSET_ANIM");
         const ImGuiPayload* payloadGeneric = ImGui::AcceptDragDropPayload("DND_ASSET_PATH");
+
+        if (payloadAnim && assetManager)
+        {
+            const char* animPath = static_cast<const char*>(payloadAnim->Data);
+            auto selectedObj = scene->getSelectedObject();
+            if (!selectedObj && !sceneObjects.empty()) {
+                for (auto& obj : sceneObjects) {
+                    if (obj.meshId >= 0 && obj.meshId < static_cast<int>(assetManager->getMeshes().size())) {
+                        if (assetManager->getMeshes()[obj.meshId].isSkinned) {
+                            selectedObj = &obj;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (selectedObj)
+            {
+                selectedObj->autoAttachAnimatorIfSkinned(assetManager->getMeshes());
+                auto animComp = selectedObj->getAnimator();
+                if (animComp)
+                {
+                    auto clip = AnimationLoader::loadFBXClip(animPath, animComp->skeleton.get());
+                    if (clip)
+                    {
+                        animComp->addClip(clip);
+                        animComp->play(clip->name, true);
+                    }
+                }
+            }
+        }
 
         const ImGuiPayload* payload = payloadModel ? payloadModel : (payloadTex ? payloadTex : (payloadLua ? payloadLua : payloadGeneric));
 
@@ -1306,6 +1347,7 @@ void GizmoSystem::drawSceneView(Scene* scene, AssetManager* assetManager, VkDesc
                         newObj.metallic = meshes[meshId].defaultMetallic;
                     }
                     newObj.syncComponents();
+                    newObj.autoAttachAnimatorIfSkinned(meshes);
                     sceneObjects.push_back(newObj);
                     scene->setSelectedObjectIndex(static_cast<int>(sceneObjects.size()) - 1);
                 }
